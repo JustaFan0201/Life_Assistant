@@ -12,6 +12,7 @@ class HelloBack(commands.Cog):
     async def on_ready(self):
         await self.bot.tree.sync()
         print(f"{__name__} loaded successfully")
+    @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author == self.bot.user:
             return
