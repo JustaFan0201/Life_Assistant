@@ -41,8 +41,8 @@
 
 ##  架構
 │── bot.py                # 主程式，負責啟動機器人與載入 Cogs  
-│── .env                  # 儲存 Discord Bot Token（需自行建立） 
-│── requirements.txt      # 相依套件清單   
+│── .env                  # 儲存 Discord Bot Token（需自行建立）  
+│── requirements.txt      # 相依套件清單  
 │  
 ├─ cogs/                  # 各功能模組  
 │   ├─ ticketing.py       # 搶票系統  
