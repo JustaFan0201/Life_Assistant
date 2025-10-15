@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from keep_alive import keep_alive
+import datetime
 
 # 取得 bot.py 的所在目錄 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
@@ -18,11 +19,13 @@ bot = commands.Bot(command_prefix = "!", intents = intents)
 # 當機器人完成啟動時
 @bot.event
 async def on_ready():
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"目前登入身份 --> {bot.user}")
     channel_id = 1427945108019609640
     channel = bot.get_channel(channel_id)
+    msg = f"Bot 已上線！現在時間：{now}"
     if channel:
-        await channel.send("Bot 已上線！")
+        await channel.send(msg)
     else:
         print(f"找不到頻道 {channel_id}")
 
