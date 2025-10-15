@@ -3,6 +3,7 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from keep_alive import keep_alive
 
 # 取得 bot.py 的所在目錄 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
@@ -18,6 +19,12 @@ bot = commands.Bot(command_prefix = "!", intents = intents)
 @bot.event
 async def on_ready():
     print(f"目前登入身份 --> {bot.user}")
+    channel_id = 1427945108019609640
+    channel = bot.get_channel(channel_id)
+    if channel:
+        await channel.send("Bot 已上線！")
+    else:
+        print(f"找不到頻道 {channel_id}")
 
 # 載入指令程式檔案
 @bot.command()
@@ -46,6 +53,7 @@ async def load_extensions():
 async def main():
     async with bot:
         await load_extensions()
+        keep_alive()
         await bot.start(TOKEN)
 
 # 確定執行此py檔才會執行

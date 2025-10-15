@@ -5,6 +5,9 @@ import openai
 import os
 from dotenv import load_dotenv
 
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(env_path)
+api_key = os.getenv("GPT_API")
 # 定義名為 Main 的 Cog
 class Fortune(commands.Cog):
     def __init__(self, bot):
@@ -20,8 +23,6 @@ class Fortune(commands.Cog):
     @app_commands.command(name="fortune", description="check your fortune for today.")
     async def fortune(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
-        api_key = os.getenv("GPT_API")
         prompt = "請以簡短有趣的方式，隨機生成一則今日運勢，給予一些建議做的事與不建議做的事情。"
         try:
             client = openai.OpenAI(

@@ -5,6 +5,9 @@ import openai
 import os
 from dotenv import load_dotenv
 
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(env_path)
+api_key = os.getenv("GPT_API")
 CHANNEL_ID = 1423551561187070022  # 指定頻道 ID
 
 class Reply(commands.Cog):
@@ -21,9 +24,7 @@ class Reply(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if self.active and message.channel.id == CHANNEL_ID and message.author != self.bot.user:
-            load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
-            api_key = os.getenv("GPT_API")
-            
+    
             # 建立歷史訊息串列
             messages = []
             for q, a in self.history[-5:]:  # 只取最近5組問答
