@@ -21,6 +21,19 @@ cd Life_Assistant
 python .\bot.py
 ```
 ---
+### 3.測試
+
+如果在自己電腦測自己的bot bot.py中  
+local_test改成True 或註解掉來測試  
+但記得要commit上去時 改成False  
+```
+async def main():
+    async with bot:
+        await load_extensions()
+        keep_alive(local_test=True)
+        await bot.start(TOKEN)
+```
+---
 ##  功能模組 (Features)
 
 所有的功能模組皆獨立存放於 `cogs/` 資料夾中：

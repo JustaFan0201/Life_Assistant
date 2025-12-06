@@ -70,7 +70,7 @@ async def load_extensions():
 async def main():
     async with bot:
         await load_extensions()
-        keep_alive(local_test=True)  # 啟動保持存活的服務
+        keep_alive(local_test=False)  # 本地測試True commit上去記得改成False
         await bot.start(TOKEN)
 
 # 確定執行此py檔才會執行

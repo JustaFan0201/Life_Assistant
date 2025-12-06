@@ -20,7 +20,7 @@ class example(commands.Cog):
             await message.channel.send("Hello, world!")
 
     # 前綴指令
-    @app_commands.command(name="hello",description="send example to you.")
+    @app_commands.command(name="example",description="send Hello to you.")
     async def hello(self, interaction: discord.Interaction):
         await interaction.response.send_message("Hello, world!")
 
