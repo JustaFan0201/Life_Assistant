@@ -1,53 +1,67 @@
-# 多功能 Discord Bot 
+##  專題簡介 (Introduction)
 
-##  專題簡介
-本專題實作一個 **多功能 Discord Bot**，整合多種實用功能，讓使用者在伺服器中能方便地查詢資訊、互動及完成日常操作。  
-機器人以 **Python + discord.py** 開發，並使用 **Cogs 架構** 將各模組功能分離，達到 **模組化、易於維護、互不衝突** 的設計。  
+**Life Assistant** 是一個基於 **Python** 與 **discord.py** 開發的全能型 Discord 機器人，旨在成為伺服器中最強大的自動化助手。
+
+本專案採用 **進階模組化架構 (Package-based Cogs)**，徹底解決了傳統單一檔案開發的雜亂問題。透過將功能拆分為獨立的「專案包」，我們實現了：
+
+* ✅ **邏輯分離**：每個功能 (如搶票、GPT) 擁有獨立的資料夾與命名空間。
+* ✅ **依賴隔離**：各模組可獨立管理其輔助檔案。
+* ✅ **易於擴充**：採用 `__init__.py` 入口設計，隨插即用。
+---
+
+## 環境建置與使用
+### 1.虛擬環境
+```bash
+#for windows NOTE: only for powershell not cmd  
+cd Life_Assistant  
+.\sync.ps1  
+```
+### 2.啟動
+```bash
+python .\bot.py
+```
+---
+##  功能模組 (Features)
+
+所有的功能模組皆獨立存放於 `cogs/` 資料夾中：
+
+### 1.  搶票系統 (Ticketing System)
+*  即時查詢：快速查詢高鐵班次、時間與剩餘座位。
+*  自動訂票：機器人持續監控餘票，並在有票時協助自動下訂 (Automation)。
+
+### 2.  Google 整合系統 (開發中)
+*  ...。
+
+### 3.  行事曆系統 (開發中)
+*  ...。
 
 ---
 
-##  功能模組設計
-機器人主要包含以下三大功能模組，每個模組獨立於 `cogs/` 資料夾中：  
+## 📂 專案架構 (Project Structure)
 
-### 1. 搶票系統（Ticketing System）
-- 提供高鐵查詢班次功能（透過 **交通部 TDX API**）。  
-- 使用者可輸入出發站、到達站、日期與時間，Bot 回覆對應班次。  
-- 自動生成 **高鐵訂票連結**，點擊即可跳轉至官網訂票頁。  
-- 提供 **訂票提醒功能**，在開放訂票時間通知使用者。  
+本專案採用 **Package** 結構，`cogs/` 下的每個資料夾都是一個獨立的 Python 套件。
 
- 檔案：`cogs/ticketing.py`
-
----
-
-### 2.  Google Drive 上傳系統
-- 使用者可透過 Slash 指令上傳檔案，Bot 自動將檔案傳至 **Google Drive**。  
-- 支援 OAuth 2.0 驗證，確保帳號安全性。  
-- 上傳成功後，回傳檔案連結供使用者下載或分享。  
-
- 檔案：`cogs/drive_upload.py`
-
----
-
-### 3.  機器人互動功能
-- 提供互動小功能，例如：  
-  - `/hello` → Bot 回覆 "Hello, world!"  
-  - `/roll` → 擲骰子功能，隨機回覆數字  
-  - `/ping` → 測試延遲（Bot 回覆毫秒數）  
-- 讓使用者體驗更有趣的互動過程。  
-
- 檔案：`cogs/interactions.py`
-
----
-
-##  架構
-│── bot.py                # 主程式，負責啟動機器人與載入 Cogs  
-│── .env                  # 儲存 Discord Bot Token（需自行建立）  
-│── requirements.txt      # 相依套件清單  
-│  
-├─ cogs/                  # 各功能模組  
-│   ├─ ticketing.py       # 搶票系統  
-│   ├─ drive_upload.py    # Google Drive 上傳  
-│   └─ interactions.py    # 基本互動功能  
-│  
-└─ credentials/           # Google API 憑證資料  
-    └─ credentials.json  
+```text
+Life_Assistant/
+│── bot.py                  #  機器人啟動核心 (Entry Point)
+│── .env                    #  環境變數 (Token, Keys) - ⚠️ 請勿上傳
+│── requirements.txt        #  依賴套件清單
+│── sync.ps1                #  Windows 自動化建置腳本 (Auto Setup)
+│── keep_alive.py           # 後端 讓機器人保持不下線
+│
+└─ cogs/                    #  功能模組存放區 (Plugins)
+    ├─example.py            #  單個cog檔案範例
+    │
+    ├─ GPT/                 # [範例] GPT 模組包
+    │   ├─ __init__.py      # 模組入口 (負責匯出 Cog)
+    │   ├─ utils/           # 該專案專用的工具
+    │   │   ├─ __init__.py  # 標示 utils 為工具
+    │   │   └─ ask_gpt.py   # API 連線
+    │   └─ src/             # 核心邏輯層
+    │       ├─ __init__.py  # 標示 src 為套件
+    │       ├─ fortune.py   # 功能 A
+    │       └─ reply.py     # 功能 B
+    │
+    └─ Ticketing/           # [範例] 搶票模組包
+        ├─ __init__.py
+        └─ src/ ...

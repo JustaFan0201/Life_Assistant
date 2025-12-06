@@ -48,15 +48,29 @@ async def reload(ctx, extension):
     await ctx.send(f"ReLoaded {extension} done.")
 
 # 一開始bot開機需載入全部程式檔案
-async def load_extensions(): 
-    for filename in os.listdir(COGS_DIR): 
-        if filename.endswith(".py"): 
-            await bot.load_extension(f"cogs.{filename[:-3]}")
+async def load_extensions():
+    # 遍歷 cogs 資料夾下的所有項目
+    for item in os.listdir(COGS_DIR):
+        item_path = os.path.join(COGS_DIR, item)
+
+        # 情況 1: 傳統的單一 .py 檔案 (例如 cogs/general.py)
+        if os.path.isfile(item_path) and item.endswith(".py"):
+            try:
+                await bot.load_extension(f"cogs.{item[:-3]}")
+                print(f"Loaded extension: cogs.{item[:-3]}")
+            except Exception as e:
+                print(f"Failed to load extension {item}: {e}")
+
+        # 情況 2: 資料夾形式的專案 (例如 cogs/ticket/)
+        elif os.path.isdir(item_path):
+            if os.path.exists(os.path.join(item_path, "__init__.py")):
+                # 如果有 __init__.py，直接載入資料夾名稱
+                await bot.load_extension(f"cogs.{item}") 
 
 async def main():
     async with bot:
         await load_extensions()
-        keep_alive()
+        keep_alive(local_test=True)  # 啟動保持存活的服務
         await bot.start(TOKEN)
 
 # 確定執行此py檔才會執行
