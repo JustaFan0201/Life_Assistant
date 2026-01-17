@@ -2,29 +2,39 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-# 從 ui 資料夾引入 View
 from .ui.menu_view import MainControlView
-CHANNEL_ID = 1423551561187070022  # 請改成你要發送控制台的頻道 ID
-
+CHANNEL_ID = 1423551561187070022
+# 系統模組的 Cog 主要用來顯示文字訊息 可以依照以下格式 新增介紹功能文字
 class SystemCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-    # 負責產生 Embed 和 View，讓指令跟自動啟動都能共用
     def create_dashboard_ui(self):
         embed = discord.Embed(
-            title="🎛️ Life Assistant 控制中心",
-            description="請點擊下方按鈕來使用功能：",
-            color=0x2b2d31
+            title="Life Assistant 控制中心",
+            description="> 歡迎使用全能助手，請點擊下方按鈕操作：",
+            color=0x2b2d31,
+            timestamp=discord.utils.utcnow()
         )
-        
-        embed.add_field(name="🔮 今日運勢", value="AI 幫你算命，給予今日建議", inline=True)
-        embed.add_field(name="💬 與 AI 對話", value="點擊按鈕直接向 GPT 提問", inline=True)
-        
-        embed.add_field(name="⚙️ 自動回覆", value="開啟/關閉頻道的自動監聽", inline=True)
-        embed.add_field(name="ℹ️ 系統狀態", value="檢查機器人延遲與運作情形", inline=True)
-        
-        # 呼叫 View (按鈕都已經在 MainControlView 裡面裝好了)
+
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+
+        embed.add_field(
+            name="🤖 AI 助手", 
+            value="包含：今日運勢、GPT 對話", 
+            inline=False
+        )
+
+        embed.add_field(
+            name="ℹ️ 系統狀態", 
+            value="檢查機器人延遲 (Ping)", 
+            inline=False
+        )
+
+        embed.set_footer(
+            text="Life Assistant v0.1", 
+            icon_url="https://cdn-icons-png.flaticon.com/512/906/906324.png" # 資訊小圖標
+        )
+
         view = MainControlView(self.bot)
         return embed, view
 
@@ -34,7 +44,7 @@ class SystemCog(commands.Cog):
         
         if channel:
             try:
-                await channel.purge(limit=10) 
+                await channel.purge(limit=5) 
             except Exception as e:
                 print(f"清除舊訊息失敗 (可能是權限不足): {e}")
 

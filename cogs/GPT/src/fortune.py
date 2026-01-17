@@ -19,7 +19,7 @@ class FortuneCog(commands.Cog):
             prompt = "請以簡短有趣的方式，隨機生成一則今日運勢，給予一些建議做的事與不建議做的事情。"
             result = ask_gpt([{"role": "user", "content": prompt}])
             
-            await interaction.followup.send(f"{result}")
+            await interaction.followup.send(f"{result}",ephemeral=True)
             
         except Exception as e:
             print(f"Fortune Error: {e}")

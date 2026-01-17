@@ -88,6 +88,10 @@ Life_Assistant/
     │
     ├─ GPT/                 # GPT功能  
     │   ├─ __init__.py 
+    │   │ 
+    │   ├─ ui/              # 介面層 (GPT子選單)
+    │   │   ├─ view.py      # GPT Dashboard View
+    │   │   └─ buttons.py   # GPT 功能按鈕
     │   ├─ utils/           # 工具層 (API 連線)
     │   │   └─ ask_gpt.py
     │   └─ src/             # 核心邏輯層
@@ -96,11 +100,13 @@ Life_Assistant/
     │
     ├─ System/              # UI  
     │   ├─ __init__.py      # 模組入口 (Setup)
-    │   ├─ core.py          # 核心：指令註冊 (/dashboard) 與 事件監聽
+    │   ├─ core.py          # 主要用於創造與顯示主介面文字介紹
     │   └─ ui/              # 介面：負責外觀與互動元件
     │       ├─ __init__.py
     │       ├─ menu_view.py # View 工廠：負責組裝按鈕
-    │       └─ buttons.py   # 元件庫：定義獨立且可重用的 Button/Modal 類別
+    │       └─ buttons.py   # 定義主介面需要或是在其他介面也需要的 Button 類別
     │
     └─ Ticketing/           # 搶票系統
         └─ ...
+
+

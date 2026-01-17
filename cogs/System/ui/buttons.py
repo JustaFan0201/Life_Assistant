@@ -1,82 +1,55 @@
 import discord
 from discord import ui
-
-class FortuneButton(ui.Button):
-    def __init__(self, bot):
-        super().__init__(
-            label="今日運勢", 
-            style=discord.ButtonStyle.blurple, 
-            emoji="🔮",
-            custom_id="btn_fortune_persistent"
-        )
-        self.bot = bot
-
-    # 這是按鈕被點擊時觸發的事件 (相當於原本的 @ui.button 下面的函式)
-    async def callback(self, interaction: discord.Interaction):
-        # 1. 告訴 Discord 稍等
-        await interaction.response.defer()
-        # 2. 取得 GPT 模組
-        fortune_cog = self.bot.get_cog("FortuneCog")
-        if fortune_cog:
-            await fortune_cog.process_fortune_logic(interaction)
-        else:
-            await interaction.followup.send("❌ 找不到運勢模組。", ephemeral=True)
-
+#狀態按鈕，顯示系統延遲
 class StatusButton(ui.Button):
     def __init__(self, bot):
-        super().__init__(label="系統狀態", style=discord.ButtonStyle.gray, emoji="ℹ️")
+        super().__init__(label="系統狀態", style=discord.ButtonStyle.gray, row=1, emoji="ℹ️")
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
         latency = round(self.bot.latency * 1000)
         await interaction.response.send_message(f"✅ 系統運作中，延遲：{latency}ms", ephemeral=True)
-
-class GPTChatModal(ui.Modal, title="與 AI 對話"):
-    question = ui.TextInput(
-        label="請輸入你的問題",
-        style=discord.TextStyle.paragraph,
-        placeholder="你好，請幫我解釋...",
-        required=True,
-        max_length=500
-    )
-
-    def __init__(self, bot):
-        super().__init__()
-        self.bot = bot
-
-    async def on_submit(self, interaction: discord.Interaction):
-        reply_cog = self.bot.get_cog("ReplyCog")
-        if reply_cog:
-            await reply_cog.process_direct_chat(interaction, self.question.value)
-        else:
-            await interaction.response.send_message("❌ 找不到 GPT 模組。", ephemeral=True)
-
-class ChatButton(ui.Button):
+# 返回主選單按鈕
+class BackToMainButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
-            label="與 AI 對話", 
-            style=discord.ButtonStyle.green, 
-            emoji="💬",
-            custom_id="btn_chat_modal"
+            label="返回主選單",
+            style=discord.ButtonStyle.secondary,
+            row=4
         )
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(GPTChatModal(self.bot))
+        system_cog = self.bot.get_cog("SystemCog")
 
-class ToggleReplyButton(ui.Button):
+        if system_cog:
+            embed, view = system_cog.create_dashboard_ui()
+            
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message("❌ 錯誤：找不到系統核心模組。", ephemeral=True)
+# 前往 GPT UI按鈕
+class GoToGPTButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
-            label="自動回覆開關", 
-            style=discord.ButtonStyle.secondary, 
-            emoji="⚙️",
-            custom_id="btn_toggle_reply"
+            label="AI 助手功能", 
+            style=discord.ButtonStyle.primary, 
+            emoji="🤖",
+            row=0
         )
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        reply_cog = self.bot.get_cog("ReplyCog")
-        if reply_cog:
-            await reply_cog.toggle_active_status(interaction)
-        else:
-            await interaction.response.send_message("❌ 找不到 GPT 模組。", ephemeral=True)
+        from ...GPT.ui.view import GPTDashboardView
+        
+        embed = discord.Embed(
+            title="🤖 AI 助手控制台",
+            description="這裡集合了所有 GPT 相關功能，請選擇：",
+            color=0x1abc9c
+        )
+        embed.add_field(name="功能列表", value="🔮 運勢\n💬 對話\n⚙️ 設定", inline=False)
+        
+        view = GPTDashboardView(self.bot)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+# 新增需要前往更多UI的按鈕...
