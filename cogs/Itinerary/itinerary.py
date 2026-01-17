@@ -5,7 +5,9 @@ import asyncio
 from discord.ext import commands, tasks
 from .views.itinerary_view import ItineraryAddView, ItineraryDeleteView, ViewPageSelect
 from .utils.itinerary_tool import ItineraryTools
- 
+from discord import app_commands
+
+
 class Itinerary(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -16,10 +18,11 @@ class Itinerary(commands.Cog):
         self.check_reminders.start()
         
 
-    @commands.command(name="新增行程")
-    async def add_plan(self, ctx):
+    @app_commands.command(name="新增行程", description="開啟選單來規劃新的行程")
+    async def add_plan(self, interaction: discord.Interaction):
         view = ItineraryAddView(cog = self)
-        await ctx.send("點選下方選項開始規劃行程：", view=view)
+        await interaction.response.send_message("點選下方選項開始規劃行程：", view=view)
+
     async def process_data(self, interaction, raw_data):
         count, success, info = self.tools .add_and_save(raw_data, interaction.channel.id)
         
@@ -28,17 +31,18 @@ class Itinerary(commands.Cog):
         else:
             return f"添加失敗 目前有 {count} 個行程。\n{info}" 
         
-    @commands.command(name="查看行程")
-    async def view_plans(self, ctx):
+    @app_commands.command(name="查看行程", description="顯示目前所有的行程規劃")
+    async def view_plans(self, interaction: discord.Interaction):
         data_list = self.tools.get_data_list()
         view = ViewPageSelect(cog=self, data_list=data_list)    
-        await ctx.send(embed = view.embed, view = view)
+        await interaction.response.send_message(embed = view.embed, view = view)
 
-    @commands.command(name="刪除行程")
-    async def delete_plan(self, ctx):
+    @app_commands.command(name="刪除行程", description="刪除指定的行程")
+    async def delete_plan(self, interaction: discord.Interaction):
         data_list = self.tools.view_delete_list()
         view = ItineraryDeleteView(cog=self, data_list = data_list)
-        await ctx.send("點選下方選項刪除行程：", view=view)
+        await interaction.response.send_message("點選下方選項刪除行程：", view=view)
+        
     async def delete_data(self, selected_index):
         count, success, info = self.tools .delete(selected_index)
 
@@ -91,7 +95,5 @@ class Itinerary(commands.Cog):
         print("時間已對齊，開始執行提醒任務！")
         
         
-
-# 檔案最下方
 async def setup(bot):
     await bot.add_cog(Itinerary(bot))
