@@ -3,8 +3,8 @@ import os
 from datetime import datetime
 import asyncio
 from discord.ext import commands, tasks
-from views.itinerary_view import ItineraryAddView, ItineraryDeleteView, ViewPageSelect
-from utils.itinerary_tool import ItineraryTools
+from .views.itinerary_view import ItineraryAddView, ItineraryDeleteView, ViewPageSelect
+from .utils.itinerary_tool import ItineraryTools
  
 class Itinerary(commands.Cog):
     def __init__(self, bot):
