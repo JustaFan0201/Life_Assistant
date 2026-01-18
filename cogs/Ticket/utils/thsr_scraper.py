@@ -38,10 +38,12 @@ def get_thsr_schedule(start_station, end_station, search_date=None, search_time=
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
-    chrome_bin = os.environ.get("GOOGLE_CHROME_BIN")
-    if chrome_bin:
-        options.binary_location = chrome_bin
-    driver = None
+    if os.environ.get("GOOGLE_CHROME_BIN"):
+        options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
+
+    # 使用 webdriver_manager 自動下載對應版本的 driver
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
     result_text = ""
 
     try:
