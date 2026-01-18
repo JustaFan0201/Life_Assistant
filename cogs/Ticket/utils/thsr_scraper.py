@@ -33,11 +33,21 @@ def get_thsr_schedule(start_station, end_station, search_date=None, search_time=
 
     # --- 瀏覽器設定 ---
     options = Options()
-    options.add_argument("--headless")
+    options.add_argument("--headless=new") 
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
+    
+    # 【優化 1】調小視窗大小 (不用畫那麼多像素，省 CPU)
+    options.add_argument("--window-size=1280,720") 
+    
+    # 【優化 2】禁止載入圖片 (最有效的加速！省流量也省時間)
+    options.add_argument("--blink-settings=imagesEnabled=false")
+    
+    # 【優化 3】設定網頁載入策略 (重要)
+    # 'normal': 等所有資源(含圖片、廣告)載入才開始 (預設，最慢)
+    # 'eager': HTML 解析完就開始，不藉圖片 (推薦)
+    options.page_load_strategy = 'eager'
     if os.environ.get("GOOGLE_CHROME_BIN"):
         options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
 
