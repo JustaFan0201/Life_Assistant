@@ -25,6 +25,12 @@ class SystemCog(commands.Cog):
         )
 
         embed.add_field(
+            name="🚄 生活工具", 
+            value="包含：高鐵時刻表查詢",
+            inline=True
+        )
+
+        embed.add_field(
             name="ℹ️ 系統狀態", 
             value="檢查機器人延遲 (Ping)", 
             inline=False

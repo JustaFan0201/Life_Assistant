@@ -52,4 +52,24 @@ class GoToGPTButton(ui.Button):
         view = GPTDashboardView(self.bot)
         
         await interaction.response.edit_message(embed=embed, view=view)
-# 新增需要前往更多UI的按鈕...
+
+class GoToTHSRButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="高鐵時刻表", 
+            style=discord.ButtonStyle.success, 
+            emoji="🚄",
+            row=0
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        # 1. 獲取 Ticket Cog
+        ticket_cog = self.bot.get_cog("THSR_CheckTimeStampCog")
+        
+        if ticket_cog:
+            # 2. 呼叫 Cog 裡面的 UI 產生器
+            embed, view = ticket_cog.create_ticket_dashboard_ui()
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message("❌ 錯誤：找不到高鐵模組。", ephemeral=True)

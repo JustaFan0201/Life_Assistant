@@ -96,4 +96,5 @@ class Itinerary(commands.Cog):
         
         
 async def setup(bot):
-    await bot.add_cog(Itinerary(bot))
+    #await bot.add_cog(Itinerary(bot))
+    print("Itinerary Package loaded.")
