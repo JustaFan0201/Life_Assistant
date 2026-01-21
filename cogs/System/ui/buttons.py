@@ -73,3 +73,35 @@ class GoToTHSRButton(ui.Button):
             await interaction.response.edit_message(embed=embed, view=view)
         else:
             await interaction.response.send_message("❌ 錯誤：找不到高鐵模組。", ephemeral=True)
+
+class GoToItineraryButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="行程管理", 
+            style=discord.ButtonStyle.primary, 
+            emoji="📅",
+            row=0
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        itinerary_cog = self.bot.get_cog("Itinerary") 
+
+        if not itinerary_cog:
+            return await interaction.response.send_message("❌ 錯誤：找不到 Itinerary 模組。", ephemeral=True)
+
+        try:
+            from cogs.Itinerary.views.itinerary_view import ItineraryDashboardView
+            sub_view = ItineraryDashboardView(self.bot, itinerary_cog) 
+            
+            sub_embed = discord.Embed(
+                title="📅 個人行程管理系統",
+                description="您可以查看、新增或刪除您的行程。",
+                color=0x3498db
+            )
+            
+            await interaction.response.edit_message(embed=sub_embed, view=sub_view)
+            
+        except Exception as e:
+            await interaction.response.send_message(f"跳轉失敗，原因：{e}", ephemeral=True)
+

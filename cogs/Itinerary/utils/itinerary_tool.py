@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime, timezone, timedelta
-import discord
+
 
 class ItineraryTools:
     def __init__(self, folder_path):
@@ -144,7 +144,7 @@ class ItineraryTools:
         tz_utc_8 = timezone(timedelta(hours=8))
         now = datetime.now(tz_utc_8)
         new_time = now.replace(minute=int(now_minute))
-        print(now)
+        # print(now)
 
         try:
             new_time = now.replace(minute=now_minute, second=0, microsecond=0)

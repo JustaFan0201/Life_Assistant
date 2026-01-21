@@ -21,6 +21,15 @@ bot = commands.Bot(command_prefix = "!", intents = intents)
 async def on_ready():
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"目前登入身份 --> {bot.user}")
+
+    try:
+        # 同步所有已載入 Cog 中的 app_commands
+        synced = await bot.tree.sync()
+        print(f"成功同步 {len(synced)} 個斜線指令！")
+    except Exception as e:
+        print(f"同步斜線指令失敗: {e}")
+
+
     channel_id = 1427945108019609640
     channel = bot.get_channel(channel_id)
     msg = f"Bot 已上線！現在時間：{now}"
@@ -44,8 +53,13 @@ async def unload(ctx, extension):
 # 重新載入程式檔案
 @bot.command()
 async def reload(ctx, extension):
-    await bot.reload_extension(f"cogs.{extension}")
-    await ctx.send(f"ReLoaded {extension} done.")
+    try:
+        await bot.reload_extension(f"cogs.{extension}")
+        # 重新同步指令清單
+        await bot.tree.sync()
+        await ctx.send(f"ReLoaded {extension} and synced commands.")
+    except Exception as e:
+        await ctx.send(f"Error reloading {extension}: {e}")
 
 # 一開始bot開機需載入全部程式檔案
 async def load_extensions():

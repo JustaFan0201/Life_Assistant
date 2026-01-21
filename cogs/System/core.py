@@ -36,6 +36,12 @@ class SystemCog(commands.Cog):
             inline=False
         )
 
+        embed.add_field(
+            name="📅 行程管理", 
+            value="規劃與查詢您的個人行程", 
+            inline=True
+        )
+
         embed.set_footer(
             text="Life Assistant v0.1", 
             icon_url="https://cdn-icons-png.flaticon.com/512/906/906324.png" # 資訊小圖標

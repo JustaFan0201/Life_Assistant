@@ -9,16 +9,6 @@
             "content": "awdsd aDf safas",
             "priority": "0",
             "channel_id": 1410880822755590165
-        },
-        {
-            "year": "2027",
-            "month": "5",
-            "date": "15",
-            "hour": 11,
-            "minute": 30,
-            "content": "test",
-            "priority": "1",
-            "channel_id": 1410880822755590165
         }
     ]
 }

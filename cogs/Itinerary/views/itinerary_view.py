@@ -1,5 +1,8 @@
 import discord
 from datetime import datetime, timezone
+from discord import ui
+from cogs.System.ui.buttons import BackToMainButton
+
 
 class ItineraryModal(discord.ui.Modal, title="新增我的行程"):
     # content = discord.ui.TextInput(label="內容")
@@ -62,6 +65,7 @@ class ItineraryAddView(discord.ui.View):
             "content": None,
             "priority": None
         }
+        self.add_item(BackToMainButton(self.cog.bot))
 
     current_year = datetime.now().year
 
@@ -130,9 +134,15 @@ class ViewPageSelect(discord.ui.View):
                 actual_index = start + i + 1 
                 
                 try:
-                    p_emoji = priority_map[int(item['priority'])]
-                
-                    time_str = f"{item['year']}-{int(item['month']):02d}-{int(item['date']):02d} {int(item['hour']):02d}:{int(item['minute']):02d}"
+                    p_emoji = priority_map[int(item.get('priority', 2))]
+                    
+                    year = item.get('year', '2026')
+                    month = int(item.get('month') or 1)
+                    date = int(item.get('date') or 1)
+                    hour = int(item.get('hour') or 0)
+                    minute = int(item.get('minute') or 0)
+
+                    time_str = f"{year}-{month:02d}-{date:02d} {hour:02d}:{minute:02d}"
 
                     self.embed.add_field(
                         name = f"{p_emoji} #{actual_index} | {time_str}",
@@ -144,6 +154,8 @@ class ViewPageSelect(discord.ui.View):
                     continue
 
             self.embed.set_footer(text=f"共有 {count} 筆行程")
+
+        self.add_item(BackToMainButton(self.cog.bot))
     
         if self.page > 0:
                 btn_prev = discord.ui.Button(label="❮ 上一頁", style=discord.ButtonStyle.gray, row=1)
@@ -204,6 +216,8 @@ class ItineraryDeleteView(discord.ui.View):
             btn_next = discord.ui.Button(label="下一頁 ❯", style=discord.ButtonStyle.gray, row=1)
             btn_next.callback = self.next_page
             self.add_item(btn_next)
+        
+        self.add_item(BackToMainButton(self.cog.bot))
 
     async def select_callback(self, interaction: discord.Interaction):
         self.selected_index = int(self.select.values[0])
@@ -231,6 +245,8 @@ class ConfirmDeleteView(discord.ui.View):
         self.index = index
         self.content_text = content_text
 
+        self.add_item(BackToMainButton(self.cog.bot))
+
     @discord.ui.button(label="確認刪除", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def confirm_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         
@@ -247,3 +263,27 @@ class ConfirmDeleteView(discord.ui.View):
         await interaction.response.edit_message(content="已取消刪除操作。", view=None)
     
 
+class ItineraryDashboardView(ui.View):
+    def __init__(self, bot, cog):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.cog = cog
+        self.add_item(BackToMainButton(self.bot))
+
+    @ui.button(label="查看行程表", style=discord.ButtonStyle.success, emoji="📋", row=0)
+    async def view_list(self, interaction: discord.Interaction, button: ui.Button):
+        data_list = await self.cog.get_all_data()
+        new_view = ViewPageSelect(self.cog, data_list)
+        await interaction.response.edit_message(content=None, embed=new_view.embed, view=new_view)
+
+    @ui.button(label="新增行程", style=discord.ButtonStyle.primary, emoji="➕", row=0)
+    async def add_item_btn(self, interaction: discord.Interaction, button: ui.Button):
+        new_view = ItineraryAddView(self.cog)
+        embed = discord.Embed(title="➕ 新增行程", description="請選擇時間與優先級", color=0x3498db)
+        await interaction.response.edit_message(content=None, embed=embed, view=new_view)
+
+    @ui.button(label="刪除行程", style=discord.ButtonStyle.danger, emoji="🗑️", row=0)
+    async def delete_item_btn(self, interaction: discord.Interaction, button: ui.Button):
+        data_list = await self.cog.get_delete_list()
+        new_view = ItineraryDeleteView(self.cog, data_list)
+        await interaction.response.edit_message(content="請選擇要刪除的項目：", embed=None, view=new_view)

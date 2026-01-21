@@ -5,3 +5,4 @@ flask
 selenium
 webdriver-manager
 prettytable
+aiosmtplib

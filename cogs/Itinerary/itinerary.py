@@ -11,17 +11,33 @@ from discord import app_commands
 class Itinerary(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # print("✅ 行程模組已成功初始化")
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.tools = ItineraryTools(current_dir)
         self.last_check_minute = -1
         self.check_reminders.start()
-        
 
+    async def get_all_data(self):
+        return self.tools.get_data_list()
+
+    async def get_delete_list(self):
+        return self.tools.view_delete_list()
+    
+    '''
     @app_commands.command(name="新增行程", description="開啟選單來規劃新的行程")
     async def add_plan(self, interaction: discord.Interaction):
         view = ItineraryAddView(cog = self)
         await interaction.response.send_message("點選下方選項開始規劃行程：", view=view)
+    '''
+
+    async def add_plan_internal(self, interaction: discord.Interaction):
+        view = ItineraryAddView(cog=self)
+        # 注意：如果是從按鈕點擊進來的，通常用 edit_message
+        if interaction.response.is_done():
+            await interaction.edit_original_response(content="點選下方選項開始規劃行程：", embed=None, view=view)
+        else:
+            await interaction.response.send_message("點選下方選項開始規劃行程：", view=view)
 
     async def process_data(self, interaction, raw_data):
         count, success, info = self.tools .add_and_save(raw_data, interaction.channel.id)
@@ -30,19 +46,30 @@ class Itinerary(commands.Cog):
             return f"成功添加！現在有 {count} 個行程。"
         else:
             return f"添加失敗 目前有 {count} 個行程。\n{info}" 
-        
+    '''    
     @app_commands.command(name="查看行程", description="顯示目前所有的行程規劃")
     async def view_plans(self, interaction: discord.Interaction):
         data_list = self.tools.get_data_list()
         view = ViewPageSelect(cog=self, data_list=data_list)    
         await interaction.response.send_message(embed = view.embed, view = view)
+    '''
+    async def view_plans_internal(self, interaction: discord.Interaction):
+        data_list = self.tools.get_data_list()
+        view = ViewPageSelect(cog=self, data_list=data_list)
+        await interaction.response.send_message(embed=view.embed, view=view)
 
+    '''
     @app_commands.command(name="刪除行程", description="刪除指定的行程")
     async def delete_plan(self, interaction: discord.Interaction):
         data_list = self.tools.view_delete_list()
         view = ItineraryDeleteView(cog=self, data_list = data_list)
         await interaction.response.send_message("點選下方選項刪除行程：", view=view)
-        
+    '''
+    async def delete_plan_internal(self, interaction: discord.Interaction):
+        data_list = self.tools.view_delete_list()
+        view = ItineraryDeleteView(cog=self, data_list=data_list)
+        await interaction.response.send_message("點選下方選項刪除行程：", view=view)
+
     async def delete_data(self, selected_index):
         count, success, info = self.tools .delete(selected_index)
 
@@ -57,7 +84,7 @@ class Itinerary(commands.Cog):
     async def check_reminders(self):
         now = datetime.now()
         if self.last_check_minute != now.minute:
-            print(f"檢查中... 現在時間: {now.hour}:{now.minute}")
+            # print(f"檢查中... 現在時間: {now.hour}:{now.minute}")
             
             success, output, channel_id = self.tools.mantion_check(now.minute)
 
@@ -77,24 +104,36 @@ class Itinerary(commands.Cog):
 
     @check_reminders.before_loop
     async def before_check(self):
-        print("正在等待機器人準備就緒...")
+        # print("正在等待機器人準備就緒...")
         await self.bot.wait_until_ready()
-        print("機器人已就緒，開始計算對齊時間...")
+        # print("機器人已就緒，開始計算對齊時間...")
         
         try:
             now = datetime.now()
-            print(f"DEBUG: 現在秒數是 {now.second}")
+            # print(f"DEBUG: 現在秒數是 {now.second}")
         except Exception as e:
             print(f"計算出錯了: {e}")
                 
         seconds_to_wait = 60 - now.second
         
         if seconds_to_wait > 0:
-            print(f"需要等待 {seconds_to_wait} 秒以對齊分鐘...")
+            # print(f"需要等待 {seconds_to_wait} 秒以對齊分鐘...")
             await asyncio.sleep(seconds_to_wait)
-        print("時間已對齊，開始執行提醒任務！")
+        # print("時間已對齊，開始執行提醒任務！")
+
+    def create_itinerary_dashboard_ui(self):
+        embed = discord.Embed(
+            title="📅 個人行程管理系統",
+            description="您可以在這裡查看、新增或刪除您的行程。",
+            color=discord.Color.blue()
+        )
+
+        from .views.itinerary_view import ItineraryView 
+        view = ItineraryView(self.bot) 
+        
+        return embed, view
         
         
 async def setup(bot):
-    #await bot.add_cog(Itinerary(bot))
+    await bot.add_cog(Itinerary(bot))
     print("Itinerary Package loaded.")
