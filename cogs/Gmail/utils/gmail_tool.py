@@ -27,7 +27,7 @@ class EmailTools:
                 await smtp.login(self.user, self.password)
                 await smtp.send_message(msg)
 
-                return True, f'已發送email至{data['to']}'
+                return True, f"已發送email至{data['to']}"
 
         except ValueError as e:
             print(f"SMTP Error: {e}")
