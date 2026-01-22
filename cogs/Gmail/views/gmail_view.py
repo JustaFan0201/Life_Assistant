@@ -29,9 +29,9 @@ class EmailSendView(discord.ui.Modal, title = '寄件設定'):
         traceback.print_exc() 
         
         if interaction.response.is_done():
-            await interaction.followup.send('發生意外錯誤，請查看主機後台。', ephemeral=True)
+            await interaction.followup.send('發生意外錯誤 請查看主機後台', ephemeral=True)
         else:
-            await interaction.response.send_message('發生意外錯誤，請通知管理員。', ephemeral=True)
+            await interaction.response.send_message('發生意外錯誤 請通知管理員', ephemeral=True)
 
 class EmailReplyModal(discord.ui.Modal):
     content_input = discord.ui.TextInput(

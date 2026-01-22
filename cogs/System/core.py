@@ -42,6 +42,12 @@ class SystemCog(commands.Cog):
             inline=True
         )
 
+        embed.add_field(
+            name="📧 郵件管理", 
+            value="包含：新信即時通知、快速撰寫與寄送 Gmail",
+            inline=False
+        )
+
         embed.set_footer(
             text="Life Assistant v0.1", 
             icon_url="https://cdn-icons-png.flaticon.com/512/906/906324.png" # 資訊小圖標

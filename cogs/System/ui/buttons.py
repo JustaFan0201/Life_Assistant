@@ -105,3 +105,24 @@ class GoToItineraryButton(ui.Button):
         except Exception as e:
             await interaction.response.send_message(f"跳轉失敗，原因：{e}", ephemeral=True)
 
+class GoToGmailButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="郵件管理", 
+            style=discord.ButtonStyle.danger,
+            emoji="📧",
+            row=1 
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        # 1. 獲取 Gmail Cog
+        gmail_cog = self.bot.get_cog("Gmail")
+        
+        if gmail_cog:
+            # 2. 直接呼叫 Cog 裡面的 UI 產生器
+            embed, view = gmail_cog.create_gmail_dashboard_ui()
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message("❌ 錯誤：找不到 Gmail 模組。", ephemeral=True)
+
