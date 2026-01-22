@@ -6,3 +6,4 @@ selenium
 webdriver-manager
 prettytable
 aiosmtplib
+aioimaplib
