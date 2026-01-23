@@ -85,6 +85,3 @@ class Gmail(commands.Cog):
         view.add_item(BackToMainButton(self.bot))
         
         return embed, view
-
-async def setup(bot: commands.Bot):
-    await bot.add_cog(Gmail(bot))

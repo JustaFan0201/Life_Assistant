@@ -1,129 +1,122 @@
-# 🛠️ 實作example：GPT 子介面與導航架構
+# 🛠️ 實作 Example：THSR 子介面與導航架構
 
-本章節將說明如何實作 **「主選單 (Main Menu) ↔ 子選單 (Sub Menu)」** 的雙向導航系統。我們使用 Discord 的 `edit_message` 機制，讓使用者在不產生新訊息的情況下，原地切換介面。
-
+本章節將說明如何實作 「主選單 (System Dashboard) ↔ 子選單 (THSR Dashboard)」的雙向導航系統。  
+我們使用 Discord 的 edit_message 機制，讓使用者在不產生新訊息的情況下，原地切換介面。
 ## 📂 架構概覽
 
 我們將修改以下三個檔案來完成此功能：
 
-1.  **`cogs/System/ui/buttons.py`**：定義通用按鈕(前往 GPT、返回主選單 寫好的 需要可以再加)。
-2.  **`cogs/GPT/ui/view.py`**：定義「GPT 子介面」 (運勢、對話、開關)。
-3.  **`cogs/System/ui/menu_view.py`**：將「前往 GPT」按鈕放入主控台。
-4.  **`cogs/System/core.py`**：主要用於顯示主介面文字介紹。 
+1.  **`cogs/System/ui/buttons.py`**：定義「前往 THSR」按鈕 (入口)。 
+2.  **`cogs/THSR/ui/view.py`**：定義「THSR 子介面」與「工廠方法」。
+3.  **`cogs/System/ui/view.py`**：將「前往 THSR」按鈕放入主控台。
 ---
 
-## Step 1. 定義導航按鈕
+## Step 1. 定義導航按鈕 (前往子選單)
 **📂 檔案位置：** `cogs/System/ui/buttons.py`
 
-這裡有兩個關鍵按鈕：
-1.  **`BackToMainButton`**：負責呼叫 System Core 重建主介面。
-2.  **`GoToGPTButton`**：負責建立 GPT View 並切換過去。
+這個按鈕負責呼叫 THSR_DashboardView 的靜態工廠方法，取得子介面並切換過去。
 
 ```python
 import discord
 from discord import ui
 
 # =================================================================
-# 1. 通用的「返回主選單」按鈕 (所有子介面都能用)
+# [System] 前往「THSR 高鐵模組」的導航按鈕
 # =================================================================
-class BackToMainButton(ui.Button):
+class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
-            label="返回主選單",
-            style=discord.ButtonStyle.secondary, # 灰色
-            row=4 # 建議固定放在最下面一排
-        )
-        self.bot = bot
-
-    async def callback(self, interaction: discord.Interaction):
-        # 1. 取得 SystemCog (主控台核心)
-        system_cog = self.bot.get_cog("SystemCog")
-
-        if system_cog:
-            # 2. 呼叫 core.py 裡面的 create_dashboard_ui 方法
-            # 💡 這樣可以確保「返回」時看到的介面，跟一開始輸入指令看到的是一模一樣的
-            embed, view = system_cog.create_dashboard_ui()
-            
-            # 3. 編輯訊息，切換回主介面
-            await interaction.response.edit_message(embed=embed, view=view)
-        else:
-            await interaction.response.send_message("❌ 錯誤：找不到系統核心模組。", ephemeral=True)
-
-# =================================================================
-# 2. 「前往 GPT」的導航按鈕
-# =================================================================
-class GoToGPTButton(ui.Button):
-    def __init__(self, bot):
-        super().__init__(
-            label="AI 助手功能", 
+            label="高鐵時刻表", 
             style=discord.ButtonStyle.primary, # 藍紫色
-            emoji="🤖",
+            emoji="🚄",
             row=0
         )
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        # 💡 [關鍵技巧]：在函式內 import，避免循環引用錯誤 (Circular Import)
-        # 因為 System 引用 GPT，GPT 又引用 System，寫在最上面會報錯
-        from ...GPT.ui.view import GPTDashboardView 
+        # 💡 [關鍵技巧]：Lazy Import 避免循環引用
+        # 從 THSR 模組引入 View
+        from cogs.THSR.ui.view import THSR_DashboardView
         
-        # 1. 建立 GPT 專屬的 View
-        sub_view = GPTDashboardView(self.bot)
+        # 1. 直接呼叫 THSR_DashboardView 的靜態工廠方法
+        # 這會回傳標準化的 (Embed, View)
+        embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         
-        # 2. 建立 GPT 專屬的 Embed (子選單說明)
-        sub_embed = discord.Embed(
-            title="🤖 AI 助手控制台",
-            description="這裡集合了所有 GPT 相關功能，請選擇：",
-            color=0x1abc9c # 湖水綠
-        )
-        sub_embed.add_field(name="功能列表", value="🔮 運勢\n💬 對話\n⚙️ 設定", inline=False)
-        
-        # 3. 切換過去 (原地變身)
-        await interaction.response.edit_message(embed=sub_embed, view=sub_view)
+        # 2. 切換過去 (原地變身)
+        await interaction.response.edit_message(embed=embed, view=view)
 ```
-## Step 2. 製作 GPT 子介面 (Sub-Interface)
-**📂 檔案位置：** `cogs/GPT/ui/view.py`
+## Step 2. 製作 THSR 子介面 (Sub-Interface)
+**📂 檔案位置：** `cogs/THSR/ui/view.py`
 
-這個檔案負責定義 GPT 功能專屬的介面容器。它會將 GPT 相關的功能按鈕（如運勢、對話）組裝起來，並在最後加上一顆通用的「返回鍵」。
+這個檔案負責定義 THSR 模組的主選單 **(THSR_DashboardView)**。我們在這裡實作 靜態工廠方法，供外部（如 System 的按鈕）呼叫。
 
 ```python
 import discord
 from discord import ui
 
-# 1. 引入 System 的返回鍵 (使用相對路徑跨模組引用)
-# System 在 GPT 的上一層的隔壁，所以用 ...
+# 1. 引入 System 的返回鍵 (通用按鈕)
 from ...System.ui.buttons import BackToMainButton
 
-# 2. 引入 GPT 自己的功能按鈕
-# 假設這些按鈕定義在同目錄下的 buttons.py
-from .buttons import FortuneButton, ChatButton, ToggleReplyButton
+# 2. 引入 THSR 自己的功能按鈕 (例如「開啟查詢」按鈕)
+from .buttons import OpenTHSRQueryButton
 
-class GPTDashboardView(ui.View):
+# ====================================================
+# THSR 主選單 (Dashboard)
+# ====================================================
+class THSR_DashboardView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
         
-        # --- A. 加入 GPT 功能按鈕 ---
-        self.add_item(FortuneButton(bot))      # 🔮 運勢
-        self.add_item(ChatButton(bot))         # 💬 對話 (Modal)
-        self.add_item(ToggleReplyButton(bot))  # ⚙️ 開關
+        # --- A. 加入 THSR 功能按鈕 ---
+        # 這裡放置 THSR 模組的功能入口
+        self.add_item(OpenTHSRQueryButton(bot)) 
         
         # --- B. 加入返回按鈕 ---
-        # 這顆按鈕點下去後，會呼叫 SystemCog 重建主選單
-        self.add_item(BackToMainButton(bot))   # 🔙 返回
+        # 這顆按鈕點下去後，會呼叫 MainControlView 重建主選單
+        self.add_item(BackToMainButton(bot))
+
+    @staticmethod
+    def create_dashboard_ui(bot):
+        """
+        [工廠模式] 統一產生 THSR Dashboard 的 Embed 與 View
+        供所有「前往 THSR」的按鈕呼叫使用
+        """
+        embed = discord.Embed(
+            title="🚄 高鐵服務中心",
+            description="> 歡迎使用高鐵查詢系統，請選擇您需要的服務：",
+            color=discord.Color.orange(),
+            timestamp=discord.utils.utcnow()
+        )
+        # 設定縮圖與裝飾
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3063/3063822.png")
+        
+        embed.add_field(
+            name="功能說明", 
+            value="🗓️ **查詢時刻表**：即時爬取高鐵官網班次\n🎫 **自動購票**：(開發中...)\n⚙️ **系統設定**：(開發中...)", 
+            inline=False
+        )
+        
+        embed.set_footer(text="Powered by Selenium • JustaFan0201")
+        
+        # 建立 View
+        view = THSR_DashboardView(bot)
+        
+        return embed, view
 ```
 ## Step 3. 設定主介面入口 (Main Entry)
-**📂 檔案位置：** `cogs/System/ui/menu_view.py`
+**📂 檔案位置：** `cogs/System/ui/view.py`
 
-主介面（Dashboard）的 View 應該保持乾淨，只負責放置「導航按鈕」或是「全域功能按鈕」。這裡我們將 Step 1 製作的「前往 GPT」按鈕放進來，作為功能的入口。
+主介面 (MainControlView) 是整個 Bot 的首頁。我們將 Step 1 寫好的 GoToTHSRButton 放進來，作為進入 THSR 模組的入口。
 
 ```python
 import discord
 from discord import ui
 
-# 引入在 Step 1 定義好的「前往 GPT 按鈕」與其他系統按鈕
-# 因為 menu_view.py 和 buttons.py 都在同一個資料夾 (System/ui)，所以用 .buttons
-from .buttons import GoToGPTButton, StatusButton
+# 引入定義好的按鈕
+# GoToTHSRButton: 前往高鐵 (定義在 System/ui/buttons.py)
+# StatusButton: 系統狀態 (定義在 System/ui/buttons.py)
+from .buttons import GoToTHSRButton, StatusButton, GoToItineraryButton, GoToGmailButton
 
 class MainControlView(ui.View):
     def __init__(self, bot):
@@ -131,12 +124,45 @@ class MainControlView(ui.View):
         self.bot = bot
         
         # --- 第一排：導航區 (Navigation) ---
-        # 點擊這個按鈕，介面會切換成 GPTDashboardView (進入子選單)
-        self.add_item(GoToGPTButton(bot))
+        # 點擊這個按鈕，介面會切換成 THSR_DashboardView (進入子選單)
+        self.add_item(GoToTHSRButton(bot))
         
-        # 未來如果有搶票系統，可以加在這裡：
-        # self.add_item(GoToTicketingButton(bot))
+        # 其他模組入口...
+        self.add_item(GoToItineraryButton(bot))
+        self.add_item(GoToGmailButton(bot))
         
         # --- 第二排：系統功能區 (System) ---
-        # 這種全域的功能 (如查 Ping 值)，可以直接放在主選單
         self.add_item(StatusButton(bot))
+
+    @staticmethod
+    def create_dashboard_ui(bot):
+        """
+        [工廠模式] 統一產生 System Dashboard 的 Embed 與 View
+        """
+        embed = discord.Embed(
+            title="Life Assistant 控制中心",
+            description="> 歡迎使用全能助手，請點擊下方按鈕操作：",
+            color=0x2b2d31,
+            timestamp=discord.utils.utcnow()
+        )
+        # ... (Embed 內容設定) ...
+        
+        view = MainControlView(bot)
+        return embed, view
+```
+## 流程總結 
+1. 使用者在主選單點擊 「🚄 高鐵時刻表」 (GoToTHSRButton)。
+
+2. 按鈕觸發 callback，呼叫 THSR_DashboardView.create_dashboard_ui(bot)。
+
+3. 靜態方法回傳 THSR 的 Embed 與 View。
+
+4. Discord 介面原地更新為 THSR 子選單。
+
+5. 使用者在子選單點擊 「🔙 返回主選單」 (BackToMainButton)。
+
+6.按鈕觸發 callback，呼叫 MainControlView.create_dashboard_ui(bot)。
+
+Discord 介面原地更新回 System 主選單。
+
+這樣就完成了完美的雙向導航！

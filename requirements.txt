@@ -2,8 +2,9 @@ discord.py
 python-dotenv
 openai
 flask
+
 selenium
 webdriver-manager
-prettytable
+
 aiosmtplib
 aioimaplib

@@ -20,16 +20,11 @@ class BackToMainButton(ui.Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        system_cog = self.bot.get_cog("SystemCog")
-
-        if system_cog:
-            embed, view = system_cog.create_dashboard_ui()
-            
-            await interaction.response.edit_message(embed=embed, view=view)
-        else:
-            await interaction.response.send_message("❌ 錯誤：找不到系統核心模組。", ephemeral=True)
+        from .view import MainControlView 
+        embed, view = MainControlView.create_dashboard_ui(self.bot)
+        await interaction.response.edit_message(embed=embed, view=view)
 # 前往 GPT UI按鈕
-class GoToGPTButton(ui.Button):
+'''class GoToGPTButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="AI 助手功能", 
@@ -51,28 +46,22 @@ class GoToGPTButton(ui.Button):
         
         view = GPTDashboardView(self.bot)
         
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view)'''
 
 class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="高鐵時刻表", 
-            style=discord.ButtonStyle.success, 
+            style=discord.ButtonStyle.primary, 
             emoji="🚄",
             row=0
         )
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        # 1. 獲取 Ticket Cog
-        ticket_cog = self.bot.get_cog("THSR_CheckTimeStampCog")
-        
-        if ticket_cog:
-            # 2. 呼叫 Cog 裡面的 UI 產生器
-            embed, view = ticket_cog.create_ticket_dashboard_ui()
-            await interaction.response.edit_message(embed=embed, view=view)
-        else:
-            await interaction.response.send_message("❌ 錯誤：找不到高鐵模組。", ephemeral=True)
+        from cogs.THSR.ui.view import THSR_DashboardView
+        embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class GoToItineraryButton(ui.Button):
     def __init__(self, bot):
@@ -109,9 +98,9 @@ class GoToGmailButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="郵件管理", 
-            style=discord.ButtonStyle.danger,
+            style=discord.ButtonStyle.primary,
             emoji="📧",
-            row=1 
+            row=0 
         )
         self.bot = bot
 

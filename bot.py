@@ -6,17 +6,16 @@ from dotenv import load_dotenv
 from keep_alive import keep_alive
 import datetime
 
-# 取得 bot.py 的所在目錄 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 COGS_DIR = os.path.join(BASE_DIR, "cogs")
 
-load_dotenv()  # 確保讀取的是 bot.py 同目錄
+load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+NOTIFY_CHANNEL_ID = os.getenv("Login_Notify_Channel_ID")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix = "!", intents = intents)
 
-# 當機器人完成啟動時
 @bot.event
 async def on_ready():
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -29,14 +28,26 @@ async def on_ready():
     except Exception as e:
         print(f"同步斜線指令失敗: {e}")
 
-
-    channel_id = 1427945108019609640
-    channel = bot.get_channel(channel_id)
-    msg = f"Bot 已上線！現在時間：{now}"
-    if channel:
-        await channel.send(msg)
+    if NOTIFY_CHANNEL_ID:
+        try:
+            channel_id = int(NOTIFY_CHANNEL_ID)
+            
+            channel = await bot.fetch_channel(channel_id)
+            
+            msg = f"🟢 **Bot 已上線！**\n時間：`{now}`"
+            await channel.send(msg)
+            print(f"✅ 上線通知已發送至頻道: {channel.name} (ID: {channel.id})")
+            
+        except ValueError:
+            print("❌ 通知失敗：.env 中的 Channel ID 不是有效的數字。")
+        except discord.NotFound:
+            print(f"❌ 通知失敗：找不到頻道 ID {NOTIFY_CHANNEL_ID} (請確認 ID 正確且機器人在該伺服器)。")
+        except discord.Forbidden:
+            print(f"❌ 通知失敗：機器人沒有權限在該頻道發言。")
+        except Exception as e:
+            print(f"❌ 通知發送發生未知錯誤: {e}")
     else:
-        print(f"找不到頻道 {channel_id}")
+        print("⚠️ 未設定 Login_Notify_Channel_ID，跳過上線通知。")
 
 # 載入指令程式檔案
 @bot.command()
@@ -64,22 +75,30 @@ async def reload(ctx, extension):
 # 一開始bot開機需載入全部程式檔案
 async def load_extensions():
     # 遍歷 cogs 資料夾下的所有項目
+    if not os.path.exists(COGS_DIR):
+        print(f"⚠️ 找不到 cogs 資料夾：{COGS_DIR}")
+        return
+
     for item in os.listdir(COGS_DIR):
         item_path = os.path.join(COGS_DIR, item)
 
         # 情況 1: 傳統的單一 .py 檔案 (例如 cogs/general.py)
-        if os.path.isfile(item_path) and item.endswith(".py"):
+        '''if os.path.isfile(item_path) and item.endswith(".py"):
             try:
                 await bot.load_extension(f"cogs.{item[:-3]}")
                 print(f"Loaded extension: cogs.{item[:-3]}")
             except Exception as e:
-                print(f"Failed to load extension {item}: {e}")
+                print(f"Failed to load extension {item}: {e}")'''
 
         # 情況 2: 資料夾形式的專案 (例如 cogs/ticket/)
-        elif os.path.isdir(item_path):
+        if os.path.isdir(item_path):
             if os.path.exists(os.path.join(item_path, "__init__.py")):
                 # 如果有 __init__.py，直接載入資料夾名稱
-                await bot.load_extension(f"cogs.{item}") 
+                try:
+                    await bot.load_extension(f"cogs.{item}")
+                    print(f"已載入模組: cogs.{item}")
+                except Exception as e:
+                    print(f"❌ 載入模組失敗 cogs.{item}: {e}")
 
 async def main():
     async with bot:
@@ -88,8 +107,15 @@ async def main():
             keep_alive(local_test=False)
         else:
             keep_alive(local_test=True)
-        await bot.start(TOKEN)
+        
+        if TOKEN:
+            await bot.start(TOKEN)
+        else:
+            print("❌ 錯誤：未讀取到 DISCORD_BOT_TOKEN，請檢查 .env 檔案")
 
 # 確定執行此py檔才會執行
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

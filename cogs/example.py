@@ -25,5 +25,5 @@ class example(commands.Cog):
         await interaction.response.send_message("Hello, world!")
 
 # Cog 載入 Bot 中
-'''async def setup(bot):
-    await bot.add_cog(example(bot))'''
+async def setup(bot):
+    await bot.add_cog(example(bot))
