@@ -5,6 +5,7 @@ flask
 
 selenium
 webdriver-manager
+ddddocr
 
 aiosmtplib
 aioimaplib
