@@ -2,18 +2,11 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
-from dotenv import load_dotenv
-from pathlib import Path
 
 # 引入 MainControlView
 from .ui.view import MainControlView
 
-base_dir = Path(__file__).resolve().parent.parent.parent
-env_path = base_dir / '.env'
-
-load_dotenv(dotenv_path=env_path)
-
-channel_id = os.getenv("DASHBOARD_CHANNEL_ID")
+channel_id = os.getenv("Dashboard_Channel_ID")
 
 class SystemCog(commands.Cog):
     def __init__(self, bot):
