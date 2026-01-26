@@ -2,9 +2,18 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
+from dotenv import load_dotenv
+from pathlib import Path
 
 # 引入 MainControlView
 from .ui.view import MainControlView
+
+base_dir = Path(__file__).resolve().parent.parent.parent
+env_path = base_dir / '.env'
+
+load_dotenv(dotenv_path=env_path)
+
+channel_id = os.getenv("DASHBOARD_CHANNEL_ID")
 
 class SystemCog(commands.Cog):
     def __init__(self, bot):
@@ -13,7 +22,6 @@ class SystemCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         await self.bot.wait_until_ready()
-        channel_id = os.getenv("DASHBOARD_CHANNEL_ID")
     
         if not channel_id:
             print("❌ 錯誤：找不到 DASHBOARD_CHANNEL_ID 環境變數，請檢查 .env 檔案。")

@@ -2,8 +2,9 @@ import discord
 from discord import ui
 import asyncio
 
-# 引入爬蟲
+# 引入爬蟲與自動化邏輯
 from ..src.GetTimeStamp import get_thsr_schedule
+from ..src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result
 
 # [Dashboard] 開啟查詢按鈕
 class OpenTHSRQueryButton(ui.Button):
@@ -16,16 +17,26 @@ class OpenTHSRQueryButton(ui.Button):
         embed, view = THSRQueryView.create_new_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
 
-# 1. 查詢執行按鈕
+# [Dashboard] 開啟訂票按鈕
+class OpenTHSRBookingButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(label="自動訂票", style=discord.ButtonStyle.success, emoji="🎫", row=0)
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        from .view import THSRBookingView
+        embed, view = THSRBookingView.create_new_ui(self.bot)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+# 1. 一般查詢執行按鈕
 class THSRSearchButton(ui.Button):
     def __init__(self):
         super().__init__(label="查詢", style=discord.ButtonStyle.success, row=4, disabled=True)
 
     async def callback(self, interaction: discord.Interaction):
-        view = self.view # 這是 THSRQueryView
+        view = self.view 
         await interaction.response.defer()
         
-        # 顯示載入中...
         ticket_info = (
             f"> 🚄 **起訖**：`{view.start_station}` ➔ `{view.end_station}`\n"
             f"> 📅 **時間**：`{view.date_val}` 　⏰ `{view.time_val}`\n"
@@ -37,8 +48,6 @@ class THSRSearchButton(ui.Button):
             description=f"{ticket_info}\n\n⏳ **正在連線至高鐵官網擷取資料，請稍候...**", 
             color=discord.Color.from_rgb(0, 162, 232)
         )
-        # 可以加上一個動態的 Loading圖示 (選用)
-        loading_embed.set_thumbnail(url="https://i.imgur.com/uUEmznY.gif")
         await interaction.edit_original_response(embed=loading_embed, view=None)
 
         try:
@@ -52,7 +61,6 @@ class THSRSearchButton(ui.Button):
                 view.trip_type
             )
             
-            # 建立結果 Embed
             if isinstance(result_data, dict) and "data" in result_data:
                 final_embed = discord.Embed(
                     title=f"🚄 {result_data['start']} ➔ {result_data['end']}",
@@ -65,20 +73,73 @@ class THSRSearchButton(ui.Button):
                     for train in result_data['data']:
                         val = f"`{train['dep']} ➔ {train['arr']}`\n⏱️ {train['duration']} | 🏷️ {train['discount']}"
                         final_embed.add_field(name=f"🚅 {train['id']}", value=val, inline=True)
-            else:
-                final_embed = discord.Embed(title="❌ 查詢失敗", description=str(result_data.get('error')), color=discord.Color.red())
+                
+                from .view import THSRResultView
+                await interaction.edit_original_response(embed=final_embed, view=THSRResultView(view.bot, view))
 
-            # ★★★ 關鍵：呼叫 view.py 裡的 THSRResultView ★★★
-            from .view import THSRResultView
-            await interaction.edit_original_response(embed=final_embed, view=THSRResultView(view.bot, view))
+            else:
+                # 查詢失敗 (邏輯錯誤)
+                from .view import THSRErrorView
+                err_embed, err_view = THSRErrorView.create_error_ui(view.bot, "查詢失敗", str(result_data.get('error')))
+                await interaction.edit_original_response(embed=err_embed, view=err_view)
             
         except Exception as e:
+            # 系統報錯
             print(f"Error: {e}")
-            from .view import THSRResultView
-            err = discord.Embed(title="❌ 系統錯誤", description=str(e), color=discord.Color.red())
-            await interaction.edit_original_response(embed=err, view=THSRResultView(view.bot, view))
+            from .view import THSRErrorView
+            err_embed, err_view = THSRErrorView.create_error_ui(view.bot, "系統發生錯誤", str(e))
+            await interaction.edit_original_response(embed=err_embed, view=err_view)
 
-# 2. 交換按鈕
+# 2. 自動訂票執行按鈕
+class THSRBookingSearchButton(ui.Button):
+    def __init__(self):
+        super().__init__(label="開始訂票", style=discord.ButtonStyle.success, emoji="🚀", row=4, disabled=True)
+
+    async def callback(self, interaction: discord.Interaction):
+        view = self.view 
+        await interaction.response.defer()
+
+        loading_embed = discord.Embed(
+            title="🎫 正在啟動自動訂票...", 
+            description=f"🚄 **{view.start_station}** ➔ **{view.end_station}**\n📅 **{view.date_val}** ({view.time_val})\n💺 **座位偏好**: {view.seat_prefer}\n\n⏳ **正在開啟瀏覽器並破解驗證碼，這可能需要 15-30 秒...**", 
+            color=discord.Color.green()
+        )
+        await interaction.edit_original_response(embed=loading_embed, view=None)
+
+        try:
+            result = await asyncio.to_thread(
+                search_trains,
+                view.start_station,
+                view.end_station,
+                view.date_val,
+                view.time_val,
+                1, 
+                view.seat_prefer
+            )
+
+            if result["status"] == "success":
+                driver = result["driver"]
+                trains = result["trains"]
+                select_view = THSRTrainSelectView(view.bot, driver, trains)
+                embed = discord.Embed(
+                    title="✅ 第一階段完成：請選擇車次", 
+                    description=f"共找到 **{len(trains)}** 班列車\n請在下方選單選擇您要搭乘的班次，系統將自動為您搶票。", 
+                    color=discord.Color.green()
+                )
+                await interaction.edit_original_response(embed=embed, view=select_view)
+            else:
+                # 訂票第一階段失敗 (例如驗證碼錯誤、沒票)
+                from .view import THSRErrorView
+                err_embed, err_view = THSRErrorView.create_error_ui(view.bot, "訂票啟動失敗", result["msg"])
+                await interaction.edit_original_response(embed=err_embed, view=err_view)
+
+        except Exception as e:
+            # 系統報錯
+            from .view import THSRErrorView
+            err_embed, err_view = THSRErrorView.create_error_ui(view.bot, "瀏覽器啟動錯誤", str(e))
+            await interaction.edit_original_response(embed=err_embed, view=err_view)
+
+# 3. 交換按鈕
 class THSRSwapButton(ui.Button):
     def __init__(self):
         super().__init__(emoji="🔁", style=discord.ButtonStyle.secondary, row=4)
@@ -86,24 +147,19 @@ class THSRSwapButton(ui.Button):
         self.view.start_station, self.view.end_station = self.view.end_station, self.view.start_station
         await self.view.refresh_ui(interaction)
 
-# 3. 票種按鈕
-class THSRTicketTypeButton(ui.Button):
-    def __init__(self, current_type="全票"):
-        super().__init__(label=current_type, style=discord.ButtonStyle.secondary, row=4)
+# 4. 座位偏好按鈕
+class THSRSeatButton(ui.Button):
+    def __init__(self, current_seat="None"):
+        label_map = {"None": "座位: 無", "Window": "座位: 靠窗", "Aisle": "座位: 走道"}
+        super().__init__(label=label_map.get(current_seat, "座位: 無"), style=discord.ButtonStyle.primary, row=4)
+    
     async def callback(self, interaction: discord.Interaction):
-        types = ["全票", "大學生", "早鳥"]
-        self.view.ticket_type = types[(types.index(self.view.ticket_type) + 1) % 3]
-        self.label = self.view.ticket_type
-        await self.view.refresh_ui(interaction)
-
-# 4. 行程按鈕
-class THSRTripTypeButton(ui.Button):
-    def __init__(self, current_type="單程"):
-        super().__init__(label=current_type, style=discord.ButtonStyle.secondary, row=4)
-    async def callback(self, interaction: discord.Interaction):
-        types = ["單程", "來回"]
-        self.view.trip_type = types[(types.index(self.view.trip_type) + 1) % 2]
-        self.label = self.view.trip_type
+        states = ["None", "Window", "Aisle"]
+        current_idx = states.index(self.view.seat_prefer)
+        self.view.seat_prefer = states[(current_idx + 1) % 3]
+        
+        label_map = {"None": "座位: 無", "Window": "座位: 靠窗", "Aisle": "座位: 走道"}
+        self.label = label_map[self.view.seat_prefer]
         await self.view.refresh_ui(interaction)
 
 # 5. 回主頁按鈕
@@ -115,3 +171,114 @@ class THSRHomeButton(ui.Button):
         from .view import THSR_DashboardView
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
+
+# 6. 車次下拉選單
+class THSRTrainSelect(ui.Select):
+    def __init__(self, trains):
+        options = []
+        for t in trains[:25]: 
+            label = f"{t['code']} 車次 | {t['departure']} ➔ {t['arrival']}"
+            desc = f"行車時間: {t['duration']}"
+            if t.get('discount'): desc += f" {t['discount']}"
+            options.append(discord.SelectOption(label=label, description=desc, value=t['code']))
+        super().__init__(placeholder="請選擇一班列車...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_code = self.values[0]
+        await interaction.response.send_modal(THSRPassengerModal(self.view.bot, self.view.driver, selected_code))
+
+class THSRTrainSelectView(ui.View):
+    def __init__(self, bot, driver, trains):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.driver = driver
+        self.add_item(THSRTrainSelect(trains))
+
+    @ui.button(label="取消訂票 (關閉瀏覽器)", style=discord.ButtonStyle.danger, row=4)
+    async def cancel_booking(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        if self.driver: self.driver.quit()
+        
+        # 取消也顯示回主頁選項
+        from .view import THSRErrorView
+        embed, view = THSRErrorView.create_error_ui(self.bot, "已取消訂票", "使用者主動中斷操作")
+        embed.color = discord.Color.light_grey()
+        await interaction.edit_original_response(embed=embed, view=view)
+
+# 7. 乘客資訊 Modal
+class THSRPassengerModal(ui.Modal, title="填寫取票資訊"):
+    pid = ui.TextInput(label="身分證字號", placeholder="必填 (例如 A123456789)", min_length=10, max_length=10)
+    phone = ui.TextInput(label="手機號碼", placeholder="選填 (09xxxxxxxx)", required=False, max_length=10)
+    email = ui.TextInput(label="電子郵件", placeholder="選填 (用於接收通知)", required=False)
+    tgo_id = ui.TextInput(label="TGo 會員帳號", placeholder="選填 (填寫 same 代表同身分證)", required=False)
+
+    def __init__(self, bot, driver, train_code):
+        super().__init__()
+        self.bot = bot
+        self.driver = driver
+        self.train_code = train_code
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
+        progress_embed = discord.Embed(title="🔄 正在執行訂票...", description=f"您選擇了車次 **{self.train_code}**\n系統正在自動填寫資料並送出，請勿關閉...", color=discord.Color.gold())
+        await interaction.edit_original_response(embed=progress_embed, view=None)
+
+        try:
+            select_res = await asyncio.to_thread(select_train, self.driver, self.train_code)
+            if select_res["status"] != "success": raise Exception(select_res["msg"])
+
+            is_same_pid = False
+            tgo_val = self.tgo_id.value
+            if tgo_val and (tgo_val.lower() == "same" or tgo_val == "同"):
+                is_same_pid = True
+                tgo_val = None
+
+            submit_res = await asyncio.to_thread(
+                submit_passenger_info, 
+                self.driver, 
+                self.pid.value, 
+                self.phone.value, 
+                self.email.value, 
+                tgo_val,
+                is_same_pid
+            )
+
+            if submit_res["status"] == "success":
+                final_result = await asyncio.to_thread(get_booking_result, self.driver)
+                
+                if final_result["status"] == "success":
+                    success_embed = discord.Embed(title="🎉 訂位成功！", color=discord.Color.green())
+                    success_embed.add_field(name="訂位代號", value=f"`{final_result['pnr']}`", inline=False)
+                    success_embed.add_field(name="總金額", value=final_result['price'], inline=True)
+                    success_embed.add_field(name="狀態", value=final_result['payment_status'], inline=True)
+                    
+                    train_str = f"{final_result['train'].get('code')} ({final_result['train'].get('date')})\n{final_result['train'].get('dep_time')} ➔ {final_result['train'].get('arr_time')}"
+                    success_embed.add_field(name="車次資訊", value=train_str, inline=False)
+                    success_embed.add_field(name="座位", value=", ".join(final_result['seats']), inline=False)
+                    success_embed.set_footer(text="請記得前往高鐵官網或 App 付款")
+                    
+                    # 成功後也提供一個回主頁按鈕 (選用)
+                    from .view import THSRErrorView 
+                    # 這裡直接實例化 View 只為了拿 Home 按鈕
+                    view = THSRErrorView(self.bot)
+                    await interaction.edit_original_response(embed=success_embed, view=view)
+                else:
+                    # 訂位成功但抓不到資料
+                    from .view import THSRErrorView
+                    err_embed, err_view = THSRErrorView.create_error_ui(self.bot, "擷取結果失敗", f"訂位可能已完成，但無法讀取細節：{final_result['msg']}")
+                    await interaction.edit_original_response(embed=err_embed, view=err_view)
+            else:
+                # 個資填寫失敗
+                from .view import THSRErrorView
+                err_embed, err_view = THSRErrorView.create_error_ui(self.bot, "個資填寫失敗", submit_res['msg'])
+                await interaction.edit_original_response(embed=err_embed, view=err_view)
+
+        except Exception as e:
+            # 流程中斷錯誤
+            from .view import THSRErrorView
+            err_embed, err_view = THSRErrorView.create_error_ui(self.bot, "訂票流程錯誤", str(e))
+            await interaction.edit_original_response(embed=err_embed, view=err_view)
+        
+        finally:
+            if self.driver: self.driver.quit()
