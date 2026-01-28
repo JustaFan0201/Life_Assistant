@@ -67,13 +67,31 @@ class THSRSearchButton(ui.Button):
                     description=f"📅 **{result_data['date']}** ({view.time_val} 後)\n🎫 {view.trip_type} / {view.ticket_type}",
                     color=0xec6c00
                 )
+                
                 if not result_data['data']:
                      final_embed.description += "\n⚠️ 查無班次"
                 else:
                     for train in result_data['data']:
-                        val = f"`{train['dep']} ➔ {train['arr']}`\n⏱️ {train['duration']} | 🏷️ {train['discount']}"
+                        # --- 這裡加入優惠顯示邏輯 ---
+                        dep = train['dep']
+                        arr = train['arr']
+                        duration = train['duration']
+                        discount = train.get('discount', '無優惠')
+                        
+                        # 簡單美化
+                        if "早鳥" in discount:
+                            discount_display = f"🦅 **{discount}**"
+                        elif "大學生" in discount:
+                            discount_display = f"🎓 **{discount}**"
+                        elif discount == "無優惠" or not discount:
+                            discount_display = "🏷️ 原價"
+                        else:
+                            discount_display = f"🏷️ {discount}"
+
+                        val = f"`{dep} ➔ {arr}`\n⏱️ {duration} | {discount_display}"
                         final_embed.add_field(name=f"🚅 {train['id']}", value=val, inline=True)
                 
+                # 呼叫結果頁面 View
                 from .view import THSRResultView
                 await interaction.edit_original_response(embed=final_embed, view=THSRResultView(view.bot, view))
 

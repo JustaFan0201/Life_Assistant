@@ -16,7 +16,6 @@ from .buttons import (
     THSRSeatButton,
     THSRHomeButton
 )
-# 如果 THSRDatePageButton 是定義在 view.py 裡面的，就不需要從 buttons import
 
 from ..src.GetTimeStamp import STATION_MAP
 
@@ -194,10 +193,9 @@ class THSRResultView(ui.View):
     @ui.button(label="修改條件 / 重新查詢", style=discord.ButtonStyle.primary, emoji="🔙")
     async def back_to_search(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed = self.prev_view.get_status_embed()
-        embed.description = "已還原您的設定"
         await interaction.response.edit_message(embed=embed, view=self.prev_view)
 
-    @ui.button(label="回主頁", style=discord.ButtonStyle.danger, emoji="🏠")
+    @ui.button(label="回高鐵主頁", style=discord.ButtonStyle.danger, emoji="🏠")
     async def back_to_home(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)

@@ -23,6 +23,7 @@ class BackToMainButton(ui.Button):
         from .view import MainControlView 
         embed, view = MainControlView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
+        
 # 前往 GPT UI按鈕
 '''class GoToGPTButton(ui.Button):
     def __init__(self, bot):
