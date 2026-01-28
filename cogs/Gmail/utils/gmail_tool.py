@@ -5,6 +5,7 @@ from aiosmtplib import SMTP
 from email.message import EmailMessage
 from email import message_from_bytes
 import email
+import re
 from email.header import decode_header
 
 class EmailTools:
@@ -18,6 +19,11 @@ class EmailTools:
     async def send_mail(self, data):
         if not data.get('to'):
             return False, '收件人gmail 不得為空'
+        
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(pattern, data['to']) is None:
+            return False, 'email格式不符'
+
             
         try:
             msg = EmailMessage()

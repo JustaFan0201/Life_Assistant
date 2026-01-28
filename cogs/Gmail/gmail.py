@@ -4,12 +4,15 @@ import asyncio
 from discord.ext import commands, tasks
 from .views.gmail_view import EmailSendView, EmailReplyModal, NewEmailNotificationView
 from .utils.gmail_tool import EmailTools 
+from .utils.gmail_favorite_list import EmailFavoriteList
 from discord import app_commands
 
 class Gmail(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        current_dir = os.path.dirname(os.path.abspath(__file__))
         self.tools = EmailTools()
+        self.list_tools = EmailFavoriteList(current_dir)
         channel_id = os.getenv("DISCORD_NOTIFY_CHANNEL_ID")
         self.notify_channel_id = int(channel_id) if channel_id else None 
         self.last_email_id = None   
@@ -62,26 +65,21 @@ class Gmail(commands.Cog):
 
 
     def create_gmail_dashboard_ui(self):
+        """產生郵件管理中心的主 UI (已搬移至 View 層)"""
         embed = discord.Embed(
             title="📧 Gmail 郵件管理中心",
-            description="您可以在這裡寄送郵件或查看監控狀態。",
+            description="您可以在這裡撰寫郵件或查看系統監控狀態。",
             color=0xEA4335
         )
         embed.add_field(name="📡 監控狀態", value="🟢 運作中 (每 30 秒輪詢一次)", inline=True)
         embed.add_field(name="🆔 最後郵件 ID", value=f"`{self.last_email_id or '初始化中'}`", inline=True)
-        embed.add_field(name="📝 使用說明", value="點擊下方按鈕即可開啟寄信選單。", inline=False)
+        embed.add_field(name="📝 使用說明", value="點擊下方按鈕即可開啟功能介面。", inline=False)
 
-        from discord.ui import View
-        view = View()
-
-        send_btn = discord.ui.Button(label="撰寫郵件", style=discord.ButtonStyle.primary, emoji="✍️")
-        async def send_callback(interaction):
-            await interaction.response.send_modal(EmailSendView(cog=self))
-        send_btn.callback = send_callback
-
-        from cogs.System.ui.buttons import BackToMainButton 
-        
-        view.add_item(send_btn)
-        view.add_item(BackToMainButton(self.bot))
+        # 💡 呼叫剛搬過去的 View
+        from .views.gmail_view import GmailDashboardView
+        view = GmailDashboardView(self.bot, self)
         
         return embed, view
+    
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Gmail(bot)) # 確保這裡傳入的是 Gmail 類別
