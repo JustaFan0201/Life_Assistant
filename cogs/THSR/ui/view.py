@@ -19,9 +19,7 @@ from .buttons import (
 
 from ..src.GetTimeStamp import STATION_MAP
 
-# =========================================================================
 # 1. THSR 主選單 (Dashboard)
-# =========================================================================
 class THSR_DashboardView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
@@ -49,9 +47,7 @@ class THSR_DashboardView(ui.View):
         view = THSR_DashboardView(bot)
         return embed, view
 
-# =========================================================================
 # 日期翻頁按鈕 (定義在 View 檔內，避免循環引用)
-# =========================================================================
 class THSRDatePageButton(ui.Button):
     def __init__(self):
         super().__init__(label="切換日期 (後段)", style=discord.ButtonStyle.secondary, emoji="📅", row=4)
@@ -69,9 +65,7 @@ class THSRDatePageButton(ui.Button):
         self.view.setup_dynamic_options()
         await self.view.refresh_ui(interaction)
 
-# =========================================================================
 # 2. 高鐵全功能查詢介面 (Query View)
-# =========================================================================
 class THSRQueryView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
@@ -200,9 +194,7 @@ class THSRResultView(ui.View):
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
 
-# =========================================================================
 # 4. 自動訂票介面 (Booking View)
-# =========================================================================
 class THSRBookingView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
@@ -323,6 +315,99 @@ class THSRBookingView(ui.View):
                         opt.default = (opt.value == target_val)
         embed = self.get_status_embed()
         await interaction.response.edit_message(embed=embed, view=self)
+
+class THSRTrainSelect(ui.Select):
+    def __init__(self, trains):
+        options = []
+        # 限制顯示前 25 筆 (Discord 上限)
+        for t in trains[:25]: 
+            # 處理優惠顯示
+            discount_icon = ""
+            raw_discount = t.get('discount', '')
+            if "早鳥" in raw_discount: discount_icon = "🦅"
+            elif "大學生" in raw_discount: discount_icon = "🎓"
+            
+            label = f"[{t['code']}] {t['departure']} ➜ {t['arrival']}"
+            desc = f"⏱️ {t['duration']} {discount_icon} {raw_discount}"
+            
+            # 確保描述不超過長度
+            if len(desc) > 100: desc = desc[:97] + "..."
+            
+            options.append(discord.SelectOption(label=label, description=desc, value=t['code']))
+        
+        super().__init__(placeholder="👇 請選擇一班列車...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_code = self.values[0]
+        # ★ 這裡需要 import Modal，使用區域引用避免循環 ★
+        from .buttons import THSRPassengerModal
+        await interaction.response.send_modal(THSRPassengerModal(self.view.bot, self.view.driver, selected_code))
+
+class THSRTrainSelectView(ui.View):
+    def __init__(self, bot, driver, trains):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.driver = driver
+        self.trains = trains
+        # 加入下拉選單
+        self.add_item(THSRTrainSelect(trains))
+
+    @staticmethod
+    def create_train_selection_ui(bot, driver, trains):
+        """
+        [工廠方法] 產生選擇車次的 Embed 與 View
+        """
+        # 1. 建立 Embed
+        embed = discord.Embed(
+            title="🚄 請選擇車次 (自動訂票)", 
+            description=f"✅ 已為您找到 **{len(trains)}** 班列車\n請在下方選單選擇，或查看詳細資訊：",
+            color=discord.Color.green()
+        )
+        
+        # 2. 填充車次資訊 (最多顯示 10 筆，避免 Embed 太長)
+        for t in trains[:10]:
+            # 美化優惠資訊
+            discount = t.get('discount', '無')
+            display_disc = "🏷️ 原價"
+            if "早鳥" in discount: display_disc = f"🦅 **{discount}**"
+            elif "大學生" in discount: display_disc = f"🎓 **{discount}**"
+            elif discount != "無優惠" and discount: display_disc = f"🏷️ {discount}"
+            
+            val = f"⏱️ 行車: `{t['duration']}` | {display_disc}"
+            embed.add_field(
+                name=f"🚅 {t['code']} 次 | {t['departure']} ➜ {t['arrival']}", 
+                value=val, 
+                inline=False
+            )
+            
+        if len(trains) > 10:
+            embed.set_footer(text=f"還有 {len(trains)-10} 班車未列出，請查看下拉選單完整列表")
+        else:
+            embed.set_footer(text="請從下拉選單選擇您要搭乘的班次")
+
+        # 3. 建立 View
+        view = THSRTrainSelectView(bot, driver, trains)
+        
+        return embed, view
+
+    @ui.button(label="取消訂票 (返回設定)", style=discord.ButtonStyle.danger, row=4)
+    async def cancel_booking(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        
+        # 1. 關閉瀏覽器
+        if self.driver:
+            self.driver.quit()
+            
+        # 2. 返回 THSRBookingView (訂票設定頁面)
+        # 使用區域引用
+        from .view import THSRBookingView
+        embed, view = THSRBookingView.create_new_ui(self.bot)
+        
+        # 提示使用者已取消
+        embed.description = "❌ 上一次訂票已取消，請重新設定條件。"
+        embed.color = discord.Color.red()
+        
+        await interaction.edit_original_response(embed=embed, view=view)
 
 class THSRErrorView(ui.View):
     def __init__(self, bot):

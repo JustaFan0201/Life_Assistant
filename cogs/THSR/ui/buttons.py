@@ -115,16 +115,24 @@ class THSRBookingSearchButton(ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         view = self.view 
+        user = interaction.user
         await interaction.response.defer()
+
+        # Log
+        print(f"🚀 [訂票啟動] User: {user.name} | {view.start_station}->{view.end_station}")
 
         loading_embed = discord.Embed(
             title="🎫 正在啟動自動訂票...", 
-            description=f"🚄 **{view.start_station}** ➔ **{view.end_station}**\n📅 **{view.date_val}** ({view.time_val})\n💺 **座位偏好**: {view.seat_prefer}\n\n⏳ **正在開啟瀏覽器並破解驗證碼，這可能需要 15-30 秒...**", 
+            description=f"👤 **操作者**: {user.mention}\n🚄 **{view.start_station}** ➔ **{view.end_station}**\n📅 **{view.date_val}** ({view.time_val})\n💺 **座位偏好**: {view.seat_prefer}\n\n⏳ **正在開啟瀏覽器並破解驗證碼...**", 
             color=discord.Color.green()
         )
+        if user.avatar:
+            loading_embed.set_footer(text=f"Requested by {user.display_name}", icon_url=user.avatar.url)
+
         await interaction.edit_original_response(embed=loading_embed, view=None)
 
         try:
+            # 執行搜尋
             result = await asyncio.to_thread(
                 search_trains,
                 view.start_station,
@@ -138,24 +146,21 @@ class THSRBookingSearchButton(ui.Button):
             if result["status"] == "success":
                 driver = result["driver"]
                 trains = result["trains"]
-                select_view = THSRTrainSelectView(view.bot, driver, trains)
-                embed = discord.Embed(
-                    title="✅ 第一階段完成：請選擇車次", 
-                    description=f"共找到 **{len(trains)}** 班列車\n請在下方選單選擇您要搭乘的班次，系統將自動為您搶票。", 
-                    color=discord.Color.green()
-                )
+                
+                # ★★★ 關鍵修改：使用工廠方法取得 Embed 和 View ★★★
+                from .view import THSRTrainSelectView
+                embed, select_view = THSRTrainSelectView.create_train_selection_ui(view.bot, driver, trains)
+                
                 await interaction.edit_original_response(embed=embed, view=select_view)
             else:
-                # 訂票第一階段失敗 (例如驗證碼錯誤、沒票)
                 from .view import THSRErrorView
-                err_embed, err_view = THSRErrorView.create_error_ui(view.bot, "訂票啟動失敗", result["msg"])
-                await interaction.edit_original_response(embed=err_embed, view=err_view)
+                embed, view = THSRErrorView.create_error_ui(view.bot, "訂票啟動失敗", result["msg"])
+                await interaction.edit_original_response(embed=embed, view=view)
 
         except Exception as e:
-            # 系統報錯
             from .view import THSRErrorView
-            err_embed, err_view = THSRErrorView.create_error_ui(view.bot, "瀏覽器啟動錯誤", str(e))
-            await interaction.edit_original_response(embed=err_embed, view=err_view)
+            embed, view = THSRErrorView.create_error_ui(view.bot, "瀏覽器啟動錯誤", str(e))
+            await interaction.edit_original_response(embed=embed, view=view)
 
 # 3. 交換按鈕
 class THSRSwapButton(ui.Button):
@@ -190,40 +195,7 @@ class THSRHomeButton(ui.Button):
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
 
-# 6. 車次下拉選單
-class THSRTrainSelect(ui.Select):
-    def __init__(self, trains):
-        options = []
-        for t in trains[:25]: 
-            label = f"{t['code']} 車次 | {t['departure']} ➔ {t['arrival']}"
-            desc = f"行車時間: {t['duration']}"
-            if t.get('discount'): desc += f" {t['discount']}"
-            options.append(discord.SelectOption(label=label, description=desc, value=t['code']))
-        super().__init__(placeholder="請選擇一班列車...", min_values=1, max_values=1, options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        selected_code = self.values[0]
-        await interaction.response.send_modal(THSRPassengerModal(self.view.bot, self.view.driver, selected_code))
-
-class THSRTrainSelectView(ui.View):
-    def __init__(self, bot, driver, trains):
-        super().__init__(timeout=None)
-        self.bot = bot
-        self.driver = driver
-        self.add_item(THSRTrainSelect(trains))
-
-    @ui.button(label="取消訂票 (關閉瀏覽器)", style=discord.ButtonStyle.danger, row=4)
-    async def cancel_booking(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        if self.driver: self.driver.quit()
-        
-        # 取消也顯示回主頁選項
-        from .view import THSRErrorView
-        embed, view = THSRErrorView.create_error_ui(self.bot, "已取消訂票", "使用者主動中斷操作")
-        embed.color = discord.Color.light_grey()
-        await interaction.edit_original_response(embed=embed, view=view)
-
-# 7. 乘客資訊 Modal
+# 6. 選擇車次後填寫乘客資料的 Modal
 class THSRPassengerModal(ui.Modal, title="填寫取票資訊"):
     pid = ui.TextInput(label="身分證字號", placeholder="必填 (例如 A123456789)", min_length=10, max_length=10)
     phone = ui.TextInput(label="手機號碼", placeholder="選填 (09xxxxxxxx)", required=False, max_length=10)

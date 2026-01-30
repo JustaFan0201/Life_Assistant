@@ -259,7 +259,7 @@ def select_train(driver, train_code):
 
 def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, tgo_same_as_pid=False):
     """
-    [Step 3] 填寫乘客資訊並送出訂單
+    [Step 3] 填寫乘客資訊並送出訂單 (支援早鳥實名制)
     """
     try:
         short_wait = WebDriverWait(driver, 3)
@@ -276,13 +276,36 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
         except:
             print("✅ 無彈跳視窗或已自動關閉")
 
-        # 2. 填寫身分證字號
-        print("✍️ 正在填寫身分證...")
+        # 2. 填寫取票人身分證字號 (必填)
+        print("✍️ 正在填寫取票人身分證...")
         pid_input = normal_wait.until(EC.element_to_be_clickable((By.ID, "idNumber")))
         pid_input.click()
         pid_input.clear()
         pid_input.send_keys(personal_id)
         
+        # ==========================================
+        # ★★★ 新增：偵測並填寫早鳥實名制欄位 ★★★
+        # ==========================================
+        # 早鳥票會多出一個欄位要求輸入「乘客」的身分證
+        try:
+            # 嘗試尋找 class 包含 passengerDataIdNumber 的輸入框
+            # 這裡我們假設只有一位乘客 (ticket_count=1)，所以直接找第一個
+            # 如果有多位乘客，這裡需要用 find_elements 並跑迴圈
+            
+            # 使用 CSS Selector 尋找屬性 name 包含 passengerDataIdNumber 的 input
+            real_name_input = driver.find_element(By.CSS_SELECTOR, "input[name*='passengerDataIdNumber']")
+            
+            if real_name_input.is_displayed():
+                print("🦅 偵測到早鳥實名制欄位，正在填寫乘客身分證...")
+                real_name_input.click()
+                real_name_input.clear()
+                # 這裡假設乘客就是取票人，填入相同的身分證
+                real_name_input.send_keys(personal_id)
+                time.sleep(0.5)
+        except:
+            # 找不到代表這張票不需要實名制，直接忽略
+            print("ℹ️ 無需填寫早鳥實名資料")
+
         # 3. 填寫手機
         if phone:
             print(f"📱 填寫手機: {phone}")
@@ -339,36 +362,32 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
         submit_btn = driver.find_element(By.ID, "isSubmit")
         
         # ⚠️ 正式訂票請取消註解這行：
-        driver.execute_script("arguments[0].click();", submit_btn)
+        #driver.execute_script("arguments[0].click();", submit_btn)
         
         # ==========================================
-        # ★★★ 8. 處理重複確認視窗 (針對 TGo 會員) ★★★
+        # ★★★ 8. 處理重複確認視窗 (早鳥/TGo) ★★★
         # ==========================================
-        # 當使用 TGo 時，會跳出 id="step3ConfirmModal"，按鈕是 id="btn-custom2"
-        # 當 TGo 資格不符時，會跳出 id="tgoReplyModal"，按鈕是 id="SubmitPassButton"
         
         print("👀 偵測是否有後續確認視窗...")
         time.sleep(1.5) # 給視窗一點時間彈出來
 
+        # 處理一般確認 / 早鳥確認 (都是 btn-custom2)
         try:
-            # 嘗試尋找並點擊 "btn-custom2" (一般確認資訊視窗)
             confirm_btn_2 = driver.find_elements(By.ID, "btn-custom2")
             if confirm_btn_2 and confirm_btn_2[0].is_displayed():
-                print("✅ 偵測到「再次確認資訊」視窗，點擊確定...")
+                print("✅ 偵測到「再次確認資訊/早鳥確認」視窗，點擊確定...")
                 driver.execute_script("arguments[0].click();", confirm_btn_2[0])
-                time.sleep(1) # 等待處理
-        except:
-            pass
+                time.sleep(1) 
+        except: pass
 
+        # 處理 TGo 提示 (SubmitPassButton)
         try:
-            # 嘗試尋找並點擊 "SubmitPassButton" (TGo 相關提示視窗)
             confirm_btn_tgo = driver.find_elements(By.ID, "SubmitPassButton")
             if confirm_btn_tgo and confirm_btn_tgo[0].is_displayed():
                 print("✅ 偵測到「TGo 注意事項」視窗，點擊確定...")
                 driver.execute_script("arguments[0].click();", confirm_btn_tgo[0])
                 time.sleep(1)
-        except:
-            pass
+        except: pass
 
         return {
             "status": "success", 
