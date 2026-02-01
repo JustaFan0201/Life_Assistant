@@ -5,6 +5,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from keep_alive import keep_alive
 import datetime
+from database.db import init_db, DatabaseSession
+from database.models import BotSettings
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 COGS_DIR = os.path.join(BASE_DIR, "cogs")
@@ -22,32 +24,41 @@ async def on_ready():
     print(f"目前登入身份 --> {bot.user}")
 
     try:
-        # 同步所有已載入 Cog 中的 app_commands
         synced = await bot.tree.sync()
         print(f"成功同步 {len(synced)} 個斜線指令！")
     except Exception as e:
         print(f"同步斜線指令失敗: {e}")
 
-    if NOTIFY_CHANNEL_ID:
+    notify_channel_id = None
+    
+    try:
+        with DatabaseSession() as db:
+            settings = db.query(BotSettings).filter(BotSettings.id == 1).first()
+            if settings and settings.login_notify_channel_id:
+                notify_channel_id = settings.login_notify_channel_id
+                print(f"🔍 從資料庫讀取到通知頻道 ID: {notify_channel_id}")
+    except Exception as e:
+        print(f"❌ 讀取資料庫設定失敗: {e}")
+
+    if notify_channel_id:
         try:
-            channel_id = int(NOTIFY_CHANNEL_ID)
-            
-            channel = await bot.fetch_channel(channel_id)
+            target_id = int(notify_channel_id)
+            channel = await bot.fetch_channel(target_id)
             
             msg = f"🟢 **Bot 已上線！**\n時間：`{now}`"
             await channel.send(msg)
             print(f"✅ 上線通知已發送至頻道: {channel.name} (ID: {channel.id})")
             
         except ValueError:
-            print("❌ 通知失敗：.env 中的 Channel ID 不是有效的數字。")
+            print(f"❌ 通知失敗：ID '{notify_channel_id}' 不是有效的數字。")
         except discord.NotFound:
-            print(f"❌ 通知失敗：找不到頻道 ID {NOTIFY_CHANNEL_ID} (請確認 ID 正確且機器人在該伺服器)。")
+            print(f"❌ 通知失敗：找不到頻道 ID {notify_channel_id} (請確認 ID 正確且機器人在該伺服器)。")
         except discord.Forbidden:
             print(f"❌ 通知失敗：機器人沒有權限在該頻道發言。")
         except Exception as e:
             print(f"❌ 通知發送發生未知錯誤: {e}")
     else:
-        print("⚠️ 未設定 Login_Notify_Channel_ID，跳過上線通知。")
+        print("⚠️ 尚未設定 Login_Notify_Channel_ID (請使用 /set_login_notify_channel 設定)。")
 
 # 載入指令程式檔案
 @bot.command()
@@ -116,6 +127,7 @@ async def main():
 # 確定執行此py檔才會執行
 if __name__ == "__main__":
     try:
+        init_db()
         asyncio.run(main())
     except KeyboardInterrupt:
         pass

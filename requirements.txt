@@ -3,6 +3,9 @@ python-dotenv
 openai
 flask
 
+SQLAlchemy
+psycopg2-binary
+
 selenium
 webdriver-manager
 ddddocr
