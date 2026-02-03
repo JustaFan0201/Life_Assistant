@@ -11,6 +11,12 @@ class SystemCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @app_commands.command(name="dashboard", description="呼叫主控台")
+    async def dashboard(self, interaction: discord.Interaction):
+        embed, view = MainControlView.create_dashboard_ui(self.bot)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
     '''@commands.Cog.listener()
     async def on_ready(self):
         await self.bot.wait_until_ready()
@@ -57,8 +63,3 @@ class SystemCog(commands.Cog):
             print(f"❌ [Dashboard] 錯誤：Bot 沒有權限在該頻道發言")
         except Exception as e:
             print(f"❌ [Dashboard] 發送失敗: {e}")'''
-
-    @app_commands.command(name="dashboard", description="呼叫主控台")
-    async def dashboard(self, interaction: discord.Interaction):
-        embed, view = MainControlView.create_dashboard_ui(self.bot)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
