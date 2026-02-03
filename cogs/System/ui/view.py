@@ -6,14 +6,35 @@ from .buttons import (
     StatusButton, 
     GoToTHSRButton, 
     GoToItineraryButton, 
-    GoToGmailButton
+    GoToGmailButton,
+    OpenDashboardButton
 )
+
+class SystemStartView(ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.add_item(OpenDashboardButton(bot))
+
+    @staticmethod
+    def create_start_ui(bot):
+        """
+        產生公共頻道的「啟動介面」
+        """
+        embed = discord.Embed(
+            title="🤖 Life Assistant 啟動中心",
+            description="點擊下方按鈕以開啟您的個人控制台。\n(控制台內容僅您可見，請安心使用)",
+            color=discord.Color.blue()
+        )
+        embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
+        embed.set_footer(text="System Online • Ready to serve")
+        
+        view = SystemStartView(bot)
+        return embed, view
 
 class MainControlView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
-        
         # 加入各個功能按鈕
         self.add_item(GoToTHSRButton(bot))
         self.add_item(GoToItineraryButton(bot))

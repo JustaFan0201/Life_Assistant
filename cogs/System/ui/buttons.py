@@ -1,5 +1,45 @@
 import discord
 from discord import ui
+
+from database.db import DatabaseSession
+from database.models import User
+import asyncio
+
+class OpenDashboardButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="開啟生活助手", 
+            style=discord.ButtonStyle.primary, 
+            emoji="🚀", 
+            custom_id="sys_open_dashboard"
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        user = interaction.user
+        try:
+            await asyncio.to_thread(self._register_user_db, user.id, user.name)
+        except Exception as e:
+            print(f"❌ 使用者註冊失敗: {e}")
+
+        from .view import MainControlView
+        
+        embed, view = MainControlView.create_dashboard_ui(self.bot)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    def _register_user_db(self, discord_id, username):
+        with DatabaseSession() as db:
+            user = db.query(User).filter(User.discord_id == discord_id).first()
+            if not user:
+                new_user = User(discord_id=discord_id, username=username)
+                db.add(new_user)
+                db.commit()
+                print(f"🆕 [Button] 新使用者註冊: {username} ({discord_id})")
+            else:
+                if user.username != username:
+                    user.username = username
+                    db.commit()
+
 #狀態按鈕，顯示系統延遲
 class StatusButton(ui.Button):
     def __init__(self, bot):

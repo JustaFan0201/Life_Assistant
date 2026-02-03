@@ -9,7 +9,6 @@ Base = declarative_base()
 class BotSettings(Base):
     __tablename__ = 'bot_settings'
     
-    # 固定 ID=1
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # 這裡定義你要存的所有頻道 ID
