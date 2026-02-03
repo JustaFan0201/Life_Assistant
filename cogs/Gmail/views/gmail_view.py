@@ -82,22 +82,32 @@ class NewEmailNotificationView(discord.ui.View):
         await interaction.response.send_modal(modal)
 
 class AddEmailListView(discord.ui.Modal, title="新增常用email地址"):
+
+    name_input = discord.ui.TextInput(
+        label="聯絡人暱稱", 
+        placeholder="例如：小明、老闆",
+        min_length=1,
+        max_length=20
+    )
+
     address_input = discord.ui.TextInput(
         label="請輸入email地址", 
         style=discord.TextStyle.short,
         placeholder="example@gmail.com"
     )
     
-    def __init__(self, cog):
+    def __init__(self, cog, user_id):
         super().__init__()
         self.cog = cog
+        self.user_id = user_id
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         try:
+            name = self.name_input.value
             email_value = self.address_input.value
             
-            report = self.cog.list_tools.add_and_save(email_value)
+            report = self.cog.list_tools.add_and_save(name, email_value, self.user_id)
             await interaction.followup.send(report)
             
         except Exception as e:
@@ -106,10 +116,11 @@ class AddEmailListView(discord.ui.Modal, title="新增常用email地址"):
     
 
 class GmailDashboardView(ui.View):
-    def __init__(self, bot, gmail_cog):
+    def __init__(self, bot, gmail_cog, user_id):
         super().__init__(timeout=None)
         self.bot = bot
         self.gmail_cog = gmail_cog
+        self.user_id = user_id
 
         send_btn = ui.Button(label="撰寫郵件", style=discord.ButtonStyle.primary, emoji="✍️")
         send_btn.callback = self.send_callback
@@ -126,7 +137,7 @@ class GmailDashboardView(ui.View):
             print("⚠️ [GmailDashboardView] 無法匯入 BackToMainButton")
 
     async def send_callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(EmailSendView(cog=self.gmail_cog))
+        await interaction.response.send_modal(EmailSendView(cog=self.gmail_cog, user_id =self.user_id))
 
     async def add_list_callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(AddEmailListView(cog=self.gmail_cog))
+        await interaction.response.send_modal(AddEmailListView(cog=self.gmail_cog, user_id =self.user_id))
