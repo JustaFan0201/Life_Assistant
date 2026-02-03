@@ -2,14 +2,15 @@ import discord
 from discord import ui
 from datetime import datetime, timedelta
 
-# 引入 System 的按鈕
 from ...System.ui.buttons import BackToMainButton
 
-# 引入 Ticket 的按鈕邏輯
-# ★★★ 注意：這裡必須包含所有在 View 裡用到的按鈕類別 ★★★
+from database.db import DatabaseSession
+from database.models import User
+
 from .buttons import (
     OpenTHSRQueryButton, 
     OpenTHSRBookingButton,
+    OpenTHSRProfileButton,
     THSRSearchButton, 
     THSRBookingSearchButton,
     THSRSwapButton, 
@@ -19,6 +20,109 @@ from .buttons import (
 
 from ..src.GetTimeStamp import STATION_MAP
 
+def mask_text(text, is_hidden=True):
+    """隱碼處理輔助函式"""
+    if not text: return "未設定"
+    if not is_hidden: return text 
+    if len(text) <= 6: return text 
+    return text[:3] + "*" * (len(text) - 6) + text[-3:]
+
+class THSRProfileModal(ui.Modal, title="設定高鐵個人檔案"):
+    def __init__(self, bot, default_data, origin_view):
+        super().__init__()
+        self.bot = bot
+        self.origin_view = origin_view 
+        
+        self.pid = ui.TextInput(label="身分證字號", placeholder="A123456789", default=default_data.get('pid'), min_length=10, max_length=10)
+        self.phone = ui.TextInput(label="手機號碼", placeholder="09xxxxxxxx", default=default_data.get('phone'), required=False, max_length=10)
+        self.email = ui.TextInput(label="電子郵件", placeholder="example@gmail.com", default=default_data.get('email'), required=False)
+        self.tgo_id = ui.TextInput(label="TGo 會員帳號", placeholder="填寫 same 代表同身分證", default=default_data.get('tgo'), required=False)
+
+        self.add_item(self.pid)
+        self.add_item(self.phone)
+        self.add_item(self.email)
+        self.add_item(self.tgo_id)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        discord_id = interaction.user.id
+        username = interaction.user.name
+        
+        new_data = {
+            'pid': self.pid.value,
+            'phone': self.phone.value,
+            'email': self.email.value,
+            'tgo': self.tgo_id.value
+        }
+
+        try:
+            with DatabaseSession() as db:
+                user = db.query(User).filter(User.discord_id == discord_id).first()
+                if not user:
+                    user = User(discord_id=discord_id, username=username)
+                    db.add(user)
+                
+                user.personal_id = new_data['pid']
+                user.phone = new_data['phone']
+                user.email = new_data['email']
+                user.tgo_id = new_data['tgo']
+                db.commit()
+
+            self.origin_view.user_data = new_data
+            self.origin_view.is_hidden = True 
+            
+            embed = self.origin_view.generate_embed()
+            await interaction.response.edit_message(embed=embed, view=self.origin_view)
+
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 儲存失敗: {e}", ephemeral=True)
+
+class THSRProfileView(ui.View):
+    def __init__(self, bot, user_data):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.user_data = user_data 
+        self.is_hidden = True 
+        self.update_buttons()
+
+    def generate_embed(self):
+        status_icon = "🔒" if self.is_hidden else "🔓"
+        status_text = "隱私模式 (已隱碼)" if self.is_hidden else "明碼模式 (請注意周圍視線)"
+        color = discord.Color.green() if self.is_hidden else discord.Color.gold()
+
+        embed = discord.Embed(title=f"👤 個人資料設定 {status_icon}", description=f"目前狀態：**{status_text}**", color=color)
+        
+        embed.add_field(name="🆔 身分證", value=mask_text(self.user_data.get('pid'), self.is_hidden), inline=True)
+        embed.add_field(name="📱 手機", value=mask_text(self.user_data.get('phone'), self.is_hidden), inline=True)
+        embed.add_field(name="📧 信箱", value=mask_text(self.user_data.get('email'), self.is_hidden), inline=False)
+        embed.add_field(name="💎 TGo", value=self.user_data.get('tgo') if self.user_data.get('tgo') else "未設定", inline=True)
+        
+        embed.set_footer(text="點擊「修改」來編輯資料，點擊「顯示/隱藏」切換檢視")
+        return embed
+
+    def update_buttons(self):
+        for child in self.children:
+            if isinstance(child, ui.Button) and child.custom_id == "toggle_reveal":
+                child.label = "顯示資料" if self.is_hidden else "隱藏資料"
+                child.style = discord.ButtonStyle.secondary if self.is_hidden else discord.ButtonStyle.danger
+                child.emoji = "👁️" if self.is_hidden else "🔒"
+
+    @ui.button(label="修改資料", style=discord.ButtonStyle.primary, emoji="📝", row=0)
+    async def edit_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(THSRProfileModal(self.bot, self.user_data, self))
+
+    @ui.button(label="顯示資料", style=discord.ButtonStyle.secondary, emoji="👁️", custom_id="toggle_reveal", row=0)
+    async def toggle_reveal(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.is_hidden = not self.is_hidden
+        self.update_buttons() 
+        embed = self.generate_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @ui.button(label="回主選單", style=discord.ButtonStyle.secondary, emoji="↩️", row=1)
+    async def back_to_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 直接呼叫下面的 class (同檔案，沒有循環引用問題)
+        embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
+        await interaction.response.edit_message(embed=embed, view=view)
+
 # 1. THSR 主選單 (Dashboard)
 class THSR_DashboardView(ui.View):
     def __init__(self, bot):
@@ -26,6 +130,7 @@ class THSR_DashboardView(ui.View):
         self.bot = bot
         self.add_item(OpenTHSRQueryButton(bot))
         self.add_item(OpenTHSRBookingButton(bot))
+        self.add_item(OpenTHSRProfileButton(bot))
         self.add_item(BackToMainButton(bot))
 
     @staticmethod
@@ -39,7 +144,7 @@ class THSR_DashboardView(ui.View):
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3063/3063822.png")
         embed.add_field(
             name="功能說明", 
-            value="🗓️ **查詢時刻表**：即時爬取高鐵官網班次\n🎫 **自動購票**：自動化搶票系統", 
+            value="🗓️ **查詢時刻表**：即時爬取高鐵官網班次\n🎫 **自動購票**：自動化搶票系統\n📝 **設定資料**：預存身分證與聯絡資訊", 
             inline=False
         )
         embed.set_footer(text="Powered by Selenium • JustaFan0201")
