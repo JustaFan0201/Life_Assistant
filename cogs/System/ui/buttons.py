@@ -108,10 +108,11 @@ class GoToGmailButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         # 1. 獲取 Gmail Cog
         gmail_cog = self.bot.get_cog("Gmail")
+        user_id = interaction.user.id
         
         if gmail_cog:
             # 2. 直接呼叫 Cog 裡面的 UI 產生器
-            embed, view = gmail_cog.create_gmail_dashboard_ui()
+            embed, view = gmail_cog.create_gmail_dashboard_ui(user_id)
             await interaction.response.edit_message(embed=embed, view=view)
         else:
             await interaction.response.send_message("❌ 錯誤：找不到 Gmail 模組。", ephemeral=True)

@@ -64,7 +64,7 @@ class Gmail(commands.Cog):
         await channel.send(embed=embed, view=view)
 
 
-    def create_gmail_dashboard_ui(self):
+    def create_gmail_dashboard_ui(self, user_id):
         """產生郵件管理中心的主 UI (已搬移至 View 層)"""
         embed = discord.Embed(
             title="📧 Gmail 郵件管理中心",
@@ -77,7 +77,7 @@ class Gmail(commands.Cog):
 
         # 💡 呼叫剛搬過去的 View
         from .views.gmail_view import GmailDashboardView
-        view = GmailDashboardView(self.bot, self)
+        view = GmailDashboardView(self.bot, self, user_id)
         
         return embed, view
     
