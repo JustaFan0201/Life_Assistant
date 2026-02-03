@@ -22,14 +22,12 @@ class EmailFavoriteList:
         db = self.read_db() 
         uid = str(user_id)
 
-        # 1. 驗證 Email 格式
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if re.match(pattern, email) is None:
             return "❌ email 格式不符"
 
-        # 2. 初始化結構 (確保是字典格式)
         if uid not in db["data"]:
-            db["data"][uid] = {} # 💡 這裡改用字典存 {暱稱: Email}
+            db["data"][uid] = {}
 
         if name in db["data"][uid]:
             return f"⚠️ 暱稱「{name}」已存在，請換一個名字。"

@@ -3,14 +3,31 @@ from discord import ui
 #from .gmail_view import EmailSendView 
 from cogs.System.ui.buttons import BackToMainButton
 
-class EmailSendView(discord.ui.Modal, title = '寄件設定'):
-    to_input = discord.ui.TextInput(label='收件人gmail (必填)', placeholder='example@gmail.com')
-    subject_input = discord.ui.TextInput(label='主旨 (建議填寫)', placeholder="請輸入主旨", required=False)
-    content_input = discord.ui.TextInput(label='信件內容', placeholder="請輸入內容", style=discord.TextStyle.paragraph)
-
-    def __init__(self, cog):
+class EmailSendView(discord.ui.Modal, title='寄件設定'):
+    def __init__(self, cog, user_id, to_default=""):
         super().__init__()
         self.cog = cog
+        self.user_id = user_id
+
+        self.to_input = discord.ui.TextInput(
+            label='收件人gmail (必填)', 
+            placeholder='example@gmail.com',
+            default=to_default
+        )
+        self.subject_input = discord.ui.TextInput(
+            label='主旨 (建議填寫)', 
+            placeholder="請輸入主旨", 
+            required=False
+        )
+        self.content_input = discord.ui.TextInput(
+            label='信件內容', 
+            placeholder="請輸入內容", 
+            style=discord.TextStyle.paragraph
+        )
+        
+        self.add_item(self.to_input)
+        self.add_item(self.subject_input)
+        self.add_item(self.content_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -30,11 +47,10 @@ class EmailSendView(discord.ui.Modal, title = '寄件設定'):
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         import traceback
         traceback.print_exc() 
-        
         if interaction.response.is_done():
-            await interaction.followup.send('發生意外錯誤 請查看主機後台', ephemeral=True)
+            await interaction.followup.send(f'發生意外錯誤：{error}', ephemeral=True)
         else:
-            await interaction.response.send_message('發生意外錯誤 請通知管理員', ephemeral=True)
+            await interaction.response.send_message('發生意外錯誤，請通知管理員', ephemeral=True)
 
 class EmailReplyModal(discord.ui.Modal):
     content_input = discord.ui.TextInput(
@@ -137,7 +153,36 @@ class GmailDashboardView(ui.View):
             print("⚠️ [GmailDashboardView] 無法匯入 BackToMainButton")
 
     async def send_callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(EmailSendView(cog=self.gmail_cog, user_id =self.user_id))
+        view = RecipientSelectView(cog=self.gmail_cog, user_id=self.user_id)
+        await interaction.response.send_message("請選擇收件人或直接撰寫：", view=view, ephemeral=True)
 
     async def add_list_callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(AddEmailListView(cog=self.gmail_cog, user_id =self.user_id))
+
+class RecipientSelectView(discord.ui.View):
+    def __init__(self, cog, user_id):
+        super().__init__(timeout=60)
+        self.cog = cog
+        self.user_id = user_id
+
+        db = self.cog.list_tools.read_db()
+        user_contacts = db.get("data", {}).get(str(user_id), {})
+
+        if user_contacts:
+            options = [
+                discord.SelectOption(label=name, description=mail, value=mail)
+                for name, mail in user_contacts.items()
+            ]
+            
+            select = discord.ui.Select(placeholder="選擇常用聯絡人...", options=options)
+            select.callback = self.select_callback
+            self.add_item(select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        email = interaction.data['values'][0]
+        await interaction.response.send_modal(EmailSendView(self.cog, self.user_id, to_default=email))
+
+    @discord.ui.button(label="直接手動輸入", style=discord.ButtonStyle.secondary)
+    async def manual(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        await interaction.response.send_modal(EmailSendView(self.cog, self.user_id))
