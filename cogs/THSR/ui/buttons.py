@@ -2,9 +2,37 @@ import discord
 from discord import ui
 import asyncio
 
-# 引入爬蟲與自動化邏輯
+from database.db import DatabaseSession
+from database.models import User
+
 from ..src.GetTimeStamp import get_thsr_schedule
 from ..src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result
+
+class OpenTHSRProfileButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(label="設定個人資料", style=discord.ButtonStyle.secondary, emoji="📝", row=0)
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        user_data = {}
+        try:
+            with DatabaseSession() as db:
+                user = db.query(User).filter(User.discord_id == interaction.user.id).first()
+                if user:
+                    user_data = {
+                        'pid': user.personal_id,
+                        'phone': user.phone,
+                        'email': user.email,
+                        'tgo': user.tgo_id
+                    }
+        except Exception as e:
+            print(f"讀取資料庫失敗: {e}")
+
+        from .view import THSRProfileView
+        
+        view = THSRProfileView(self.bot, user_data)
+        embed = view.generate_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 # [Dashboard] 開啟查詢按鈕
 class OpenTHSRQueryButton(ui.Button):
@@ -89,7 +117,7 @@ class THSRSearchButton(ui.Button):
                             discount_display = f"🏷️ {discount}"
 
                         val = f"`{dep} ➔ {arr}`\n⏱️ {duration} | {discount_display}"
-                        final_embed.add_field(name=f"🚅 {train['id']}", value=val, inline=True)
+                        final_embed.add_field(name=f"🚅 {train['id']}", value=val, inline=False)
                 
                 # 呼叫結果頁面 View
                 from .view import THSRResultView
