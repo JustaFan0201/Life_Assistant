@@ -5,7 +5,7 @@ import re
 class EmailFavoriteList:
     def __init__(self, folder_path):
         self.file_path = os.path.join(folder_path, "email_list.json")
-        self.template = {"data": []}
+        self.template = {"data": {}}
 
     def read_db(self):
         if not os.path.exists(self.file_path):
@@ -18,25 +18,30 @@ class EmailFavoriteList:
         except Exception:
             return self.template.copy()
         
-    def add_and_save(self, email):
-        db = self.read_db()
+    def add_and_save(self, name, email, user_id):
+        db = self.read_db() 
+        uid = str(user_id)
 
+        # 1. 驗證 Email 格式
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if re.match(pattern, email) is None:
             return "❌ email 格式不符"
 
-        if any(item['email'] == email for item in db["data"]):
-            return "⚠️ 該 Email 已在列表中，無需重複添加"
+        # 2. 初始化結構 (確保是字典格式)
+        if uid not in db["data"]:
+            db["data"][uid] = {} # 💡 這裡改用字典存 {暱稱: Email}
 
-        new_data = {"email": email}
-        db["data"].append(new_data)
+        if name in db["data"][uid]:
+            return f"⚠️ 暱稱「{name}」已存在，請換一個名字。"
+
+        # 4. 儲存
+        db["data"][uid][name] = email
 
         try:
             with open(self.file_path, "w", encoding="utf-8") as f:
                 json.dump(db, f, ensure_ascii=False, indent=4)
-            return f"✅ 成功新增：{email}"
+            return f"✅ 成功新增聯絡人：{name} ({email})"
         except Exception as e:
-            print(f"寫入檔案失敗: {e}")
-            return "❌ 寫入檔案失敗，請通知管理員"
+            return f"❌ 寫入失敗: {e}"
         
     
