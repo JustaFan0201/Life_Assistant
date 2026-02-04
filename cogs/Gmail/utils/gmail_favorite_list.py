@@ -32,7 +32,6 @@ class EmailFavoriteList:
         if name in db["data"][uid]:
             return f"⚠️ 暱稱「{name}」已存在，請換一個名字。"
 
-        # 4. 儲存
         db["data"][uid][name] = email
 
         try:
@@ -42,4 +41,30 @@ class EmailFavoriteList:
         except Exception as e:
             return f"❌ 寫入失敗: {e}"
         
+    def update_contact(self, user_id, nickname, new_email):
+            db = self.read_db()
+            uid = str(user_id)
+            if uid in db["data"] and nickname in db["data"][uid]:
+                pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+                if re.match(pattern, new_email) is None:
+                    return "❌ Email 格式不符"
+                
+                db["data"][uid][nickname] = new_email
+                self._save_to_file(db)
+                return f"✅ 已將「{nickname}」的地址更新為：{new_email}"
+            return "❌ 找不到該聯絡人"
+
+    def delete_contact(self, user_id, nickname):
+        db = self.read_db()
+        uid = str(user_id)
+        if uid in db["data"] and nickname in db["data"][uid]:
+            del db["data"][uid][nickname]
+            self._save_to_file(db)
+            return f"🗑️ 已刪除聯絡人：{nickname}"
+        return "❌ 找不到該聯絡人"
+
+    def _save_to_file(self, db):
+        with open(self.file_path, "w", encoding="utf-8") as f:
+            json.dump(db, f, ensure_ascii=False, indent=4)
+    
     

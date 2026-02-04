@@ -124,7 +124,7 @@ class AddEmailListView(discord.ui.Modal, title="新增常用email地址"):
             email_value = self.address_input.value
             
             report = self.cog.list_tools.add_and_save(name, email_value, self.user_id)
-            await interaction.followup.send(report)
+            await interaction.followup.send(report, ephemeral=True)
             
         except Exception as e:
             print(f"Modal 提交錯誤: {e}")
@@ -146,6 +146,10 @@ class GmailDashboardView(ui.View):
         add_list_btn.callback = self.add_list_callback
         self.add_item(add_list_btn)
 
+        manage_btn = ui.Button(label="管理聯絡人", style=discord.ButtonStyle.secondary, emoji="⚙️")
+        manage_btn.callback = self.manage_callback
+        self.add_item(manage_btn)
+
         try:
             from cogs.System.ui.buttons import BackToMainButton
             self.add_item(BackToMainButton(self.bot))
@@ -158,6 +162,14 @@ class GmailDashboardView(ui.View):
 
     async def add_list_callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(AddEmailListView(cog=self.gmail_cog, user_id =self.user_id))
+
+    async def manage_callback(self, interaction: discord.Interaction):
+        view = ContactManageView(self.gmail_cog, self.user_id)
+        db = self.gmail_cog.list_tools.read_db()
+        if not db.get("data", {}).get(str(self.user_id)):
+            return await interaction.response.send_message("您的清單目前是空的喔！", ephemeral=True)
+            
+        await interaction.response.send_message("請選擇您要管理的聯絡人：", view=view, ephemeral=True)
 
 class RecipientSelectView(discord.ui.View):
     def __init__(self, cog, user_id):
@@ -186,3 +198,64 @@ class RecipientSelectView(discord.ui.View):
     async def manual(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         await interaction.response.send_modal(EmailSendView(self.cog, self.user_id))
+
+class ContactManageView(discord.ui.View):
+    def __init__(self, cog, user_id):
+        super().__init__(timeout=60)
+        self.cog = cog
+        self.user_id = user_id
+        self.setup_select()
+
+    def setup_select(self):
+        db = self.cog.list_tools.read_db()
+        user_contacts = db.get("data", {}).get(str(self.user_id), {})
+
+        if not user_contacts:
+            return
+
+        options = [
+            discord.SelectOption(label=name, description=mail, value=name)
+            for name, mail in user_contacts.items()
+        ]
+        
+        select = discord.ui.Select(placeholder="選擇要管理的聯絡人...", options=options)
+        select.callback = self.manage_callback
+        self.add_item(select)
+
+    async def manage_callback(self, interaction: discord.Interaction):
+        nickname = interaction.data['values'][0]
+        view = ContactActionView(self.cog, self.user_id, nickname)
+        await interaction.response.edit_message(content=f"正在管理：**{nickname}**，請選擇操作：", view=view)
+
+class ContactActionView(discord.ui.View):
+    def __init__(self, cog, user_id, nickname):
+        super().__init__()
+        self.cog = cog
+        self.user_id = user_id
+        self.nickname = nickname
+
+    @discord.ui.button(label="修改 Email", style=discord.ButtonStyle.primary, emoji="✏️")
+    async def edit_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(EditEmailModal(self.cog, self.user_id, self.nickname))
+
+    @discord.ui.button(label="刪除聯絡人", style=discord.ButtonStyle.danger, emoji="🗑️")
+    async def delete_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        result = self.cog.list_tools.delete_contact(self.user_id, self.nickname)
+        await interaction.response.edit_message(content=result, view=None)
+
+class EditEmailModal(discord.ui.Modal, title="修改聯絡人資料"):
+    def __init__(self, cog, user_id, nickname):
+        super().__init__()
+        self.cog = cog
+        self.user_id = user_id
+        self.nickname = nickname
+        
+        self.email_input = discord.ui.TextInput(
+            label=f"修改 {nickname} 的 Email",
+            placeholder="請輸入新的 Email 地址"
+        )
+        self.add_item(self.email_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        result = self.cog.list_tools.update_contact(self.user_id, self.nickname, self.email_input.value)
+        await interaction.response.send_message(result, ephemeral=True)
