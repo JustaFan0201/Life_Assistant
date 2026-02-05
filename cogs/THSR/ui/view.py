@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from ...System.ui.buttons import BackToMainButton
 
 from database.db import DatabaseSession
-from database.models import User
+from database.models import User,THSRProfile
 
 from .buttons import (
     OpenTHSRQueryButton, 
@@ -56,15 +56,25 @@ class THSRProfileModal(ui.Modal, title="設定高鐵個人檔案"):
 
         try:
             with DatabaseSession() as db:
+                # 1. 確保 User 存在
                 user = db.query(User).filter(User.discord_id == discord_id).first()
                 if not user:
                     user = User(discord_id=discord_id, username=username)
                     db.add(user)
+                    db.flush() # 先 flush 產生 User 才能建立 Profile
+
+                # 2. 查詢或建立 THSRProfile
+                profile = db.query(THSRProfile).filter(THSRProfile.user_id == discord_id).first()
+                if not profile:
+                    profile = THSRProfile(user_id=discord_id)
+                    db.add(profile)
                 
-                user.personal_id = new_data['pid']
-                user.phone = new_data['phone']
-                user.email = new_data['email']
-                user.tgo_id = new_data['tgo']
+                # 3. 更新 Profile 資料
+                profile.personal_id = new_data['pid']
+                profile.phone = new_data['phone']
+                profile.email = new_data['email']
+                profile.tgo_id = new_data['tgo']
+                
                 db.commit()
 
             self.origin_view.user_data = new_data
@@ -91,10 +101,10 @@ class THSRProfileView(ui.View):
 
         embed = discord.Embed(title=f"👤 個人資料設定 {status_icon}", description=f"目前狀態：**{status_text}**", color=color)
         
-        embed.add_field(name="🆔 身分證", value=mask_text(self.user_data.get('pid'), self.is_hidden), inline=True)
-        embed.add_field(name="📱 手機", value=mask_text(self.user_data.get('phone'), self.is_hidden), inline=True)
+        embed.add_field(name="🆔 身分證", value=mask_text(self.user_data.get('pid'), self.is_hidden), inline=False)
+        embed.add_field(name="📱 手機", value=mask_text(self.user_data.get('phone'), self.is_hidden), inline=False)
         embed.add_field(name="📧 信箱", value=mask_text(self.user_data.get('email'), self.is_hidden), inline=False)
-        embed.add_field(name="💎 TGo", value=self.user_data.get('tgo') if self.user_data.get('tgo') else "未設定", inline=True)
+        embed.add_field(name="💎 TGo", value=self.user_data.get('tgo') if self.user_data.get('tgo') else "未設定", inline=False)
         
         embed.set_footer(text="點擊「修改」來編輯資料，點擊「顯示/隱藏」切換檢視")
         return embed
@@ -421,12 +431,11 @@ class THSRBookingView(ui.View):
         embed = self.get_status_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
+# 修改 THSRTrainSelect
 class THSRTrainSelect(ui.Select):
     def __init__(self, trains):
         options = []
-        # 限制顯示前 25 筆 (Discord 上限)
         for t in trains[:25]: 
-            # 處理優惠顯示
             discount_icon = ""
             raw_discount = t.get('discount', '')
             if "早鳥" in raw_discount: discount_icon = "🦅"
@@ -434,8 +443,6 @@ class THSRTrainSelect(ui.Select):
             
             label = f"[{t['code']}] {t['departure']} ➜ {t['arrival']}"
             desc = f"⏱️ {t['duration']} {discount_icon} {raw_discount}"
-            
-            # 確保描述不超過長度
             if len(desc) > 100: desc = desc[:97] + "..."
             
             options.append(discord.SelectOption(label=label, description=desc, value=t['code']))
@@ -444,21 +451,60 @@ class THSRTrainSelect(ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         selected_code = self.values[0]
-        # ★ 這裡需要 import Modal，使用區域引用避免循環 ★
-        from .buttons import THSRPassengerModal
-        await interaction.response.send_modal(THSRPassengerModal(self.view.bot, self.view.driver, selected_code))
+        
+        user_data = None
+        has_valid_profile = False
+        
+        try:
+            with DatabaseSession() as db:
+                profile = db.query(THSRProfile).filter(THSRProfile.user_id == interaction.user.id).first()
+                if profile and profile.personal_id: # 必須要有身分證
+                    has_valid_profile = True
+                    user_data = {
+                        'pid': profile.personal_id,
+                        'phone': profile.phone,
+                        'email': profile.email,
+                        'tgo': profile.tgo_id
+                    }
+        except Exception as e:
+            print(f"資料庫檢查錯誤: {e}")
+
+        if not has_valid_profile:
+            # A. 沒有資料 -> 報錯並關閉瀏覽器
+            if self.view.driver:
+                self.view.driver.quit() # 必須關閉，不然會殘留
+            
+            embed = discord.Embed(
+                title="❌ 無法訂票",
+                description="您尚未設定 **身分證字號**，系統無法協助訂票。\n請先返回主選單，點擊 **「📝 設定個人資料」**。",
+                color=discord.Color.red()
+            )
+            # 使用區域引用呼叫 Dashboard
+            from .view import THSR_DashboardView
+            dash_embed, dash_view = THSR_DashboardView.create_dashboard_ui(self.view.bot)
+            
+            # 因為 Interaction 已經結束 (select callback)，我們發送一個 Ephemeral 訊息提示
+            # 或者直接編輯原本的訊息回到主選單
+            await interaction.response.edit_message(embed=embed, view=dash_view)
+            return
+
+        # B. 有資料 -> 直接執行自動訂票 (不跳 Modal)
+        from .buttons import run_booking_flow
+        await run_booking_flow(interaction, self.view.bot, self.view.driver, selected_code, user_data,self.view.start_st,
+            self.view.end_st)
 
 class THSRTrainSelectView(ui.View):
-    def __init__(self, bot, driver, trains):
+    def __init__(self, bot, driver, trains, start_st, end_st):
         super().__init__(timeout=None)
         self.bot = bot
         self.driver = driver
         self.trains = trains
-        # 加入下拉選單
+        self.start_st = start_st
+        self.end_st = end_st
         self.add_item(THSRTrainSelect(trains))
 
     @staticmethod
-    def create_train_selection_ui(bot, driver, trains):
+    def create_train_selection_ui(bot, driver, trains, start_st, end_st):
         """
         [工廠方法] 產生選擇車次的 Embed 與 View
         """
@@ -469,7 +515,6 @@ class THSRTrainSelectView(ui.View):
             color=discord.Color.green()
         )
         
-        # 2. 填充車次資訊 (最多顯示 10 筆，避免 Embed 太長)
         for t in trains[:10]:
             # 美化優惠資訊
             discount = t.get('discount', '無')
@@ -490,8 +535,7 @@ class THSRTrainSelectView(ui.View):
         else:
             embed.set_footer(text="請從下拉選單選擇您要搭乘的班次")
 
-        # 3. 建立 View
-        view = THSRTrainSelectView(bot, driver, trains)
+        view = THSRTrainSelectView(bot, driver, trains, start_st, end_st)
         
         return embed, view
 
@@ -514,18 +558,48 @@ class THSRTrainSelectView(ui.View):
         
         await interaction.edit_original_response(embed=embed, view=view)
 
+class THSRSuccessView(ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.add_item(THSRHomeButton(bot))
+
+    @staticmethod
+    def create_booking_success_ui(bot, final_result, start_st=None, end_st=None):
+        """
+        [工廠方法] 產生訂票成功的 Embed 與 View
+        """
+        embed = discord.Embed(title="🎉 訂位成功！", color=discord.Color.green())
+        embed.add_field(name="訂位代號", value=f"`{final_result['pnr']}`", inline=False)
+        embed.add_field(name="總金額", value=final_result['price'], inline=True)
+        embed.add_field(name="狀態", value=final_result['payment_status'], inline=True)
+        
+        # 顯示起訖站 (如果有的話)
+        route_str = f"{start_st} ➜ {end_st}" if (start_st and end_st) else "詳見官網"
+        
+        train_info = final_result['train']
+        train_str = (
+            f"🚄 **{train_info.get('code')} 次**\n"
+            f"📅 {train_info.get('date')}\n"
+            f"⏰ {train_info.get('dep_time')} - {train_info.get('arr_time')}\n"
+            f"📍 {route_str}"
+        )
+        embed.add_field(name="車次資訊", value=train_str, inline=False)
+        embed.add_field(name="座位", value=", ".join(final_result['seats']), inline=False)
+        
+        embed.set_footer(text="請記得前往高鐵官網或 App 付款", icon_url="https://cdn-icons-png.flaticon.com/512/7518/7518748.png")
+        
+        view = THSRSuccessView(bot)
+        return embed, view
+
 class THSRErrorView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
-        # 加入回主頁按鈕
         self.add_item(THSRHomeButton(bot))
 
     @staticmethod
     def create_error_ui(bot, error_title, error_msg):
-        """
-        快速建立錯誤訊息 Embed 與 View
-        """
         embed = discord.Embed(
             title=f"❌ {error_title}",
             description=f"系統遭遇預期外的狀況，請稍後再試。\n\n**錯誤詳情：**\n```{error_msg}```",

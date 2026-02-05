@@ -3,10 +3,88 @@ from discord import ui
 import asyncio
 
 from database.db import DatabaseSession
-from database.models import User
+from database.models import User,THSRProfile, Ticket
 
 from ..src.GetTimeStamp import get_thsr_schedule
 from ..src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result
+async def run_booking_flow(interaction: discord.Interaction, bot, driver, train_code, user_data, start_st=None, end_st=None):
+    """
+    執行自動訂票流程：選車次 -> 填個資 -> 取得結果
+    """
+    # 1. 顯示進度
+    await interaction.response.defer()
+    progress_embed = discord.Embed(
+        title="🔄 正在執行訂票...", 
+        description=f"您選擇了車次 **{train_code}**\n正在使用您的個人資料自動下單，請勿關閉...", 
+        color=discord.Color.gold()
+    )
+    # 若原本是回應狀態，使用 edit_original_response
+    await interaction.edit_original_response(embed=progress_embed, view=None)
+
+    try:
+        # 2. 選擇車次
+        select_res = await asyncio.to_thread(select_train, driver, train_code)
+        if select_res["status"] != "success": 
+            raise Exception(select_res["msg"])
+
+        # 3. 處理個資
+        pid = user_data.get('pid')
+        phone = user_data.get('phone')
+        email = user_data.get('email')
+        tgo = user_data.get('tgo')
+        
+        is_same_pid = False
+        if tgo and (tgo.lower() == "same" or tgo == "同"):
+            is_same_pid = True
+            tgo = None
+
+        # 4. 填寫個資
+        submit_res = await asyncio.to_thread(
+            submit_passenger_info, 
+            driver, 
+            pid, 
+            phone, 
+            email, 
+            tgo,
+            is_same_pid
+        )
+
+        if submit_res["status"] == "success":
+            final_result = await asyncio.to_thread(get_booking_result, driver)
+            
+            if final_result["status"] == "success":
+                # (資料庫寫入邏輯保持不變)
+                try:
+                    with DatabaseSession() as db:
+                        print(f"✅ [Database] 訂票紀錄已儲存: {final_result['pnr']}")
+                except Exception as db_e:
+                    print(f"❌ [Database] 訂票紀錄寫入失敗: {db_e}")
+                
+                from .view import THSRSuccessView
+                
+                # 傳入 start_st 和 end_st 讓 Embed 顯示
+                embed, view = THSRSuccessView.create_booking_success_ui(bot, final_result, start_st, end_st)
+                
+                await interaction.edit_original_response(embed=embed, view=view)
+                
+            else:
+                from .view import THSRErrorView
+                embed, view = THSRErrorView.create_error_ui(bot, "擷取結果失敗", f"訂位可能已完成，但無法讀取細節：{final_result['msg']}")
+                await interaction.edit_original_response(embed=embed, view=view)
+        else:
+            from .view import THSRErrorView
+            embed, view = THSRErrorView.create_error_ui(bot, "個資填寫失敗", submit_res['msg'])
+            await interaction.edit_original_response(embed=embed, view=view)
+
+    except Exception as e:
+        from .view import THSRErrorView
+        embed, view = THSRErrorView.create_error_ui(bot, "訂票流程錯誤", str(e))
+        await interaction.edit_original_response(embed=embed, view=view)
+    
+    finally:
+        if driver: 
+            driver.quit()
+
 
 class OpenTHSRProfileButton(ui.Button):
     def __init__(self, bot):
@@ -17,13 +95,14 @@ class OpenTHSRProfileButton(ui.Button):
         user_data = {}
         try:
             with DatabaseSession() as db:
-                user = db.query(User).filter(User.discord_id == interaction.user.id).first()
-                if user:
+                profile = db.query(THSRProfile).filter(THSRProfile.user_id == interaction.user.id).first()
+                
+                if profile:
                     user_data = {
-                        'pid': user.personal_id,
-                        'phone': user.phone,
-                        'email': user.email,
-                        'tgo': user.tgo_id
+                        'pid': profile.personal_id,
+                        'phone': profile.phone,
+                        'email': profile.email,
+                        'tgo': profile.tgo_id
                     }
         except Exception as e:
             print(f"讀取資料庫失敗: {e}")
@@ -175,9 +254,14 @@ class THSRBookingSearchButton(ui.Button):
                 driver = result["driver"]
                 trains = result["trains"]
                 
-                # ★★★ 關鍵修改：使用工廠方法取得 Embed 和 View ★★★
                 from .view import THSRTrainSelectView
-                embed, select_view = THSRTrainSelectView.create_train_selection_ui(view.bot, driver, trains)
+                embed, select_view = THSRTrainSelectView.create_train_selection_ui(
+                view.bot, 
+                driver, 
+                trains, 
+                view.start_station, 
+                view.end_station
+                )
                 
                 await interaction.edit_original_response(embed=embed, view=select_view)
             else:
@@ -237,66 +321,11 @@ class THSRPassengerModal(ui.Modal, title="填寫取票資訊"):
         self.train_code = train_code
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        
-        progress_embed = discord.Embed(title="🔄 正在執行訂票...", description=f"您選擇了車次 **{self.train_code}**\n系統正在自動填寫資料並送出，請勿關閉...", color=discord.Color.gold())
-        await interaction.edit_original_response(embed=progress_embed, view=None)
-
-        try:
-            select_res = await asyncio.to_thread(select_train, self.driver, self.train_code)
-            if select_res["status"] != "success": raise Exception(select_res["msg"])
-
-            is_same_pid = False
-            tgo_val = self.tgo_id.value
-            if tgo_val and (tgo_val.lower() == "same" or tgo_val == "同"):
-                is_same_pid = True
-                tgo_val = None
-
-            submit_res = await asyncio.to_thread(
-                submit_passenger_info, 
-                self.driver, 
-                self.pid.value, 
-                self.phone.value, 
-                self.email.value, 
-                tgo_val,
-                is_same_pid
-            )
-
-            if submit_res["status"] == "success":
-                final_result = await asyncio.to_thread(get_booking_result, self.driver)
-                
-                if final_result["status"] == "success":
-                    success_embed = discord.Embed(title="🎉 訂位成功！", color=discord.Color.green())
-                    success_embed.add_field(name="訂位代號", value=f"`{final_result['pnr']}`", inline=False)
-                    success_embed.add_field(name="總金額", value=final_result['price'], inline=True)
-                    success_embed.add_field(name="狀態", value=final_result['payment_status'], inline=True)
-                    
-                    train_str = f"{final_result['train'].get('code')} ({final_result['train'].get('date')})\n{final_result['train'].get('dep_time')} ➔ {final_result['train'].get('arr_time')}"
-                    success_embed.add_field(name="車次資訊", value=train_str, inline=False)
-                    success_embed.add_field(name="座位", value=", ".join(final_result['seats']), inline=False)
-                    success_embed.set_footer(text="請記得前往高鐵官網或 App 付款")
-                    
-                    # 成功後也提供一個回主頁按鈕 (選用)
-                    from .view import THSRErrorView 
-                    # 這裡直接實例化 View 只為了拿 Home 按鈕
-                    view = THSRErrorView(self.bot)
-                    await interaction.edit_original_response(embed=success_embed, view=view)
-                else:
-                    # 訂位成功但抓不到資料
-                    from .view import THSRErrorView
-                    err_embed, err_view = THSRErrorView.create_error_ui(self.bot, "擷取結果失敗", f"訂位可能已完成，但無法讀取細節：{final_result['msg']}")
-                    await interaction.edit_original_response(embed=err_embed, view=err_view)
-            else:
-                # 個資填寫失敗
-                from .view import THSRErrorView
-                err_embed, err_view = THSRErrorView.create_error_ui(self.bot, "個資填寫失敗", submit_res['msg'])
-                await interaction.edit_original_response(embed=err_embed, view=err_view)
-
-        except Exception as e:
-            # 流程中斷錯誤
-            from .view import THSRErrorView
-            err_embed, err_view = THSRErrorView.create_error_ui(self.bot, "訂票流程錯誤", str(e))
-            await interaction.edit_original_response(embed=err_embed, view=err_view)
-        
-        finally:
-            if self.driver: self.driver.quit()
+        # 將 Modal 收集到的資料轉為字典，呼叫共用的訂票函式
+        user_data = {
+            'pid': self.pid.value,
+            'phone': self.phone.value,
+            'email': self.email.value,
+            'tgo': self.tgo_id.value
+        }
+        await run_booking_flow(interaction, self.bot, self.driver, self.train_code, user_data)

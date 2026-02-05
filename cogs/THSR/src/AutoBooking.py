@@ -5,11 +5,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, NoAlertPresentException
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import os
 from datetime import datetime, timedelta
+import random
 
 # --- 修補 PIL 相容性 ---
 import PIL.Image
@@ -17,6 +18,10 @@ if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
 
 import ddddocr
+if os.getenv("RENDER"):
+    Test=False
+else:
+    Test=True
 
 # --- 車站代碼設定 ---
 BOOKING_STATION_MAP = {
@@ -25,9 +30,7 @@ BOOKING_STATION_MAP = {
     "雲林": "9", "嘉義": "10", "台南": "11", "臺南": "11", "左營": "12", "高雄": "12"
 }
 
-# ==========================================
-# [第一階段] 搜尋車次 (含座位偏好)
-# ==========================================
+# [第一階段] 搜尋車次
 def search_trains(start_station, end_station, date_str, time_str, ticket_count=1, seat_prefer="None"):
     """
     執行查詢並回傳車次列表，不自動進入下一步
@@ -40,7 +43,7 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         return {"status": "error", "msg": "車站名稱錯誤"}
 
     options = Options()
-    # options.add_argument("--headless=new") 
+    options.add_argument("--headless=new") 
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--window-size=1280,800")
@@ -77,9 +80,8 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
 
         Select(driver.find_element(By.NAME, "ticketPanel:rows:0:ticketAmount")).select_by_value(f"{ticket_count}F")
 
-        # --- 2. 選擇座位偏好 (新增功能) ---
         # 高鐵網頁 ID: seatRadio0(無), seatRadio1(靠窗), seatRadio2(走道)
-        print(f"💺 正在設定座位偏好: {seat_prefer}")
+        if Test: print(f"💺 正在設定座位偏好: {seat_prefer}")
         try:
             if str(seat_prefer).lower() == "window":
                 driver.execute_script("document.getElementById('seatRadio1').click();")
@@ -88,36 +90,46 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
             else:
                 driver.execute_script("document.getElementById('seatRadio0').click();")
         except Exception as e:
-            print(f"⚠️ 座位選擇失敗 (可能該時段不開放選位): {e}")
+            if Test: print(f"⚠️ 座位選擇失敗 (可能該時段不開放選位): {e}")
 
-        # --- 3. 驗證碼迴圈 ---
         try:
             ocr = ddddocr.DdddOcr(show_ad=False)
         except:
             ocr = ddddocr.DdddOcr()
 
-        max_retries = 5
-        for attempt in range(1, max_retries + 1):
-            print(f"\n🔄 第 {attempt} 次嘗試驗證碼...")
+        attempt = 0 
+        while True:
+            attempt += 1
+            if Test: print(f"\n🔄 第 {attempt} 次嘗試驗證碼...")
+            
             try:
+                # 等待驗證碼圖片出現
                 captcha_img = wait.until(EC.visibility_of_element_located((By.ID, "BookingS1Form_homeCaptcha_passCode")))
+                
+                # 辨識
                 res = ocr.classification(captcha_img.screenshot_as_png)
-                print(f"🤖 OCR 結果: {res}")
+                if Test: print(f"🤖 OCR 結果: {res}")
 
-                if len(res) != 4: raise ValueError("Captcha invalid")
+                # 基本長度檢查，不對就直接觸發重整
+                if len(res) != 4: 
+                    raise ValueError("Captcha length invalid")
 
-                driver.find_element(By.ID, "securityCode").clear()
-                driver.find_element(By.ID, "securityCode").send_keys(res)
+                # 填寫並送出
+                security_code = driver.find_element(By.ID, "securityCode")
+                security_code.clear()
+                security_code.send_keys(res)
+                
                 driver.find_element(By.ID, "SubmitButton").click()
 
                 time.sleep(2.5) 
                 
-                # 判斷是否跳轉到第二階段 (車次列表)
+                # --- 判斷是否成功 (跳轉到第二階段) ---
+                # 檢查 SubmitButton 是否消失，或者 URL 是否改變
                 is_submit_gone = len(driver.find_elements(By.ID, "SubmitButton")) == 0
-                if "TrainSelection" in driver.current_url or (is_submit_gone and driver.current_url != home_url):
-                    print("✅ 驗證通過，正在解析車次列表...")
+                
+                if "TrainSelection" in driver.current_url or (is_submit_gone and driver.current_url != "https://irs.thsrc.com.tw/IMINT/"):
+                    if Test: print("✅ 驗證通過，正在解析車次列表...")
                     
-                    # ★★★ 呼叫解析函式，抓取所有車次資料 ★★★
                     trains_data = _parse_all_trains(driver)
                     
                     if not trains_data:
@@ -125,38 +137,49 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
 
                     return {
                         "status": "success", 
-                        "msg": f"找到 {len(trains_data)} 班列車", 
-                        "trains": trains_data,  # 回傳資料列表，供 Bot 顯示
-                        "driver": driver        # 回傳 driver，保持視窗開啟等待選擇
+                        "msg": f"找到 {len(trains_data)} 班列車 (嘗試了 {attempt} 次)", 
+                        "trains": trains_data, 
+                        "driver": driver 
                     }
 
-                # 錯誤處理
                 try:
-                    err = driver.find_element(By.XPATH, "//div[@id='feedMSG']//span[@class='error']").text
-                    if "檢測碼" in err or "驗證碼" in err: raise ValueError("Wrong Captcha")
-                    
-                    driver.quit() 
-                    return {"status": "failed", "msg": f"查詢失敗: {err}"}
-                except:
-                    raise ValueError("Unknown")
+                    err_element = driver.find_elements(By.XPATH, "//div[@id='feedMSG']//span[@class='error']")
+                    if err_element:
+                        err_text = err_element[0].text
+                        if "檢測碼" in err_text or "驗證碼" in err_text:
+                            if Test: print(f"❌ 驗證碼錯誤 ({err_text})，準備重試...")
+                            raise ValueError("Wrong Captcha")
+                        else:
+                            driver.quit()
+                            return {"status": "failed", "msg": f"查詢失敗: {err_text}"}
+                    else:
+                        raise ValueError("Unknown status, retrying...")
+                except Exception as e:
+                    raise ValueError(f"Check failed: {e}")
 
             except Exception:
-                if attempt < max_retries:
-                    try:
-                        # 防呆檢查
-                        if len(driver.find_elements(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")) == 0:
-                             return {
-                                 "status": "success", 
-                                 "msg": "已跳轉 (防呆)", 
-                                 "trains": _parse_all_trains(driver), 
-                                 "driver": driver
-                             }
-                        driver.find_element(By.ID, "BookingS1Form_homeCaptcha_reCodeLink").click()
-                        time.sleep(2)
-                    except: break
+                try:
+                    if len(driver.find_elements(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")) == 0:
+                        check_data = _parse_all_trains(driver)
+                        if check_data:
+                            return {
+                                "status": "success", 
+                                "msg": f"已跳轉 (防呆機制觸發)", 
+                                "trains": check_data, 
+                                "driver": driver
+                            }
+                    
+                    if Test: print("🔄 重新整理驗證碼圖片...")
+                    refresh_btn = driver.find_element(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")
+                    driver.execute_script("arguments[0].click();", refresh_btn)
+                    time.sleep(1.5) # 等待新圖片載入
+                
+                except Exception as refresh_error:
+                    if Test: print(f"❌ 無法重整驗證碼，終止程序: {refresh_error}")
+                    break
         
         driver.quit()
-        return {"status": "failed", "msg": "驗證碼重試耗盡"}
+        return {"status": "failed", "msg": "驗證流程異常終止"}
 
     except Exception as e:
         if driver: driver.quit()
@@ -205,57 +228,104 @@ def _parse_all_trains(driver):
                 
         return trains
     except Exception as e:
-        print(f"解析車次失敗: {e}")
+        if Test: print(f"解析車次失敗: {e}")
         return []
 
-# ==========================================
-# [第二階段] 選擇特定車次
-# ==========================================
+
 def select_train(driver, train_code):
     """
-    根據使用者選擇的車次代碼 (train_code) 進行點擊並跳轉
+    [搶票模式] 鎖定特定車次 (train_code)。
+    如果該車次存在 -> 嘗試購買。
+    如果該車次消失/額滿 -> 重新整理頁面，持續監控直到買到為止。
     """
-    try:
-        wait = WebDriverWait(driver, 10)
-        print(f"🎯 正在鎖定車次: {train_code}...")
-        
-        # 1. 根據車次代碼找到對應的 Radio Button
-        # HTML 範例: <input QueryCode="657" ... >
-        selector = f"input[QueryCode='{train_code}']"
+    wait = WebDriverWait(driver, 10)
+    
+    # 設定重試間隔 (秒)，太快會被鎖 IP
+    REFRESH_INTERVAL = 5  
+    
+    print(f"🎯 [搶票模式啟動] 正在鎖定車次: {train_code}...")
+    start_time = time.time()
+    MAX_DURATION = 1800 # 30分鐘
+
+    while True:
+        if time.time() - start_time > MAX_DURATION:
+             return {"status": "failed", "msg": "搶票超時 (30分鐘)，自動停止", "driver": driver}
         try:
-            target_radio = driver.find_element(By.CSS_SELECTOR, selector)
-        except:
-            return {"status": "failed", "msg": f"找不到車次 {train_code}，可能已額滿或過期", "driver": driver}
-
-        # 2. 點擊選擇
-        driver.execute_script("arguments[0].click();", target_radio)
-        time.sleep(0.5)
-
-        # 3. 點擊送出
-        submit_btn = driver.find_element(By.NAME, "SubmitButton")
-        driver.execute_script("arguments[0].click();", submit_btn)
-        
-        # 4. 等待跳轉 (處理彈窗或正常跳轉)
-        print("⏳ 正在跳轉至個資頁面...")
-        try:
-            def find_next_page(d):
-                # 情況 A: 出現確認視窗 (btn-custom4)
-                if len(d.find_elements(By.ID, "btn-custom4")) > 0: return "modal"
-                # 情況 B: 出現身分證輸入框 (idNumber)
-                if len(d.find_elements(By.ID, "idNumber")) > 0: return "input"
-                return False
+            # --- 步驟 1: 尋找車次按鈕 ---
+            selector = f"input[QueryCode='{train_code}']"
+            target_radio = None
             
-            wait.until(find_next_page)
-            return {"status": "success", "msg": "已選擇車次並跳轉", "driver": driver}
-            
-        except TimeoutException:
-            # 補救措施：檢查網址
-            if "wicket:interface=:2" in driver.current_url:
-                 return {"status": "success", "msg": "強制判定跳轉成功", "driver": driver}
-            raise Exception("跳轉失敗 (Timeout)")
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                if len(elements) > 0:
+                    target_radio = elements[0]
+            except:
+                pass
 
-    except Exception as e:
-        return {"status": "error", "msg": f"選車失敗: {e}", "driver": driver}
+            # --- 步驟 2: 判斷是否找到車次 ---
+            if target_radio:
+                print(f"✨ 發現車次 {train_code}！嘗試點擊訂票...")
+                
+                # 2-1. 點擊選擇
+                driver.execute_script("arguments[0].click();", target_radio)
+                time.sleep(0.5)
+
+                # 2-2. 點擊送出 (Submit)
+                submit_btn = driver.find_element(By.NAME, "SubmitButton")
+                driver.execute_script("arguments[0].click();", submit_btn)
+
+                # 2-3. 檢查結果 (是否成功跳轉到下一頁)
+                try:
+                    # 等待一下，看看有沒有 Alert (例如：該車次已額滿)
+                    time.sleep(1)
+                    try:
+                        alert = driver.switch_to.alert
+                        err_msg = alert.text
+                        print(f"⚠️ 訂票失敗，高鐵回傳訊息: {err_msg}")
+                        alert.accept() # 關閉警告視窗
+                        # 繼續迴圈 (重新整理再試)
+                    except NoAlertPresentException:
+                        # 沒有 Alert，檢查網址或元素看是否跳轉成功
+                        if "BookingS2Form" not in driver.current_url and ("idNumber" in driver.page_source or "btn-custom4" in driver.page_source):
+                            return {"status": "success", "msg": "搶票成功！已跳轉至個資頁面", "driver": driver}
+                except Exception as e:
+                    print(f"⚠️ 判斷跳轉時發生錯誤: {e}")
+
+            else:
+                print(f"⏳ 車次 {train_code} 目前無座位/未顯示，繼續監控中...")
+
+            # --- 步驟 3: 重新整理頁面 (Refresh) ---
+            # 隨機延遲，模擬人類行為並避免被鎖
+            sleep_time = REFRESH_INTERVAL + random.uniform(0, 2)
+            print(f"🔄 {sleep_time:.1f} 秒後重新整理...")
+            time.sleep(sleep_time)
+
+            try:
+                driver.refresh()
+                # 重新整理後，通常會有「確認重新提交表單」的 Alert
+                # 我們需要等待並接受它，不然程式會卡住
+                WebDriverWait(driver, 5).until(EC.alert_is_present())
+                alert = driver.switch_to.alert
+                alert.accept()
+                print("✅ 已確認表單重送")
+                
+                # 等待頁面載入完成 (等待表格出現)
+                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "table_simple")))
+
+            except TimeoutException:
+                # 沒跳出 Alert 可能只是單純重新整理，或是頁面載入慢，繼續執行
+                pass
+            except NoAlertPresentException:
+                pass
+
+        except Exception as e:
+            print(f"❌ 搶票迴圈發生未預期錯誤: {e}")
+            # 發生錯誤時不要立刻死掉，休息一下再試 (增加容錯率)
+            time.sleep(5)
+            try:
+                driver.refresh()
+            except:
+                return {"status": "error", "msg": f"搶票程式崩潰: {e}", "driver": driver}
 
 def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, tgo_same_as_pid=False):
     """
@@ -265,19 +335,19 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
         short_wait = WebDriverWait(driver, 3)
         normal_wait = WebDriverWait(driver, 10)
         
-        print("⏳ 進入個資頁面，準備填寫...")
+        if Test: print("⏳ 進入個資頁面，準備填寫...")
 
         # 1. 處理一開始的「信用卡優惠/提醒」彈跳視窗
         try:
             modal_btn = short_wait.until(EC.visibility_of_element_located((By.ID, "btn-custom4")))
-            print("👀 偵測到提醒視窗，點擊「繼續購票」...")
+            if Test: print("👀 偵測到提醒視窗，點擊「繼續購票」...")
             modal_btn.click()
             time.sleep(1)
         except:
-            print("✅ 無彈跳視窗或已自動關閉")
+            if Test: print("✅ 無彈跳視窗或已自動關閉")
 
         # 2. 填寫取票人身分證字號 (必填)
-        print("✍️ 正在填寫取票人身分證...")
+        if Test: print("✍️ 正在填寫取票人身分證...")
         pid_input = normal_wait.until(EC.element_to_be_clickable((By.ID, "idNumber")))
         pid_input.click()
         pid_input.clear()
@@ -296,7 +366,7 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
             real_name_input = driver.find_element(By.CSS_SELECTOR, "input[name*='passengerDataIdNumber']")
             
             if real_name_input.is_displayed():
-                print("🦅 偵測到早鳥實名制欄位，正在填寫乘客身分證...")
+                if Test: print("🦅 偵測到早鳥實名制欄位，正在填寫乘客身分證...")
                 real_name_input.click()
                 real_name_input.clear()
                 # 這裡假設乘客就是取票人，填入相同的身分證
@@ -304,18 +374,18 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
                 time.sleep(0.5)
         except:
             # 找不到代表這張票不需要實名制，直接忽略
-            print("ℹ️ 無需填寫早鳥實名資料")
+            if Test: print("ℹ️ 無需填寫早鳥實名資料")
 
         # 3. 填寫手機
         if phone:
-            print(f"📱 填寫手機: {phone}")
+            if Test: print(f"📱 填寫手機: {phone}")
             p_input = driver.find_element(By.ID, "mobilePhone")
             p_input.clear()
             p_input.send_keys(phone)
             
         # 4. 填寫 Email
         if email:
-            print(f"📧 填寫信箱: {email}")
+            if Test: print(f"📧 填寫信箱: {email}")
             e_input = driver.find_element(By.ID, "email")
             e_input.clear()
             e_input.send_keys(email)
@@ -328,12 +398,12 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
                 time.sleep(0.5) 
 
                 if tgo_same_as_pid:
-                    print("💎 勾選 TGo 會員 (同身分證)")
+                    if Test: print("💎 勾選 TGo 會員 (同身分證)")
                     same_id_checkbox = driver.find_element(By.ID, "memberShipCheckBox")
                     if not same_id_checkbox.is_selected():
                         driver.execute_script("arguments[0].click();", same_id_checkbox)
                 else:
-                    print(f"💎 輸入 TGo 會員帳號: {tgo_id}")
+                    if Test: print(f"💎 輸入 TGo 會員帳號: {tgo_id}")
                     same_id_checkbox = driver.find_element(By.ID, "memberShipCheckBox")
                     if same_id_checkbox.is_selected():
                         driver.execute_script("arguments[0].click();", same_id_checkbox)
@@ -342,7 +412,7 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
                     tgo_input.clear()
                     tgo_input.send_keys(tgo_id)
             except Exception as e:
-                print(f"⚠️ TGo 設定失敗: {e}")
+                if Test: print(f"⚠️ TGo 設定失敗: {e}")
         else:
             try:
                 non_member_radio = driver.find_element(By.ID, "memberSystemRadio3")
@@ -355,27 +425,27 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
             if not agree_checkbox.is_selected():
                 driver.execute_script("arguments[0].click();", agree_checkbox)
         except Exception as e:
-            print(f"⚠️ 勾選同意條款失敗: {e}")
+            if Test: print(f"⚠️ 勾選同意條款失敗: {e}")
 
         # 7. 按下 "完成訂位" (第一次送出)
-        print("🚀 準備送出訂單...")
+        if Test: print("🚀 準備送出訂單...")
         submit_btn = driver.find_element(By.ID, "isSubmit")
         
         # ⚠️ 正式訂票請取消註解這行：
-        #driver.execute_script("arguments[0].click();", submit_btn)
+        driver.execute_script("arguments[0].click();", submit_btn)
         
         # ==========================================
         # ★★★ 8. 處理重複確認視窗 (早鳥/TGo) ★★★
         # ==========================================
         
-        print("👀 偵測是否有後續確認視窗...")
+        if Test: print("👀 偵測是否有後續確認視窗...")
         time.sleep(1.5) # 給視窗一點時間彈出來
 
         # 處理一般確認 / 早鳥確認 (都是 btn-custom2)
         try:
             confirm_btn_2 = driver.find_elements(By.ID, "btn-custom2")
             if confirm_btn_2 and confirm_btn_2[0].is_displayed():
-                print("✅ 偵測到「再次確認資訊/早鳥確認」視窗，點擊確定...")
+                if Test: print("✅ 偵測到「再次確認資訊/早鳥確認」視窗，點擊確定...")
                 driver.execute_script("arguments[0].click();", confirm_btn_2[0])
                 time.sleep(1) 
         except: pass
@@ -384,7 +454,7 @@ def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, 
         try:
             confirm_btn_tgo = driver.find_elements(By.ID, "SubmitPassButton")
             if confirm_btn_tgo and confirm_btn_tgo[0].is_displayed():
-                print("✅ 偵測到「TGo 注意事項」視窗，點擊確定...")
+                if Test: print("✅ 偵測到「TGo 注意事項」視窗，點擊確定...")
                 driver.execute_script("arguments[0].click();", confirm_btn_tgo[0])
                 time.sleep(1)
         except: pass
@@ -404,7 +474,7 @@ def get_booking_result(driver):
     """
     try:
         wait = WebDriverWait(driver, 15)
-        print("⏳ 正在擷取訂位結果...")
+        if Test: print("⏳ 正在擷取訂位結果...")
         
         # 1. 等待訂位代號出現 (這是最核心的資訊)
         # HTML: <p class="pnr-code"><span>02915121</span></p>
@@ -452,93 +522,10 @@ def get_booking_result(driver):
             "driver": driver
         }
         
-        print(f"🎉 訂位成功！代號: {pnr_code}")
+        if Test: print(f"🎉 訂位成功！代號: {pnr_code}")
         return result_data
 
     except Exception as e:
         # 如果找不到元素，可能是訂票失敗停在錯誤頁面
         return {"status": "error", "msg": f"擷取訂位結果失敗 (可能訂票未完成): {str(e)}", "driver": driver}
 
-
-if __name__ == "__main__":
-    test_date = (datetime.now() + timedelta(days=1)).strftime("%Y/%m/%d")
-    print(f"🚀 [Step 1] 搜尋車次 (靠窗)... ({test_date})")
-    
-    # 1. 搜尋車次 (指定 seat_prefer="Window")
-    # 可選值: "Window", "Aisle", "None"
-    search_res = search_trains("台北", "左營", test_date, "10:00", seat_prefer="Window")
-    
-    if search_res["status"] == "success":
-        driver = search_res["driver"]
-        trains = search_res["trains"]
-        
-        # 2. 列出車次 (模擬 Bot 介面顯示)
-        print(f"\n✅ 查詢成功！共找到 {len(trains)} 班車 (已幫您勾選靠窗)：")
-        print("==========================================")
-        for i, t in enumerate(trains):
-            print(f"[{i+1}] {t['info_str']}")
-        print("==========================================")
-        
-        # 3. 模擬使用者選擇
-        # 這裡測試直接選列表中的第一班車
-        if len(trains) > 0:
-            target_code = trains[0]['code'] 
-            # 實際應用時，這裡會由使用者在 Discord 下拉選單中選擇
-            
-            print(f"\n👉 使用者選擇了: {target_code}")
-            
-            # 4. 執行選車
-            select_res = select_train(driver, target_code)
-            
-            if select_res["status"] == "success":
-                print("✅ 成功跳轉至個資頁面！")
-                print("接下來可呼叫 submit_passenger_info 填寫資料。")
-            else:
-                print(f"❌ 選車失敗: {select_res['msg']}")
-        
-        input("\n🔴 測試結束，按 Enter 關閉瀏覽器...")
-        driver.quit()
-    else:
-        print(f"❌ 搜尋失敗: {search_res['msg']}")
-
-# --- 測試區塊 (AutoBooking.py 底部) ---
-'''if __name__ == "__main__":
-    test_date = (datetime.now() + timedelta(days=8)).strftime("%Y/%m/%d")
-    print(f"🚀 [Step 1] 開始全流程測試... ({test_date})")
-    
-    result = search_trains("台北", "左營", test_date, "16:00",seat_prefer="Window")
-    
-    if result["status"] == "success":
-        driver = result["driver"]
-        
-        print("\n🚀 [Step 3] 進入個資填寫階段...")
-        
-        # 設定測試資料
-        TEST_ID = "D123309733" 
-        # TEST_PHONE = "0912345678" # 假設這次不填手機
-        TEST_EMAIL = "test@example.com"
-        
-        res_step3 = submit_passenger_info(driver, personal_id=TEST_ID, email=TEST_EMAIL, tgo_same_as_pid=True)
-        
-        if res_step3["status"] == "success":
-            print("\n🚀 [Step 4] 擷取訂位結果...")
-            
-            # Step 3: 抓取訂位代號
-            final_result = get_booking_result(driver)
-            
-            if final_result["status"] == "success":
-                print("\n==============================")
-                print(f"🎫 訂位代號: {final_result['pnr']}")
-                print(f"💰 總金額: {final_result['price']}")
-                print(f"📅 日期: {final_result['train'].get('date')}")
-                print(f"🚄 車次: {final_result['train'].get('code')}")
-                print(f"💺 座位: {', '.join(final_result['seats'])}")
-                print(f"⚠️ 狀態: {final_result['payment_status']}")
-                print("==============================")
-            else:
-                print(f"❌ 擷取失敗: {final_result['msg']}")
-        
-        input("\n🔴 測試結束，按 Enter 關閉瀏覽器...")
-        driver.quit()
-    else:
-        print(f"❌ 前置步驟失敗: {result['msg']}")'''
