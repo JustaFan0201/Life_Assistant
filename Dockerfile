@@ -4,16 +4,22 @@ FROM python:3.10-slim
 # 設定工作目錄
 WORKDIR /app
 
-# 1. 更新系統並安裝 wget (下載工具)
+# 1. 安裝系統工具與 Chrome/OpenCV 必要依賴
+# libgl1, libglib2.0-0 是 ddddocr (opencv) 必須的
+# gnupg, curl, wget 是下載工具
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
+    gnupg \
     ca-certificates \
+    libgl1 \
+    libglib2.0-0 \
     --no-install-recommends
 
-# 2. 直接下載並安裝 Google Chrome 穩定版 (.deb)
-# 這種裝法會自動處理相依套件，且不需要 apt-key，避開 127 錯誤
+# 2. 下載並安裝 Google Chrome 穩定版
+# 使用 dpkg 安裝，並用 apt-get -f install 修復缺少的 Chrome 依賴 (如字型庫)
 RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
+    && dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y \
     && rm google-chrome-stable_current_amd64.deb \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,9 +30,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 4. 複製所有程式碼到容器內
 COPY . .
 
-# 5. 設定 Chrome 路徑環境變數 (給 Python 程式讀取用)
+# 5. 設定環境變數
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV PORT=10000
 
-# 6. 啟動指令 (請確認你的主程式檔名是 main.py 還是 bot.py)
+# 6. 啟動指令
+# 如果你有加 gunicorn，建議讓它在背景跑 keep_alive，或者保持你原本的 bot.py
+# 這裡維持原本的 CMD 即可，只要你的 bot.py 裡有啟動 Flask
 CMD ["python", "bot.py"]
