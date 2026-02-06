@@ -4,8 +4,8 @@ FROM python:3.9-slim
 # 設定工作目錄
 WORKDIR /app
 
-# 1. 安裝系統工具與 Chrome 依賴
-# libgl1, libglib2.0-0 是 ddddocr 必須的
+# 1. 安裝系統工具、Chrome 依賴、以及資料庫編譯工具
+# 增加了 libpq-dev, gcc, python3-dev 以確保資料庫套件能順利安裝
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     libgl1 \
     libglib2.0-0 \
+    libpq-dev \
+    gcc \
+    python3-dev \
     --no-install-recommends
 
 # 2. 下載並安裝 Google Chrome 穩定版
@@ -21,9 +24,9 @@ RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd6
     && rm google-chrome-stable_current_amd64.deb \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. ★★★ 關鍵修正：更換 execstack 下載點 ★★★
-# 原本的 Debian 連結失效了，我們改用 Ubuntu 的保存庫，這裡的檔案永久有效
-RUN wget http://archive.ubuntu.com/ubuntu/pool/universe/p/prelink/execstack_0.0.20131005-1+b10_amd64.deb \
+# 3. ★★★ 關鍵修正：使用 Debian Snapshot 永久連結下載 execstack ★★★
+# 這個連結指向 2014 年的歷史備份，保證絕對存在，不會 404
+RUN wget http://snapshot.debian.org/archive/debian/20141023T043132Z/pool/main/p/prelink/execstack_0.0.20131005-1+b10_amd64.deb \
     && dpkg -i execstack_0.0.20131005-1+b10_amd64.deb \
     && rm execstack_0.0.20131005-1+b10_amd64.deb
 
