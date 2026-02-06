@@ -7,45 +7,58 @@ from email import message_from_bytes
 import email
 import re
 from email.header import decode_header
+from email.utils import parseaddr
 
 class EmailTools:
-    def __init__(self):
+    def __init__(self, email_user=None, email_password=None):
         self.host = "smtp.gmail.com"
         self.imap_host = "imap.gmail.com"
         self.port = 465
-        self.user = os.getenv("EMAIL_USER")
-        self.password = os.getenv("EMAIL_PASSWORD")
+        
+        self.user = email_user or os.getenv("EMAIL_USER")
+        self.password = email_password or os.getenv("EMAIL_PASSWORD")
+    
+    def _extract_pure_email(self, text):
+        if not text: return ""
+        _, addr = parseaddr(text)
+        return addr.strip()
 
     async def send_mail(self, data):
-        if not data.get('to'):
-            return False, '收件人gmail 不得為空'
+        if not self.user or not self.password:
+            return False, '尚未設置寄件者帳號或密碼'
+
+        raw_to = data.get('to', '')
+        pure_to = self._extract_pure_email(raw_to)
+        
+        if not pure_to:
+            return False, '收件人地址解析失敗'
         
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if re.match(pattern, data['to']) is None:
-            return False, 'email格式不符'
+        if re.match(pattern, pure_to) is None:
+            return False, f'Email 格式不符 (解析後為: {pure_to})'
 
-            
         try:
             msg = EmailMessage()
             msg["From"] = self.user
-            msg["To"] = data['to']
-            msg["Subject"] = data['subject']
-            msg.set_content(data['content'])
-        except Exception as e:
-            return False, f'信件格式轉換失敗: {e}'
-
-        try:
-            async with SMTP(hostname=self.host, port=self.port, use_tls=True) as smtp:
+            msg["To"] = pure_to
+            msg["Subject"] = data.get('subject') or "(無主旨)"
+            msg.set_content(data.get('content') or "")
+            
+            async with SMTP(hostname=self.host, port=self.port, use_tls=True, timeout=10) as smtp:
                 await smtp.login(self.user, self.password)
                 await smtp.send_message(msg)
-
-                return True, f"已發送email至{data['to']}"
-
-        except ValueError as e:
-            print(f"SMTP Error: {e}")
-            return False, 'msg發送失敗 請通知管理員'
+                return True, f"已發送 email 至 {pure_to}"
+                
+        except asyncio.TimeoutError:
+            return False, '連線超時，Gmail 伺服器無回應'
+        except Exception as e:
+            return False, f'發送失敗: {str(e)}'
 
     async def get_unread_emails(self, last_id):
+        if not self.user or not self.password:
+            print("[EmailTools] 錯誤: 未提供帳號密碼，跳過檢查")
+            return []
+
         imap_client = None
         results = []
         try:
@@ -57,7 +70,6 @@ class EmailTools:
                 timeout -= 0.5
             
             await asyncio.sleep(1)
-            
             await imap_client.login(self.user, self.password)
             await imap_client.select("INBOX")
 
@@ -68,7 +80,10 @@ class EmailTools:
             all_ids = [m.decode() for m in messages[0].split()]
             
             if last_id:
-                new_ids = [m_id for m_id in all_ids if int(m_id) > int(last_id)]
+                try:
+                    new_ids = [m_id for m_id in all_ids if int(m_id) > int(last_id)]
+                except ValueError:
+                    new_ids = [all_ids[-1]] if all_ids else []
             else:
                 new_ids = [all_ids[-1]] if all_ids else []
 
@@ -81,12 +96,14 @@ class EmailTools:
             return results
 
         except Exception as e:
-            print(f"[EmailTools] 抓取信件失敗: {e}")
+            print(f"[EmailTools] 使用者 {self.user} 抓取失敗: {e}")
             return []
         finally:
             if imap_client:
-                try: await imap_client.logout()
-                except: pass
+                try: 
+                    await imap_client.logout()
+                except: 
+                    pass
 
     def safe_decode(self, msg, header_name):
         header_value = msg.get(header_name, "")
@@ -96,7 +113,10 @@ class EmailTools:
         decoded_parts = []
         for content, encoding in parts:
             if isinstance(content, bytes):
-                decoded_parts.append(content.decode(encoding or "utf-8", errors="replace"))
+                try:
+                    decoded_parts.append(content.decode(encoding or "utf-8", errors="replace"))
+                except:
+                    decoded_parts.append(content.decode("latin1", errors="replace"))
             else:
                 decoded_parts.append(str(content))
         return "".join(decoded_parts)

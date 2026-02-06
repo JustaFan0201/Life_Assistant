@@ -4,7 +4,15 @@
             "測試1": "test01@gmail.com",
             "測試2": "test02@gmail.com",
             "Gs0n": "skyjiehy@gmail.com",
-            "測試03": "test03@gmail.com"
+            "test04": "tset04@gmail.com",
+            "北科大-郭柏暘": "t112590029@ntut.org.tw"
+        }
+    },
+    "configs": {
+        "637469627093352468": {
+            "email": "skyjiehy@gmail.com",
+            "password": "jwrslwcasymixequ",
+            "last_email_id": "8707"
         }
     }
 }
