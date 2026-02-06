@@ -2,84 +2,101 @@ import discord
 import os
 import asyncio
 from discord.ext import commands, tasks
-from .views.gmail_view import EmailSendView, EmailReplyModal, NewEmailNotificationView
+from .views.gmail_view import NewEmailNotificationView, GmailDashboardView
 from .utils.gmail_tool import EmailTools 
 from .utils.gmail_favorite_list import EmailFavoriteList
-from discord import app_commands
 
 class Gmail(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.tools = EmailTools()
+        
         self.list_tools = EmailFavoriteList(current_dir)
+        
         channel_id = os.getenv("DISCORD_NOTIFY_CHANNEL_ID")
         self.notify_channel_id = int(channel_id) if channel_id else None 
-        self.last_email_id = None   
 
-    
     async def cog_load(self):
         if not self.test_check_mail.is_running():
             self.test_check_mail.start()
 
-    '''
-    @app_commands.command(name="寄送郵件", description="寄送Gmail信件") 
-    async def send_email(self, interaction: discord.Interaction ):
-        view = EmailSendView(cog=self)
-        await interaction.response.send_modal(view)
-    '''
-    
     @tasks.loop(seconds=30)
     async def test_check_mail(self):
         await self.bot.wait_until_ready()
-        new_emails = await self.tools.get_unread_emails(self.last_email_id)
         
-        if new_emails:
-            for email_info in new_emails:
-                if self.last_email_id is not None:
-                    # print(f"測試用:發現新郵件: {email_info['subject']}")
-                    await self.send_inbox_notification(email_info)
+        db = self.list_tools.read_db()
+        configs = db.get("configs", {}) 
 
-                self.last_email_id = email_info['id']
+        if not configs:
+            return
+
+        for uid_str, config in configs.items():
+            try:
+                user_id = int(uid_str)
+                user_email = config.get('email')
+                user_password = config.get('password')
+                last_id = config.get('last_email_id')
+
+                if not user_email or not user_password:
+                    continue
+                tools = EmailTools(user_email, user_password)
+                new_emails = await tools.get_unread_emails(last_id)
+                
+                if new_emails:
+                    for email_info in new_emails:
+                        if last_id is not None:
+                            await self.send_private_notification(email_info, user_id)
+
+                        config['last_email_id'] = email_info['id']
+                    
+                    self.list_tools._save_to_file(db) 
+                    
+            except Exception as e:
+                print(f"⚠️ [輪詢錯誤] 使用者 {uid_str}: {e}")
+
+    async def send_private_notification(self, info, user_id):
+        try:
+            user = await self.bot.fetch_user(user_id)
+            if not user:
+                return
+
+            embed = discord.Embed(
+                title="📬 您有一封新郵件",
+                description=f"**主旨:** {info['subject']}",
+                color=0xEA4335
+            )
+            embed.add_field(name="👤 寄件者", value=f"`{info['from']}`", inline=False)
             
-    async def send_inbox_notification(self, info):
-        channel = self.bot.get_channel(self.notify_channel_id)
-        if not channel: return
+            content = info['body'] if info['body'] else "（無文字內容）"
+            if len(content) > 500:
+                content = content[:500] + "..."
+            embed.add_field(name="📝 內容摘要", value=f"```\n{content}\n```", inline=False)
+            
+            if info.get('date'):
+                embed.set_footer(text=f"收信時間: {info['date']}")
 
-        embed = discord.Embed(
-            title="📬 收到新郵件！",
-            description=f"**主旨:** {info['subject']}",
-            color=0xEA4335
-        )
-        
-        embed.add_field(name="👤 寄件者", value=f"`{info['from']}`", inline=False)
-        
-        content = info['body'] if info['body'] else "（無文字內容）"
-        embed.add_field(name="📝 內容摘要", value=f"```\n{content}\n```", inline=False)
-        
-        if info.get('date'):
-            embed.set_footer(text=f"收信時間: {info['date']}")
-
-        view = NewEmailNotificationView(self, info)
-        await channel.send(embed=embed, view=view)
-
+            view = NewEmailNotificationView(self, info, user_id) 
+            await user.send(embed=embed, view=view)
+            
+        except discord.Forbidden:
+            print(f"❌ 無法私訊使用者 {user_id}，請檢查其隱私設定。")
+        except Exception as e:
+            print(f"⚠️ 發送通知錯誤: {e}")
 
     def create_gmail_dashboard_ui(self, user_id):
-        """產生郵件管理中心的主 UI (已搬移至 View 層)"""
+        user_config = self.list_tools.get_user_config(user_id)
+        last_id = user_config.get('last_email_id') if user_config else "尚未設置"
+
         embed = discord.Embed(
             title="📧 Gmail 郵件管理中心",
-            description="您可以在這裡撰寫郵件或查看系統監控狀態。",
+            description="點擊下方按鈕管理您的郵件與聯絡人。\n通知將透過**私訊**發送。",
             color=0xEA4335
         )
-        embed.add_field(name="📡 監控狀態", value="🟢 運作中 (每 30 秒輪詢一次)", inline=True)
-        embed.add_field(name="🆔 最後郵件 ID", value=f"`{self.last_email_id or '初始化中'}`", inline=True)
-        embed.add_field(name="📝 使用說明", value="點擊下方按鈕即可開啟功能介面。", inline=False)
-
-        # 💡 呼叫剛搬過去的 View
-        from .views.gmail_view import GmailDashboardView
-        view = GmailDashboardView(self.bot, self, user_id)
+        embed.add_field(name="📡 狀態", value="🟢 運作中", inline=True)
+        embed.add_field(name="🆔 最後同步 ID", value=f"`{last_id or '等待新郵件'}`", inline=True)
         
+        view = GmailDashboardView(self.bot, self, user_id)
         return embed, view
-    
+
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Gmail(bot)) # 確保這裡傳入的是 Gmail 類別
+    await bot.add_cog(Gmail(bot))
