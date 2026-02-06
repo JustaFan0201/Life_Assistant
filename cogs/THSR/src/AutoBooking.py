@@ -12,11 +12,10 @@ import os
 from datetime import datetime, timedelta
 import random
 
-# --- 修補 PIL 相容性 ---
 import PIL.Image
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
-    
+
 import ddddocr
 
 
@@ -40,7 +39,7 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         return {"status": "error", "msg": "車站名稱錯誤"}
 
     options = Options()
-    options.add_argument("--headless=new") 
+    # options.add_argument("--headless=new")  # 開發時建議先註解掉 headless 以便除錯，穩定後再開啟
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--window-size=1280,800")
@@ -89,10 +88,19 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         except Exception as e:
             print(f"⚠️ 座位選擇失敗 (可能該時段不開放選位): {e}")
 
+        # --- 初始化 ddddocr (修正版) ---
+        # 邏輯：優先嘗試新版的 beta 參數，若失敗則嘗試舊版 show_ad 參數，最後使用預設
+        print("🔧 初始化驗證碼辨識模型...")
         try:
-            ocr = ddddocr.DdddOcr(show_ad=False)
-        except:
-            ocr = ddddocr.DdddOcr()
+            # 嘗試使用 beta=True (新版功能，通常辨識率較好)
+            ocr = ddddocr.DdddOcr(beta=True)
+        except TypeError:
+            try:
+                # 舊版 1.4.7 以前支援 show_ad=False
+                ocr = ddddocr.DdddOcr(show_ad=False)
+            except TypeError:
+                # 如果上述參數都不支援，使用預設初始化 (適用於某些過渡版本)
+                ocr = ddddocr.DdddOcr()
 
         attempt = 0 
         while True:
@@ -103,7 +111,7 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
                 # 等待驗證碼圖片出現
                 captcha_img = wait.until(EC.visibility_of_element_located((By.ID, "BookingS1Form_homeCaptcha_passCode")))
                 
-                # 辨識
+                # 辨識 (直接傳入 bytes)
                 res = ocr.classification(captcha_img.screenshot_as_png)
                 print(f"🤖 OCR 結果: {res}")
 

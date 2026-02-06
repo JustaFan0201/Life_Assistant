@@ -2,3 +2,4 @@ __pycache__/
 .env
 email_list.json
 itinerary.json
+.venv

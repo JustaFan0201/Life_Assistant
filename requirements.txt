@@ -8,9 +8,7 @@ psycopg2-binary
 
 selenium
 webdriver-manager
-
-ddddocr==1.4.7
-onnxruntime==1.14.1
+ddddocr==1.0.6
 
 aiosmtplib
 aioimaplib
