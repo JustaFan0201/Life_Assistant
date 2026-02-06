@@ -9,7 +9,6 @@ psycopg2-binary
 selenium
 webdriver-manager
 
-# 維持這兩個版本
 ddddocr==1.4.7
 onnxruntime==1.14.1
 
