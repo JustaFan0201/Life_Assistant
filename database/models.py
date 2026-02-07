@@ -29,6 +29,9 @@ class User(Base):
     thsr_profile = relationship("THSRProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     tickets = relationship("Ticket", back_populates="user")
 
+    email_config = relationship("EmailConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    email_contacts = relationship("EmailContact", back_populates="user", cascade="all, delete-orphan")
+
 class THSRProfile(Base):
     __tablename__ = 'thsr_profiles'
 
@@ -61,3 +64,29 @@ class Ticket(Base):
     
     created_at = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="tickets")
+
+class EmailConfig(Base):
+    __tablename__ = 'email_configs'
+
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), primary_key=True)
+    
+    email_address = Column(String, nullable=False)
+    email_password = Column(String, nullable=False)
+    last_email_id = Column(String, nullable=True)
+
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    user = relationship("User", back_populates="email_config")
+
+class EmailContact(Base):
+    __tablename__ = 'email_contacts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
+    
+    nickname = Column(String, nullable=False)
+    email_address = Column(String, nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.now)
+
+    user = relationship("User", back_populates="email_contacts")

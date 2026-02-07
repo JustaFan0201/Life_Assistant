@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from ...System.ui.buttons import BackToMainButton
 
 from database.db import DatabaseSession
-from database.models import User,THSRProfile
+from database.models import User,THSRProfile,Ticket
 
 from .buttons import (
     OpenTHSRQueryButton, 
@@ -15,10 +15,64 @@ from .buttons import (
     THSRBookingSearchButton,
     THSRSwapButton, 
     THSRSeatButton,
-    THSRHomeButton
+    THSRHomeButton,
+    OpenTHSRTicketsButton
 )
 
 from ..src.GetTimeStamp import STATION_MAP
+
+class THSRTicketListView(ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.add_item(THSRHomeButton(bot))
+
+    @staticmethod
+    def create_ticket_ui(bot, tickets: list[Ticket]):
+        """
+        [工廠方法] 接收資料庫撈出來的 tickets 列表，回傳 Embed 與 View
+        """
+        view = THSRTicketListView(bot)
+
+        # 情況 A: 沒有車票
+        if not tickets:
+            embed = discord.Embed(
+                title="📂 我的車票庫",
+                description="目前沒有任何訂票紀錄。\n請使用 **「線上訂票」** 功能來新增車票。",
+                color=discord.Color.light_grey()
+            )
+            embed.set_footer(text="尚無資料")
+            return embed, view
+
+        # 情況 B: 有車票 -> 製作列表 Embed
+        embed = discord.Embed(
+            title=f"📂 我的車票庫 ({len(tickets)} 筆)",
+            description="以下顯示您最近的訂票紀錄：",
+            color=discord.Color.blue()
+        )
+        
+        for t in tickets:
+            # 1. 格式化日期與路線
+            date_str = t.train_date
+            route_str = f"{t.start_station} ➜ {t.end_station}"
+            
+            # 2. 判斷付款狀態圖示
+            status_icon = "✅" if t.is_paid else "⚠️"
+            status_text = "已付款" if t.is_paid else "未付款"
+            
+            # 3. 組合顯示字串
+            field_name = f"{date_str} | {route_str}"
+            field_value = (
+                f"🚄 車次**{t.train_code}**  ⏰ `{t.departure}` - `{t.arrival}`\n"
+                f"🎫 代號: **`{t.pnr}`**\n"
+                f"💺 座位: `{t.seats}`\n"
+                f"💰 金額: {t.price} ({status_text} {status_icon})"
+            )
+            embed.add_field(name=field_name, value=field_value, inline=False)
+        
+        embed.set_footer(text="僅顯示最近 10 筆紀錄 • 請至高鐵官網付款/取票")
+        
+        return embed, view
 
 def mask_text(text, is_hidden=True):
     """隱碼處理輔助函式"""
@@ -141,6 +195,7 @@ class THSR_DashboardView(ui.View):
         self.add_item(OpenTHSRQueryButton(bot))
         self.add_item(OpenTHSRBookingButton(bot))
         self.add_item(OpenTHSRProfileButton(bot))
+        self.add_item(OpenTHSRTicketsButton(bot))
         self.add_item(BackToMainButton(bot))
 
     @staticmethod
@@ -153,8 +208,18 @@ class THSR_DashboardView(ui.View):
         )
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3063/3063822.png")
         embed.add_field(
-            name="功能說明", 
-            value="🗓️ **查詢時刻表**：即時爬取高鐵官網班次\n🎫 **自動購票**：自動化搶票系統\n📝 **設定資料**：預存身分證與聯絡資訊", 
+            name="🗓️ **查詢車次**", 
+            value="即時爬取高鐵班次資訊，提供多種篩選條件，並顯示優惠資訊", 
+            inline=False
+        )
+        embed.add_field(
+            name="🎫 **線上訂票**", 
+            value="自動化購票系統(會需要先輸入身分證等資料)\n可選擇座位偏好，並直接從 Discord 下單", 
+            inline=False
+        )
+        embed.add_field(
+            name="🎫 **車票紀錄**", 
+            value="查看您過去的訂票紀錄，包含未付款和已付款的車票資訊", 
             inline=False
         )
         embed.set_footer(text="Powered by Selenium • JustaFan0201")
@@ -431,7 +496,6 @@ class THSRBookingView(ui.View):
         embed = self.get_status_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-# 修改 THSRTrainSelect
 class THSRTrainSelect(ui.Select):
     def __init__(self, trains):
         options = []

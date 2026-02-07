@@ -88,7 +88,7 @@ async def run_booking_flow(interaction: discord.Interaction, bot, driver, train_
 
 class OpenTHSRProfileButton(ui.Button):
     def __init__(self, bot):
-        super().__init__(label="設定個人資料", style=discord.ButtonStyle.secondary, emoji="📝", row=0)
+        super().__init__(label="設定個資", style=discord.ButtonStyle.secondary, emoji="📝", row=2)
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
@@ -116,7 +116,7 @@ class OpenTHSRProfileButton(ui.Button):
 # [Dashboard] 開啟查詢按鈕
 class OpenTHSRQueryButton(ui.Button):
     def __init__(self, bot):
-        super().__init__(label="查詢時刻表", style=discord.ButtonStyle.primary, emoji="🗓️", row=0)
+        super().__init__(label="查詢車次", style=discord.ButtonStyle.primary, emoji="🗓️", row=0)
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
@@ -127,7 +127,7 @@ class OpenTHSRQueryButton(ui.Button):
 # [Dashboard] 開啟訂票按鈕
 class OpenTHSRBookingButton(ui.Button):
     def __init__(self, bot):
-        super().__init__(label="自動訂票", style=discord.ButtonStyle.success, emoji="🎫", row=0)
+        super().__init__(label="線上訂票", style=discord.ButtonStyle.success, emoji="🎫", row=0)
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
@@ -329,3 +329,33 @@ class THSRPassengerModal(ui.Modal, title="填寫取票資訊"):
             'tgo': self.tgo_id.value
         }
         await run_booking_flow(interaction, self.bot, self.driver, self.train_code, user_data)
+
+class OpenTHSRTicketsButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(label="我的車票", style=discord.ButtonStyle.primary, emoji="📂", row=2)
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
+        # 1. 撈取資料 (Logic)
+        tickets = []
+        try:
+            with DatabaseSession() as db:
+                # 依據建立時間倒序排列 (最新的在最上面)，只取前 10 筆
+                tickets = db.query(Ticket).filter(Ticket.user_id == interaction.user.id)\
+                            .order_by(Ticket.created_at.desc()).limit(10).all()
+        except Exception as e:
+            print(f"查詢車票失敗: {e}")
+            await interaction.followup.send("❌ 資料庫讀取失敗", ephemeral=True)
+            return
+
+        # 2. 生成介面 (View)
+        # 使用區域引用 (Local Import) 避免循環引用
+        from .view import THSRTicketListView
+        
+        # 直接呼叫我們剛寫好的工廠方法，把資料丟進去
+        embed, view = THSRTicketListView.create_ticket_ui(self.bot, tickets)
+        
+        # 3. 更新畫面
+        await interaction.edit_original_response(embed=embed, view=view)
