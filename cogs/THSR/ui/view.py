@@ -16,7 +16,11 @@ from .buttons import (
     THSRSwapButton, 
     THSRSeatButton,
     THSRHomeButton,
-    OpenTHSRTicketsButton
+    OpenTHSRTicketsButton,
+    THSRLoadEarlierButton,
+    THSRLoadLaterButton,
+    THSRResultEarlierButton,
+    THSRResultLaterButton
 )
 
 from ..src.GetTimeStamp import STATION_MAP
@@ -359,18 +363,38 @@ class THSRQueryView(ui.View):
 
 # 3. 查詢結果頁面
 class THSRResultView(ui.View):
-    def __init__(self, bot, prev_view):
+    def __init__(self, bot, prev_view, driver=None): # 新增 driver 參數
         super().__init__(timeout=None)
         self.bot = bot
         self.prev_view = prev_view 
+        self.driver = driver # 保存 driver 實例
+        
+        # 加入翻頁按鈕
+        self.add_item(THSRResultEarlierButton())
+        self.add_item(THSRResultLaterButton())
 
-    @ui.button(label="修改條件 / 重新查詢", style=discord.ButtonStyle.primary, emoji="🔙")
+    # [重要] 當 View 超時或不再使用時，要關閉瀏覽器
+    async def on_timeout(self):
+        if self.driver:
+            self.driver.quit()
+            print("🕒 [THSRResultView] 瀏覽器已因逾時關閉")
+
+    @ui.button(label="修改條件 / 重新查詢", style=discord.ButtonStyle.primary, emoji="🔙", row=2)
     async def back_to_search(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 按下返回時，也順便把目前的 driver 關掉，因為查詢頁面會開新的
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+            
         embed = self.prev_view.get_status_embed()
         await interaction.response.edit_message(embed=embed, view=self.prev_view)
 
-    @ui.button(label="回高鐵主頁", style=discord.ButtonStyle.danger, emoji="🏠")
+    @ui.button(label="回高鐵主頁", style=discord.ButtonStyle.danger, emoji="🏠", row=2)
     async def back_to_home(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+            
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -565,22 +589,22 @@ class THSRTrainSelectView(ui.View):
         self.trains = trains
         self.start_st = start_st
         self.end_st = end_st
+        
         self.add_item(THSRTrainSelect(trains))
+
+        self.add_item(THSRLoadEarlierButton())
+        self.add_item(THSRLoadLaterButton())
 
     @staticmethod
     def create_train_selection_ui(bot, driver, trains, start_st, end_st):
-        """
-        [工廠方法] 產生選擇車次的 Embed 與 View
-        """
-        # 1. 建立 Embed
+
         embed = discord.Embed(
             title="🚄 請選擇車次 (自動訂票)", 
-            description=f"✅ 已為您找到 **{len(trains)}** 班列車\n請在下方選單選擇，或查看詳細資訊：",
+            description=f"✅ 已為您找到 **{len(trains)}** 班列車\n請在下方選單選擇，或使用按鈕切換時段：",
             color=discord.Color.green()
         )
         
         for t in trains[:10]:
-            # 美化優惠資訊
             discount = t.get('discount', '無')
             display_disc = "🏷️ 原價"
             if "早鳥" in discount: display_disc = f"🦅 **{discount}**"
@@ -593,7 +617,7 @@ class THSRTrainSelectView(ui.View):
                 value=val, 
                 inline=False
             )
-            
+
         if len(trains) > 10:
             embed.set_footer(text=f"還有 {len(trains)-10} 班車未列出，請查看下拉選單完整列表")
         else:
@@ -603,20 +627,17 @@ class THSRTrainSelectView(ui.View):
         
         return embed, view
 
+    # 取消按鈕也可以搬去 buttons.py，或者暫時留在這裡
     @ui.button(label="取消訂票 (返回設定)", style=discord.ButtonStyle.danger, row=4)
     async def cancel_booking(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         
-        # 1. 關閉瀏覽器
         if self.driver:
             self.driver.quit()
             
-        # 2. 返回 THSRBookingView (訂票設定頁面)
-        # 使用區域引用
+        # 使用區域引用呼叫 BookingView
         from .view import THSRBookingView
         embed, view = THSRBookingView.create_new_ui(self.bot)
-        
-        # 提示使用者已取消
         embed.description = "❌ 上一次訂票已取消，請重新設定條件。"
         embed.color = discord.Color.red()
         

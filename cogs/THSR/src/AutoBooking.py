@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, NoAlertPresentException
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 import os
 from datetime import datetime, timedelta
@@ -39,7 +40,7 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         return {"status": "error", "msg": "車站名稱錯誤"}
 
     options = Options()
-    # options.add_argument("--headless=new")  # 開發時建議先註解掉 headless 以便除錯，穩定後再開啟
+    options.add_argument("--headless=new")  # 開發時建議先註解掉 headless 以便除錯，穩定後再開啟
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--window-size=1280,800")
@@ -236,6 +237,90 @@ def _parse_all_trains(driver):
         print(f"解析車次失敗: {e}")
         return []
 
+def load_new_trains(driver, direction="later"):
+    """
+    載入更早或更晚的車次 (極速版：移除 sleep，改用 DOM 變動偵測)
+    """
+    # 一般等待設為 10 秒
+    wait = WebDriverWait(driver, 10)
+    # 短等待設為 3 秒 (用於偵測變動)
+    short_wait = WebDriverWait(driver, 3)
+    
+    target_class = "btn-load-earlier" if direction == "earlier" else "btn-load-later"
+
+    try:
+        print(f"🔄 [AutoBooking] 正在尋找按鈕 (Class: {target_class})...")
+        
+        # 1. 快速確認上一波遮罩已消失
+        try:
+            short_wait.until(EC.invisibility_of_element_located((By.ID, "loadingMask")))
+        except: pass 
+
+        # 2. 抓取按鈕 (使用迴圈過濾隱藏的按鈕)
+        buttons = driver.find_elements(By.CLASS_NAME, target_class)
+        target_btn = None
+        for btn in buttons:
+            if btn.is_displayed():
+                target_btn = btn
+                break
+        
+        if not target_btn:
+            print(f"⚠️ 找不到可見的 {target_class} 按鈕")
+            return {"status": "failed", "msg": "已無該時段的車次"}
+
+        # --- [優化核心 1]：在點擊前，先抓取「舊資料」的特徵 ---
+        # 我們抓列表中的第一個元素。當 AJAX 完成後，這個元素會被移除或替換。
+        old_element = None
+        try:
+            old_element = driver.find_element(By.CSS_SELECTOR, ".result-listing .result-item")
+        except:
+            pass # 如果原本列表是空的(極少見)，就沒東西可以抓
+
+        # 3. 點擊按鈕
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", target_btn)
+        # 這裡不需要 sleep(0.5)，直接點通常沒問題，或是縮短到 0.1
+        time.sleep(0.1) 
+        
+        print(f"🖱️ 執行 JS Click...")
+        driver.execute_script("arguments[0].click();", target_btn)
+        
+        # --- [優化核心 2]：移除 time.sleep(1.5)，改用智慧等待 ---
+        print("⏳ 等待資料極速刷新...")
+        
+        try:
+            # 策略 A: 如果有點到「舊元素」，等待它「過期」(從 DOM 消失)
+            # 這代表網頁已經開始重繪表格了，這是最快的反應時間
+            if old_element:
+                short_wait.until(EC.staleness_of(old_element))
+            
+            # 策略 B: 雙重保險，確認遮罩消失
+            # 只有在遮罩真的出現時才等，不然直接跳過
+            wait.until(EC.invisibility_of_element_located((By.ID, "loadingMask")))
+            
+            # 策略 C: 確認「新元素」出現
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".result-listing .result-item")))
+
+        except TimeoutException:
+            # 如果逾時，可能是網頁反應慢，或者其實已經載入好了但我們沒抓到變動
+            print("⚠️ DOM 變動偵測逾時 (可能資料已更新或無變化)，嘗試解析...")
+
+        # 4. 解析資料
+        new_trains = _parse_all_trains(driver)
+        
+        if not new_trains:
+            return {"status": "failed", "msg": "載入後列表為空"}
+            
+        print(f"✅ 成功載入 {len(new_trains)} 班車次")
+        
+        return {
+            "status": "success", 
+            "msg": f"已載入 {len(new_trains)} 班列車", 
+            "trains": new_trains
+        }
+
+    except Exception as e:
+        print(f"❌ 載入錯誤: {e}")
+        return {"status": "error", "msg": str(e)}
 
 def select_train(driver, train_code):
     """

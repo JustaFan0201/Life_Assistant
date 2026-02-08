@@ -5,8 +5,109 @@ import asyncio
 from database.db import DatabaseSession
 from database.models import User,THSRProfile, Ticket
 
-from ..src.GetTimeStamp import get_thsr_schedule
-from ..src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result
+from ..src.GetTimeStamp import get_thsr_schedule, load_more_schedule
+from ..src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result,load_new_trains
+
+# [新增] 一般查詢的翻頁共用邏輯
+async def _common_schedule_paging(interaction, button, direction):
+    view = button.view
+    if not view.driver:
+        await interaction.response.send_message("❌ 瀏覽器已關閉，請重新查詢", ephemeral=True)
+        return
+
+    await interaction.response.defer()
+    
+    result = await asyncio.to_thread(load_more_schedule, view.driver, direction)
+    
+    if result["status"] == "success":
+        # 重新建立 Embed
+        # 這裡的邏輯跟 THSRSearchButton 裡的建立 Embed 是一樣的
+        # 建議可以抽成一個靜態方法放在 THSRResultView 裡，但這裡為了方便先直接寫
+        
+        data_list = result["data"]
+        # 從 View 取得原本的查詢資訊來當標題
+        # 注意：原本的 view 是 THSRResultView，它有一個 prev_view 屬性存著 QueryView
+        query_view = view.prev_view
+        
+        final_embed = discord.Embed(
+            title=f"🚄 {query_view.start_station} ➔ {query_view.end_station}",
+            description=f"📅 {query_view.date_val} (翻頁結果)\n🎫 {query_view.trip_type} / {query_view.ticket_type}",
+            color=0xec6c00
+        )
+        
+        for train in data_list:
+            discount = train['discount']
+            if "早鳥" in discount: d_display = f"🦅 **{discount}**"
+            elif "大學生" in discount: d_display = f"🎓 **{discount}**"
+            elif discount == "無優惠": d_display = "🏷️ 原價"
+            else: d_display = f"🏷️ {discount}"
+
+            val = f"`{train['dep']} ➔ {train['arr']}`\n⏱️ {train['duration']} | {d_display}"
+            final_embed.add_field(name=f"🚅 {train['id']}", value=val, inline=False)
+            
+        await interaction.edit_original_response(embed=final_embed, view=view)
+    else:
+        await interaction.followup.send(f"⚠️ {result['msg']}", ephemeral=True)
+
+class THSRResultEarlierButton(ui.Button):
+    def __init__(self):
+        super().__init__(label="較早班次", style=discord.ButtonStyle.secondary, emoji="⬅️", row=1)
+    async def callback(self, interaction: discord.Interaction):
+        await _common_schedule_paging(interaction, self, "earlier")
+
+class THSRResultLaterButton(ui.Button):
+    def __init__(self):
+        super().__init__(label="較晚班次", style=discord.ButtonStyle.secondary, emoji="➡️", row=1)
+    async def callback(self, interaction: discord.Interaction):
+        await _common_schedule_paging(interaction, self, "later")
+
+async def _common_load_more_handler(interaction: discord.Interaction, button: ui.Button, direction: str):
+    view = button.view # 取得按鈕所屬的 View
+    await interaction.response.defer()
+    
+    # 呼叫 Selenium 執行點擊與抓取 (AutoBooking.py)
+    result = await asyncio.to_thread(load_new_trains, view.driver, direction)
+    
+    if result["status"] == "success":
+        new_trains = result["trains"]
+        
+        if not new_trains:
+            await interaction.followup.send("⚠️ 載入成功但列表為空 (可能無車次)", ephemeral=True)
+            return
+
+        # 重新建立 UI (Embed + View)
+        # ★★★ 關鍵：使用區域引用 (Local Import) 避免循環引用錯誤 ★★★
+        from .view import THSRTrainSelectView
+        
+        # 呼叫 View 的工廠方法重新產生介面
+        embed, new_view = THSRTrainSelectView.create_train_selection_ui(
+            view.bot, 
+            view.driver, 
+            new_trains, 
+            view.start_st, 
+            view.end_st
+        )
+        
+        await interaction.edit_original_response(embed=embed, view=new_view)
+        
+    else:
+        # 失敗時的回傳 (例如按鈕隱藏了)
+        await interaction.followup.send(f"⚠️ {result['msg']}", ephemeral=True)
+
+class THSRLoadEarlierButton(ui.Button):
+    def __init__(self):
+        super().__init__(label="更早車次", style=discord.ButtonStyle.secondary, emoji="⬅️", row=1)
+
+    async def callback(self, interaction: discord.Interaction):
+        await _common_load_more_handler(interaction, self, "earlier")
+
+class THSRLoadLaterButton(ui.Button):
+    def __init__(self):
+        super().__init__(label="更晚車次", style=discord.ButtonStyle.secondary, emoji="➡️", row=1)
+
+    async def callback(self, interaction: discord.Interaction):
+        await _common_load_more_handler(interaction, self, "later")
+
 async def run_booking_flow(interaction: discord.Interaction, bot, driver, train_code, user_data, start_st=None, end_st=None):
     """
     執行自動訂票流程：選車次 -> 填個資 -> 取得結果
@@ -84,7 +185,6 @@ async def run_booking_flow(interaction: discord.Interaction, bot, driver, train_
     finally:
         if driver: 
             driver.quit()
-
 
 class OpenTHSRProfileButton(ui.Button):
     def __init__(self, bot):
@@ -198,9 +298,13 @@ class THSRSearchButton(ui.Button):
                         val = f"`{dep} ➔ {arr}`\n⏱️ {duration} | {discount_display}"
                         final_embed.add_field(name=f"🚅 {train['id']}", value=val, inline=False)
                 
-                # 呼叫結果頁面 View
+                driver = result_data.get("driver")
                 from .view import THSRResultView
-                await interaction.edit_original_response(embed=final_embed, view=THSRResultView(view.bot, view))
+                
+                # 初始化 ResultView 並傳入 driver
+                result_view = THSRResultView(view.bot, view, driver)
+                
+                await interaction.edit_original_response(embed=final_embed, view=result_view)
 
             else:
                 # 查詢失敗 (邏輯錯誤)

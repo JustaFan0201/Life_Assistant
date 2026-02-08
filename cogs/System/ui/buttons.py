@@ -92,7 +92,7 @@ class BackToMainButton(ui.Button):
 class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
-            label="高鐵時刻表", 
+            label="高鐵功能服務", 
             style=discord.ButtonStyle.primary, 
             emoji="🚄",
             row=0
