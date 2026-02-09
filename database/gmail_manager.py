@@ -56,7 +56,6 @@ class EmailDatabaseManager:
             session.query(EmailConfig).filter_by(user_id=user_id).update({"last_email_id": last_id})
             session.commit()
 
-    # --- 聯絡人管理 (EmailContact) ---
     def get_all_contacts(self, user_id: int) -> Dict[str, str]:
         with self.Session() as session:
             contacts = session.query(EmailContact).filter_by(user_id=user_id).all()
