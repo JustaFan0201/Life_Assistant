@@ -5,7 +5,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from keep_alive import keep_alive
 import datetime
-from database.db import init_db, DatabaseSession
+from database.db import init_db, DatabaseSession, SessionLocal
 from database.models import BotSettings
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
@@ -17,6 +17,8 @@ NOTIFY_CHANNEL_ID = os.getenv("Login_Notify_Channel_ID")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix = "!", intents = intents)
+
+bot.db_session = SessionLocal
 
 @bot.event
 async def on_ready():

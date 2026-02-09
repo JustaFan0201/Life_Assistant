@@ -1,17 +1,14 @@
 import discord
 import os
-import asyncio
 from discord.ext import commands, tasks
-from .views.gmail_view import NewEmailNotificationView, GmailDashboardView
 from .utils.gmail_tool import EmailTools 
-from .utils.gmail_favorite_list import EmailFavoriteList
+
+from database import EmailDatabaseManager, EmailConfig
 
 class Gmail(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot, db_session):
         self.bot = bot
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        self.list_tools = EmailFavoriteList(current_dir)
+        self.db_manager = EmailDatabaseManager(db_session)
         
         channel_id = os.getenv("DISCORD_NOTIFY_CHANNEL_ID")
         self.notify_channel_id = int(channel_id) if channel_id else None 
@@ -24,21 +21,27 @@ class Gmail(commands.Cog):
     async def test_check_mail(self):
         await self.bot.wait_until_ready()
         
-        db = self.list_tools.read_db()
-        configs = db.get("configs", {}) 
+        configs = []
+        try:
+            with self.db_manager.Session() as session:
+                configs = session.query(EmailConfig).all()
+        except Exception as e:
+            print(f"❌ [資料庫輪詢] 查詢設定失敗: {e}")
+            return
 
         if not configs:
             return
 
-        for uid_str, config in configs.items():
+        for config in configs:
             try:
-                user_id = int(uid_str)
-                user_email = config.get('email')
-                user_password = config.get('password')
-                last_id = config.get('last_email_id')
+                user_id = config.user_id
+                user_email = config.email_address
+                user_password = config.email_password
+                last_id = config.last_email_id
 
                 if not user_email or not user_password:
                     continue
+
                 tools = EmailTools(user_email, user_password)
                 new_emails = await tools.get_unread_emails(last_id)
                 
@@ -47,18 +50,17 @@ class Gmail(commands.Cog):
                         if last_id is not None:
                             await self.send_private_notification(email_info, user_id)
 
-                        config['last_email_id'] = email_info['id']
-                    
-                    self.list_tools._save_to_file(db) 
+                        self.db_manager.update_last_email_id(user_id, str(email_info['id']))
                     
             except Exception as e:
-                print(f"⚠️ [輪詢錯誤] 使用者 {uid_str}: {e}")
+                print(f"⚠️ [輪詢錯誤] 使用者 {config.user_id}: {e}")
 
     async def send_private_notification(self, info, user_id):
+        from .views.gmail_view import NewEmailNotificationView
+        
         try:
             user = await self.bot.fetch_user(user_id)
-            if not user:
-                return
+            if not user: return
 
             embed = discord.Embed(
                 title="📬 您有一封新郵件",
@@ -79,12 +81,14 @@ class Gmail(commands.Cog):
             await user.send(embed=embed, view=view)
             
         except discord.Forbidden:
-            print(f"❌ 無法私訊使用者 {user_id}，請檢查其隱私設定。")
+            print(f"❌ 無法私訊使用者 {user_id}。")
         except Exception as e:
             print(f"⚠️ 發送通知錯誤: {e}")
 
     def create_gmail_dashboard_ui(self, user_id):
-        user_config = self.list_tools.get_user_config(user_id)
+        from .views.gmail_view import GmailDashboardView
+        
+        user_config = self.db_manager.get_user_config(user_id)
         last_id = user_config.get('last_email_id') if user_config else "尚未設置"
 
         embed = discord.Embed(
@@ -98,5 +102,11 @@ class Gmail(commands.Cog):
         view = GmailDashboardView(self.bot, self, user_id)
         return embed, view
 
-async def setup(bot: commands.Bot):
-    await bot.add_cog(Gmail(bot))
+    async def setup(bot):
+        session_factory = getattr(bot, "db_session", None)
+        
+        if session_factory is None:
+            print("⚠️ 警告：機器人尚未初始化 db_session，Gmail 模組可能無法正常運作。")
+
+        await bot.add_cog(Gmail(bot, session_factory))
+        print("✅ Gmail 模組已成功載入並註冊至 Cog 列表")
