@@ -4,7 +4,13 @@ from ..utils.gmail_tool import EmailTools
 
 class GmailSetupModal(discord.ui.Modal, title="設置個人 Gmail 服務"):
     address = discord.ui.TextInput(label="Gmail 地址", placeholder="example@gmail.com", min_length=5)
-    password = discord.ui.TextInput(label="應用程式密碼", placeholder="16 位數的應用程式密碼", style=discord.TextStyle.short)
+    password = discord.ui.TextInput(
+    label="應用程式密碼", 
+    placeholder="請輸入 Google 產生的 16 位應用程式密碼（非登入密碼）", 
+    style=discord.TextStyle.short,
+    min_length=16, 
+    max_length=16
+    )   
 
     def __init__(self, cog):
         super().__init__()
@@ -12,15 +18,8 @@ class GmailSetupModal(discord.ui.Modal, title="設置個人 Gmail 服務"):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        
         clean_address = EmailTools()._extract_pure_email(self.address.value)
-        
-        report = self.cog.db_manager.save_user_config(
-            interaction.user.id, 
-            clean_address, 
-            self.password.value
-        )
-        
+        report = self.cog.db_manager.save_user_config(interaction.user.id, clean_address, self.password.value)
         await interaction.followup.send(report, ephemeral=True)
 
 class EmailSendView(discord.ui.Modal, title='寄件設定'):
@@ -42,7 +41,6 @@ class EmailSendView(discord.ui.Modal, title='寄件設定'):
 
             clean_to = EmailTools()._extract_pure_email(self.to_input.value)
             data = {'to': clean_to, 'subject': self.subject_input.value, 'content': self.content_input.value}
-            
             user_tools = EmailTools(user_config['email'], user_config['password'])
             success, report = await user_tools.send_mail(data)
             await interaction.followup.send(f"{'✅' if success else '❌'} {report}", ephemeral=True)
@@ -61,7 +59,6 @@ class EmailReplyModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        # 💡 修改點：改用 db_manager
         user_config = self.cog.db_manager.get_user_config(self.user_id)
         if not user_config:
             return await interaction.followup.send("❌ 找不到您的信箱設定。", ephemeral=True)
@@ -82,7 +79,6 @@ class AddEmailListView(discord.ui.Modal, title="新增常用聯絡人"):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         clean_address = EmailTools()._extract_pure_email(self.address_input.value)
-        # 💡 修改點：改用 db_manager
         report = self.cog.db_manager.add_and_save(self.name_input.value, clean_address, self.user_id)
         await interaction.followup.send(report, ephemeral=True)
 
@@ -94,7 +90,6 @@ class EditEmailModal(discord.ui.Modal, title="修改聯絡人資料"):
 
     async def on_submit(self, interaction: discord.Interaction):
         clean_address = EmailTools()._extract_pure_email(self.email_input.value)
-        # 💡 修改點：改用 db_manager
         result = self.cog.db_manager.update_contact(self.user_id, self.nickname, clean_address)
         await interaction.response.send_message(result, ephemeral=True)
 
@@ -109,23 +104,17 @@ class NewEmailNotificationView(discord.ui.View):
     async def reply_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.target_user_id:
             return await interaction.response.send_message("⚠️ 這不是您的郵件通知，無法回覆。", ephemeral=True)
-            
-        modal = EmailReplyModal(
-            self.cog, 
-            self.target_user_id, 
-            self.email_info['from'], 
-            self.email_info['subject']
-        )
+        modal = EmailReplyModal(self.cog, self.target_user_id, self.email_info['from'], self.email_info['subject'])
         await interaction.response.send_modal(modal)
-        
 
 class GmailDashboardView(ui.View):
     def __init__(self, bot, gmail_cog, user_id):
         super().__init__(timeout=None); self.bot = bot; self.gmail_cog = gmail_cog; self.user_id = user_id
         btns = [("撰寫郵件", discord.ButtonStyle.primary, "✍️", self.send_callback),
-                ("添加常用 Email", discord.ButtonStyle.primary, "➕", self.add_list_callback),
+                ("添加聯絡人", discord.ButtonStyle.primary, "➕", self.add_list_callback),
                 ("管理聯絡人", discord.ButtonStyle.secondary, "⚙️", self.manage_callback),
-                ("設置個人信箱", discord.ButtonStyle.success, "🔐", self.setup_callback)]
+                ("設置個人信箱", discord.ButtonStyle.success, "🔐", self.setup_callback),
+                ("使用教學", discord.ButtonStyle.secondary, "📖", self.help_callback)]
         for label, style, emoji, callback in btns:
             btn = ui.Button(label=label, style=style, emoji=emoji); btn.callback = callback; self.add_item(btn)
         try:
@@ -148,6 +137,13 @@ class GmailDashboardView(ui.View):
 
     async def setup_callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(GmailSetupModal(self.gmail_cog))
+
+    async def help_callback(self, interaction: discord.Interaction):
+        embed = discord.Embed(title="📖 Gmail 設置教學", color=0x4285F4)
+        embed.add_field(name="1. 開啟兩步驗證", value="前往 [Google 安全設定](https://myaccount.google.com/security) 開啟兩步驗證。", inline=False)
+        embed.add_field(name="2. 產生應用程式密碼", value="前往 [應用程式密碼](https://myaccount.google.com/apppasswords) 產生一組 16 位密碼並複製。", inline=False)
+        embed.add_field(name="3. 進行綁定", value="點擊「🔐 設置個人信箱」並輸入帳號與 16 位密碼即可。", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class RecipientSelectView(discord.ui.View):
     def __init__(self, cog, user_id):
