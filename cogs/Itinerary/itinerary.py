@@ -1,139 +1,120 @@
 import discord
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import asyncio
 from discord.ext import commands, tasks
-from .views.itinerary_view import ItineraryAddView, ItineraryDeleteView, ViewPageSelect
-from .utils.itinerary_tool import ItineraryTools
-from discord import app_commands
-
+from database.models import CalendarEvent, BotSettings
+from database.calendar_manager import CalendarDatabaseManager
 
 class Itinerary(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot, db_session):
         self.bot = bot
-        # print("✅ 行程模組已成功初始化")
-
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.tools = ItineraryTools(current_dir)
+        self.db_session = db_session 
+        self.db_manager = CalendarDatabaseManager(db_session)
         self.last_check_minute = -1
         self.check_reminders.start()
 
-    async def get_all_data(self):
-        return self.tools.get_data_list()
-
-    async def get_delete_list(self):
-        return self.tools.view_delete_list()
-    
-    '''
-    @app_commands.command(name="新增行程", description="開啟選單來規劃新的行程")
-    async def add_plan(self, interaction: discord.Interaction):
-        view = ItineraryAddView(cog = self)
-        await interaction.response.send_message("點選下方選項開始規劃行程：", view=view)
-    '''
-
-    async def add_plan_internal(self, interaction: discord.Interaction):
-        view = ItineraryAddView(cog=self)
-        # 注意：如果是從按鈕點擊進來的，通常用 edit_message
-        if interaction.response.is_done():
-            await interaction.edit_original_response(content="點選下方選項開始規劃行程：", embed=None, view=view)
-        else:
-            await interaction.response.send_message("點選下方選項開始規劃行程：", view=view)
-
-    async def process_data(self, interaction, raw_data):
-        count, success, info = self.tools .add_and_save(raw_data, interaction.channel.id)
+    async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
+        clean_time = time_obj.replace(second=0, microsecond=0)
         
-        if success:
-            return f"成功添加！現在有 {count} 個行程。"
-        else:
-            return f"添加失敗 目前有 {count} 個行程。\n{info}" 
-    '''    
-    @app_commands.command(name="查看行程", description="顯示目前所有的行程規劃")
-    async def view_plans(self, interaction: discord.Interaction):
-        data_list = self.tools.get_data_list()
-        view = ViewPageSelect(cog=self, data_list=data_list)    
-        await interaction.response.send_message(embed = view.embed, view = view)
-    '''
-    async def view_plans_internal(self, interaction: discord.Interaction):
-        data_list = self.tools.get_data_list()
-        view = ViewPageSelect(cog=self, data_list=data_list)
-        await interaction.response.send_message(embed=view.embed, view=view)
 
-    '''
-    @app_commands.command(name="刪除行程", description="刪除指定的行程")
-    async def delete_plan(self, interaction: discord.Interaction):
-        data_list = self.tools.view_delete_list()
-        view = ItineraryDeleteView(cog=self, data_list = data_list)
-        await interaction.response.send_message("點選下方選項刪除行程：", view=view)
-    '''
-    async def delete_plan_internal(self, interaction: discord.Interaction):
-        data_list = self.tools.view_delete_list()
-        view = ItineraryDeleteView(cog=self, data_list=data_list)
-        await interaction.response.send_message("點選下方選項刪除行程：", view=view)
+        success, report = self.db_manager.add_event(
+            user_id=interaction.user.id,
+            event_time=clean_time,
+            description=description,
+            is_private=is_private,
+            priority=priority
+        )   
+        return success, report
 
-    async def delete_data(self, selected_index):
-        count, success, info = self.tools .delete(selected_index)
-
-        if success:
-            msg = f"成功刪除！現在有 {count} 個行程。"
-        else:
-            msg = f"刪除失敗 目前有 {count} 個行程。\n{info}" 
-        
-        return success, msg
-        
-    @tasks.loop(seconds=5.0)
+    @tasks.loop(seconds=10.0)
     async def check_reminders(self):
-        now = datetime.now()
-        if self.last_check_minute != now.minute:
-            # print(f"檢查中... 現在時間: {now.hour}:{now.minute}")
-            
-            success, output, channel_id = self.tools.mantion_check(now.minute)
+        await self.bot.wait_until_ready()
+        
 
-            if success:
-                channel = self.bot.get_channel(channel_id)
-            
-                if channel:
-                    await channel.send(output)
-                else:
-                    print(f"無法在頻道 {channel_id} 發送提醒")
+        tz_tw = timezone(timedelta(hours=8))
+        now_with_tz = datetime.now(tz_tw)
+        now_naive = now_with_tz.replace(tzinfo=None, second=0, microsecond=0)
+        
+        if self.last_check_minute == now_naive.minute:
+            return
+        self.last_check_minute = now_naive.minute
+
+        priority_map = {"0": "🔴 緊急", "1": "🟡 重要", "2": "🟢 普通"}
+
+        with self.db_session() as session:
+            try:
+                expired_count = session.query(CalendarEvent).filter(
+                    CalendarEvent.event_time < now_naive
+                ).delete(synchronize_session=False)
                 
-            self.last_check_minute = now.minute
+                if expired_count > 0:
+                    print(f"[自動清理] 已刪除 {expired_count} 筆過期未發出的行程。")
+            except Exception as e:
+                print(f"[清理失敗] {e}")
 
-            if success:
-                self.tools.data_self_check()
+            events = session.query(CalendarEvent).filter(
+                CalendarEvent.event_time == now_naive
+            ).all()
 
+            if not events:
+                session.commit()
+                return
+
+            print(f"[通知] 找到 {len(events)} 筆行程準備發送！")
+
+            for event in events:
+                try:
+                    user = await self.bot.fetch_user(event.user_id)
+                    if not user: continue
+
+                    p_label = priority_map.get(str(event.priority), "🟢 普通")
+
+                    embed = discord.Embed(
+                        title=f"{p_label} | 行程提醒",
+                        description=f"**內容：{event.description}**",
+                        color=discord.Color.gold()
+                    )
+                    
+                    if event.is_private:
+                        try:
+                            await user.send(embed=embed)
+                        except:
+                            print(f"無法私訊使用者 {event.user_id}")
+                    else:
+                        settings = session.query(BotSettings).filter_by(id=1).first()
+                        channel_id = settings.calendar_notify_channel_id if settings else None
+                        
+                        if channel_id:
+                            channel = self.bot.get_channel(channel_id)
+                            if channel:
+                                await channel.send(content=f"{user.mention} 您的行程提醒：", embed=embed)
+                            else:
+                                await user.send(content="通知頻道失效，改以私訊提醒：", embed=embed)
+                        else:
+                            await user.send(content="未設定通知頻道，改以私訊提醒：", embed=embed)
+
+                    session.delete(event)
+                except Exception as e:
+                    print(f"發送提醒出錯: {e}")
+            
+            session.commit()
 
     @check_reminders.before_loop
     async def before_check(self):
-        # print("正在等待機器人準備就緒...")
         await self.bot.wait_until_ready()
-        # print("機器人已就緒，開始計算對齊時間...")
-        
-        try:
-            now = datetime.now()
-            # print(f"DEBUG: 現在秒數是 {now.second}")
-        except Exception as e:
-            print(f"計算出錯了: {e}")
-                
-        seconds_to_wait = 60 - now.second
-        
-        if seconds_to_wait > 0:
-            # print(f"需要等待 {seconds_to_wait} 秒以對齊分鐘...")
-            await asyncio.sleep(seconds_to_wait)
-        # print("時間已對齊，開始執行提醒任務！")
 
     def create_itinerary_dashboard_ui(self):
         embed = discord.Embed(
             title="📅 個人行程管理系統",
-            description="您可以在這裡查看、新增或刪除您的行程。",
+            description="您可以在這裡查看、新增或刪除您的行程。\n💡 **提示：** 公開行程將發送到系統設定的通知頻道。",
             color=discord.Color.blue()
         )
-
-        from .views.itinerary_view import ItineraryView 
-        view = ItineraryView(self.bot) 
-        
+        from .views.itinerary_view import ItineraryDashboardView 
+        view = ItineraryDashboardView(self.bot, self) 
         return embed, view
-        
-        
+
 async def setup(bot):
-    await bot.add_cog(Itinerary(bot))
-    print("Itinerary Package loaded.")
+    db_session = getattr(bot, "db_session", None)
+    await bot.add_cog(Itinerary(bot, db_session))
+    print("Itinerary Package loaded with SQL support.")

@@ -1,5 +1,5 @@
 # database/models.py
-from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
@@ -16,6 +16,7 @@ class BotSettings(Base):
     
     # 未來如果要加其他設定，直接在這裡加欄位即可
     # example_role_id = Column(BigInteger, nullable=True)
+    calendar_notify_channel_id = Column(BigInteger, nullable=True)
     
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -31,6 +32,8 @@ class User(Base):
 
     email_config = relationship("EmailConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
     email_contacts = relationship("EmailContact", back_populates="user", cascade="all, delete-orphan")
+
+    calendar_events = relationship("CalendarEvent", back_populates="user", cascade="all, delete-orphan")
 
 class THSRProfile(Base):
     __tablename__ = 'thsr_profiles'
@@ -90,3 +93,16 @@ class EmailContact(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     user = relationship("User", back_populates="email_contacts")
+
+class CalendarEvent(Base):
+    __tablename__ = 'calendar_events'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
+    description = Column(Text, nullable=True)
+    event_time = Column(DateTime, nullable=False)
+    is_private = Column(Boolean, default=True)
+    priority = Column(String(10), default="2")
+    created_at = Column(DateTime, default=datetime.now)
+    
+    user = relationship("User", back_populates="calendar_events")

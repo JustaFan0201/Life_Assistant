@@ -59,3 +59,16 @@ class SettingsCog(commands.Cog):
             channel.id, 
             f"✅ 已將 **登入通知頻道** 設定為：{channel.mention}"
         )
+
+    @app_commands.command(name="set_calendar_channel", description="設定行程公開提醒的通知頻道")
+    @app_commands.default_permissions(administrator=True)
+    async def set_calendar_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        """
+        設定行程模組在「公開提醒」時要發送的頻道
+        """
+        await self._update_setting(
+            interaction, 
+            "calendar_notify_channel_id", # 💡 對應 models.py 中的欄位名稱
+            channel.id, 
+            f"✅ 已將 **行程公開通知頻道** 設定為：{channel.mention}"
+        )
