@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from ...System.ui.buttons import BackToMainButton
 
 from database.db import DatabaseSession
-from database.models import User,THSRProfile,Ticket
+from database.models import User,THSRProfile,Ticket,BookingSchedule
 
 from .buttons import (
     OpenTHSRQueryButton, 
@@ -249,7 +249,7 @@ class THSRDatePageButton(ui.Button):
         self.view.setup_dynamic_options()
         await self.view.refresh_ui(interaction)
 
-# 2. 高鐵全功能查詢介面 (Query View)
+# 2. 高鐵查詢介面 (Query View)
 class THSRQueryView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
@@ -398,7 +398,7 @@ class THSRResultView(ui.View):
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
 
-# 4. 自動訂票介面 (Booking View)
+# 4. 訂票介面 (Booking View)
 class THSRBookingView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
@@ -695,3 +695,169 @@ class THSRErrorView(ui.View):
         
         view = THSRErrorView(bot)
         return embed, view
+
+class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
+    def __init__(self, bot, train_code, start_st, end_st, train_date):
+        # 注意：這裡不需要再傳入 seat_prefer 了，因為要在這個視窗讓使用者自己填
+        super().__init__()
+        self.bot = bot
+        self.train_code = train_code
+        self.start_st = start_st
+        self.end_st = end_st
+        self.train_date = train_date
+
+        # 1. 啟動時間輸入框
+        default_time = (datetime.now() + timedelta(minutes=5)).strftime("%H:%M:%S")
+        self.trigger_time = ui.TextInput(
+            label="啟動時間 (格式 HH:MM:SS)", 
+            placeholder="例如 23:59:55 (建議提早5-10秒)",
+            default=default_time,
+            min_length=8, 
+            max_length=8
+        )
+        self.add_item(self.trigger_time)
+
+        # 2. [新增] 座位偏好輸入框
+        self.seat_input = ui.TextInput(
+            label="座位偏好 (選填)",
+            placeholder="請輸入：靠窗、走道 (留空則不指定)",
+            required=False, # 設為選填
+            max_length=10
+        )
+        self.add_item(self.seat_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        time_str = self.trigger_time.value
+        seat_str = self.seat_input.value.strip() # 取得座位輸入並去除空白
+        now = datetime.now()
+        
+        # --- 解析座位偏好 ---
+        # 預設為 None (不指定)
+        final_seat_prefer = "None"
+        
+        if "靠窗" in seat_str or "window" in seat_str.lower():
+            final_seat_prefer = "Window"
+        elif "走道" in seat_str or "aisle" in seat_str.lower():
+            final_seat_prefer = "Aisle"
+        
+        try:
+            # 解析時間
+            target_time = datetime.strptime(time_str, "%H:%M:%S").replace(
+                year=now.year, month=now.month, day=now.day
+            )
+            # 如果時間比現在早，自動設為明天
+            if target_time < now:
+                target_time += timedelta(days=1)
+                
+        except ValueError:
+            await interaction.response.send_message("❌ 時間格式錯誤，請使用 HH:MM:SS", ephemeral=True)
+            return
+
+        # 寫入資料庫
+        try:
+            with DatabaseSession() as db:
+                # 確保 User 存在
+                user = db.query(User).filter(User.discord_id == interaction.user.id).first()
+                if not user:
+                    user = User(discord_id=interaction.user.id, username=interaction.user.name)
+                    db.add(user)
+                    db.flush()
+
+                new_schedule = BookingSchedule(
+                    user_id=interaction.user.id,
+                    train_code=self.train_code,
+                    start_station=self.start_st,
+                    end_station=self.end_st,
+                    train_date=self.train_date,
+                    seat_prefer=final_seat_prefer, # 使用解析後的座位設定
+                    trigger_time=target_time,
+                    status="pending"
+                )
+                db.add(new_schedule)
+                db.commit()
+                
+            # 顯示結果 Embed
+            seat_display_map = {"Window": "靠窗", "Aisle": "走道", "None": "不指定"}
+            display_seat = seat_display_map.get(final_seat_prefer, "不指定")
+
+            embed = discord.Embed(
+                title="✅ 排程已建立！",
+                description=(
+                    f"目標：**{self.train_date} {self.train_code}次**\n"
+                    f"座位：**{display_seat}**\n"
+                    f"時間：`{target_time.strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
+                    "機器人將在後台自動執行，您可以關閉視窗。"
+                ),
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 資料庫寫入失敗: {e}", ephemeral=True)
+
+class THSRResultSelect(ui.Select):
+    def __init__(self, trains_data):
+        options = []
+        for t in trains_data[:25]:
+            label = f"[{t['id']}] {t['dep']} -> {t['arr']}"
+            desc = f"行車: {t['duration']} | {t['discount']}"
+            options.append(discord.SelectOption(label=label, description=desc, value=t['id']))
+
+        super().__init__(placeholder="👇 選擇車次以設定「定時搶票」...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_code = self.values[0]
+        view = self.view
+        
+        # 取得日期與座位偏好 (從 QueryView 傳下來的)
+        train_date = view.prev_view.date_val 
+
+        await interaction.response.send_modal(
+            THSRScheduleModal(
+                view.bot, 
+                selected_code, 
+                view.start_st, 
+                view.end_st,
+                train_date
+            )
+        )
+
+class THSRResultView(ui.View):
+    def __init__(self, bot, prev_view, driver=None, trains_data=None):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.prev_view = prev_view 
+        self.driver = driver
+        self.trains_data = trains_data # 接收資料
+        
+        self.start_st = prev_view.start_station
+        self.end_st = prev_view.end_station
+
+        # 1. 如果有車次資料，加入下拉選單 (供定時搶票用)
+        if self.trains_data:
+            self.add_item(THSRResultSelect(self.trains_data))
+
+        # 2. 加入翻頁按鈕
+        self.add_item(THSRResultEarlierButton())
+        self.add_item(THSRResultLaterButton())
+
+    async def on_timeout(self):
+        if self.driver:
+            self.driver.quit()
+    
+    @ui.button(label="修改條件", style=discord.ButtonStyle.primary, emoji="🔙", row=2)
+    async def back_to_search(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+        embed = self.prev_view.get_status_embed()
+        await interaction.response.edit_message(embed=embed, view=self.prev_view)
+
+    @ui.button(label="回到主頁", style=discord.ButtonStyle.danger, emoji="🏠", row=2)
+    async def back_to_home(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+        from .view import THSR_DashboardView
+        embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
+        await interaction.response.edit_message(embed=embed, view=view)

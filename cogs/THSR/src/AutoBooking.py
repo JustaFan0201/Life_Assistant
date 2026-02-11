@@ -28,11 +28,7 @@ BOOKING_STATION_MAP = {
 }
 
 # [第一階段] 搜尋車次
-def search_trains(start_station, end_station, date_str, time_str, ticket_count=1, seat_prefer="None"):
-    """
-    執行查詢並回傳車次列表，不自動進入下一步
-    :param seat_prefer: "Window"(靠窗), "Aisle"(走道), "None"(無)
-    """
+def search_trains(start_station, end_station, date_str, time_str, ticket_count=1, seat_prefer="None", train_code=None):
     start_val = BOOKING_STATION_MAP.get(start_station)
     end_val = BOOKING_STATION_MAP.get(end_station)
 
@@ -40,11 +36,15 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         return {"status": "error", "msg": "車站名稱錯誤"}
 
     options = Options()
-    options.add_argument("--headless=new")  # 開發時建議先註解掉 headless 以便除錯，穩定後再開啟
+    options.add_argument("--headless=new") 
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=1280,800")
+    options.add_argument("--window-size=1920,1080") # 建議調大一點，避免 Headless 下元素擠在一起無法點擊
     options.add_argument("--disable-blink-features=AutomationControlled")
+    
+    # ★★★ 關鍵防擋 1：偽裝正常的 User-Agent (避免送出 HeadlessChrome) ★★★
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    options.add_argument(f"user-agent={user_agent}")
     
     if os.environ.get("GOOGLE_CHROME_BIN"):
         options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
@@ -54,12 +54,21 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
     try:
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
+        
+        # ★★★ 關鍵防擋 2：抹除 navigator.webdriver 機器人指紋 ★★★
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                })
+            """
+        })
+
         wait = WebDriverWait(driver, 15)
 
         driver.get("https://irs.thsrc.com.tw/IMINT/")
         home_url = driver.current_url
 
-        # 處理 Cookie
         try:
             wait.until(EC.element_to_be_clickable((By.ID, "cookieAccpetBtn"))).click()
             time.sleep(0.5)
@@ -70,10 +79,19 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         Select(driver.find_element(By.ID, "BookingS1Form_selectDestinationStation")).select_by_value(end_val)
         driver.execute_script(f"document.getElementById('toTimeInputField').value = '{date_str}';")
         
-        try:
-            Select(driver.find_element(By.NAME, "toTimeTable")).select_by_visible_text(time_str)
-        except:
-            Select(driver.find_element(By.NAME, "toTimeTable")).select_by_index(1)
+        if train_code:
+            print(f"🎯 指定車次搜尋: {train_code}")
+            try:
+                driver.execute_script("document.querySelector('input[data-target=\"search-by-trainNo\"]').click()")
+                time.sleep(0.5)
+                driver.find_element(By.NAME, "toTrainIDInputField").send_keys(train_code)
+            except Exception as e:
+                print(f"⚠️ 切換車次模式失敗: {e}")
+        else:
+            try:
+                Select(driver.find_element(By.NAME, "toTimeTable")).select_by_visible_text(time_str)
+            except:
+                Select(driver.find_element(By.NAME, "toTimeTable")).select_by_index(1)
 
         Select(driver.find_element(By.NAME, "ticketPanel:rows:0:ticketAmount")).select_by_value(f"{ticket_count}F")
 
@@ -89,18 +107,13 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
         except Exception as e:
             print(f"⚠️ 座位選擇失敗 (可能該時段不開放選位): {e}")
 
-        # --- 初始化 ddddocr (修正版) ---
-        # 邏輯：優先嘗試新版的 beta 參數，若失敗則嘗試舊版 show_ad 參數，最後使用預設
         print("🔧 初始化驗證碼辨識模型...")
         try:
-            # 嘗試使用 beta=True (新版功能，通常辨識率較好)
             ocr = ddddocr.DdddOcr(beta=True)
         except TypeError:
             try:
-                # 舊版 1.4.7 以前支援 show_ad=False
                 ocr = ddddocr.DdddOcr(show_ad=False)
             except TypeError:
-                # 如果上述參數都不支援，使用預設初始化 (適用於某些過渡版本)
                 ocr = ddddocr.DdddOcr()
 
         attempt = 0 
@@ -109,18 +122,13 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
             print(f"\n🔄 第 {attempt} 次嘗試驗證碼...")
             
             try:
-                # 等待驗證碼圖片出現
                 captcha_img = wait.until(EC.visibility_of_element_located((By.ID, "BookingS1Form_homeCaptcha_passCode")))
-                
-                # 辨識 (直接傳入 bytes)
                 res = ocr.classification(captcha_img.screenshot_as_png)
                 print(f"🤖 OCR 結果: {res}")
 
-                # 基本長度檢查，不對就直接觸發重整
                 if len(res) != 4: 
                     raise ValueError("Captcha length invalid")
 
-                # 填寫並送出
                 security_code = driver.find_element(By.ID, "securityCode")
                 security_code.clear()
                 security_code.send_keys(res)
@@ -129,15 +137,34 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
 
                 time.sleep(2.5) 
                 
-                # --- 判斷是否成功 (跳轉到第二階段) ---
-                # 檢查 SubmitButton 是否消失，或者 URL 是否改變
+                current_url = driver.current_url
+                page_source = driver.page_source
+                
                 is_submit_gone = len(driver.find_elements(By.ID, "SubmitButton")) == 0
                 
-                if "TrainSelection" in driver.current_url or (is_submit_gone and driver.current_url != "https://irs.thsrc.com.tw/IMINT/"):
+                # 【情況 A：直達個資頁面 (Step 3)】
+                # 判斷依據：網址包含 BookingS2Form 且出現身分證輸入框 (idNumber)
+                if "BookingS2Form" in current_url or "idNumber" in page_source:
+                    print("⚡ 搜尋成功，直達個資頁面 (Direct)")
+                    return {
+                        "status": "success_direct", 
+                        "msg": "已鎖定車次，準備填寫個資", 
+                        "trains": [], 
+                        "driver": driver # ★★★ 這裡不關閉 driver，回傳給後續使用
+                    }
+
+                # 【情況 B：進入選車列表 (Step 2)】
+                # 判斷依據：網址包含 TrainSelection
+                elif "TrainSelection" in current_url or (is_submit_gone and "IMINT" in current_url and "BookingS2Form" not in current_url):
                     print("✅ 驗證通過，正在解析車次列表...")
                     
                     trains_data = _parse_all_trains(driver)
                     
+                    if train_code:
+                        has_train = any(t['code'] == train_code for t in trains_data)
+                        if not has_train:
+                             return {"status": "failed", "msg": f"搜尋結果未見車次 {train_code} (可能已額滿)", "driver": driver}
+
                     if not trains_data:
                          return {"status": "failed", "msg": "查無車次 (可能已額滿或日期錯誤)", "driver": driver}
 
@@ -145,9 +172,10 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
                         "status": "success", 
                         "msg": f"找到 {len(trains_data)} 班列車 (嘗試了 {attempt} 次)", 
                         "trains": trains_data, 
-                        "driver": driver 
+                        "driver": driver # ★★★ 這裡不關閉 driver
                     }
 
+                # 【情況 C：留在首頁 (失敗/驗證碼錯誤)】
                 try:
                     err_element = driver.find_elements(By.XPATH, "//div[@id='feedMSG']//span[@class='error']")
                     if err_element:
@@ -165,7 +193,12 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
 
             except Exception:
                 try:
-                    if len(driver.find_elements(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")) == 0:
+                    if len(driver.find_elements(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")) > 0:
+                        print("🔄 重新整理驗證碼圖片...")
+                        refresh_btn = driver.find_element(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")
+                        driver.execute_script("arguments[0].click();", refresh_btn)
+                        time.sleep(1.5)
+                    else:
                         check_data = _parse_all_trains(driver)
                         if check_data:
                             return {
@@ -174,11 +207,8 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
                                 "trains": check_data, 
                                 "driver": driver
                             }
-                    
-                    print("🔄 重新整理驗證碼圖片...")
-                    refresh_btn = driver.find_element(By.ID, "BookingS1Form_homeCaptcha_reCodeLink")
-                    driver.execute_script("arguments[0].click();", refresh_btn)
-                    time.sleep(1.5) # 等待新圖片載入
+                        print("❌ 無法重整驗證碼且無資料")
+                        break
                 
                 except Exception as refresh_error:
                     print(f"❌ 無法重整驗證碼，終止程序: {refresh_error}")

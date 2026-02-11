@@ -68,6 +68,26 @@ class Ticket(Base):
     created_at = Column(DateTime, default=datetime.now)
     user = relationship("User", back_populates="tickets")
 
+class BookingSchedule(Base):
+    __tablename__ = 'booking_schedules'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
+    
+    # 訂票參數
+    train_code = Column(String, nullable=False)   # 車次代碼
+    start_station = Column(String, nullable=False)
+    end_station = Column(String, nullable=False)
+    train_date = Column(String, nullable=False)   # 出發日期 (例如 2025/02/12)
+    seat_prefer = Column(String, default="None")  # 座位偏好
+    
+    # 排程控制
+    trigger_time = Column(DateTime, nullable=False) # 觸發時間
+    status = Column(String, default="pending")      # pending(等待), processing(執行中), completed(完成), failed(失敗)
+    created_at = Column(DateTime, default=datetime.now)
+
+    user = relationship("User", backref="schedules")
+
 class EmailConfig(Base):
     __tablename__ = 'email_configs'
 
