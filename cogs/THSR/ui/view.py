@@ -212,18 +212,23 @@ class THSR_DashboardView(ui.View):
         )
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3063/3063822.png")
         embed.add_field(
-            name="🗓️ **查詢車次**", 
-            value="即時爬取高鐵班次資訊，提供多種篩選條件，並顯示優惠資訊", 
+            name="🗓️**定時訂票**", 
+            value="選擇想要預定的車次，並設定訂購時間，\n系統會在指定時間自動幫您訂購(會需要先輸入身分證)", 
             inline=False
         )
         embed.add_field(
-            name="🎫 **線上訂票**", 
-            value="自動化購票系統(會需要先輸入身分證等資料)\n可選擇座位偏好，並直接從 Discord 下單", 
+            name="🎫**線上訂票**", 
+            value="輸入車次條件，並選擇想要搭乘的車次，\n即可立即訂購目前高鐵平台剩餘車票(會需要先輸入身分證)", 
             inline=False
         )
         embed.add_field(
-            name="🎫 **車票紀錄**", 
-            value="查看您過去的訂票紀錄，包含未付款和已付款的車票資訊", 
+            name="📂**車票紀錄**", 
+            value="查看您過去的車票資訊", 
+            inline=False
+        )
+        embed.add_field(
+            name="📝**設定個資**", 
+            value="設定您的個人資料，包含身分證、手機、信箱與 TGo 資料，在訂票時會自動帶入", 
             inline=False
         )
         embed.set_footer(text="Powered by Selenium • JustaFan0201")
@@ -280,12 +285,11 @@ class THSRQueryView(ui.View):
         return embed, view
 
     def get_status_embed(self):
-        embed = discord.Embed(title="🚄 高鐵時刻查詢設定", color=0xec6c00)
+        embed = discord.Embed(title="🚄高鐵預定車票 車次查詢", color=0xec6c00)
         embed.add_field(name="📍 起點", value=self.start_station or "未選", inline=True)
         embed.add_field(name="🏁 終點", value=self.end_station or "未選", inline=True)
         embed.add_field(name="📅 日期", value=self.date_val, inline=True)
         embed.add_field(name="⏰ 時間", value=self.time_val, inline=True)
-        embed.add_field(name="🎫 票別", value=self.ticket_type, inline=True)
         embed.add_field(name="🔄 行程", value=self.trip_type, inline=True)
         return embed
 
@@ -438,7 +442,7 @@ class THSRBookingView(ui.View):
 
     def get_status_embed(self):
         seat_text = {"None": "無", "Window": "靠窗", "Aisle": "走道"}
-        embed = discord.Embed(title="🎫 高鐵自動訂票設定", description="本系統預設為 **單程 / 全票**", color=discord.Color.green())
+        embed = discord.Embed(title="🎫高鐵線上訂票 車次查詢" , description="本系統預設為 **單程 / 全票**", color=discord.Color.green())
         embed.add_field(name="📍 起點", value=self.start_station or "未選", inline=True)
         embed.add_field(name="🏁 終點", value=self.end_station or "未選", inline=True)
         embed.add_field(name="📅 日期", value=self.date_val, inline=True)
@@ -776,7 +780,6 @@ class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
                 db.add(new_schedule)
                 db.commit()
                 
-            # 顯示結果 Embed
             seat_display_map = {"Window": "靠窗", "Aisle": "走道", "None": "不指定"}
             display_seat = seat_display_map.get(final_seat_prefer, "不指定")
 
@@ -786,14 +789,21 @@ class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
                     f"目標：**{self.train_date} {self.train_code}次**\n"
                     f"座位：**{display_seat}**\n"
                     f"時間：`{target_time.strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
-                    "機器人將在後台自動執行，您可以關閉視窗。"
+                    "機器人將在後台自動執行，您可以關閉視窗，或點擊下方按鈕回主頁。"
                 ),
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+            view = THSRBackHomeView(self.bot)
+            await interaction.response.edit_message(embed=embed, view=view)
             
         except Exception as e:
-            await interaction.response.send_message(f"❌ 資料庫寫入失敗: {e}", ephemeral=True)
+            await interaction.response.send_message(f"❌ 資料庫寫入失敗: {e}",ephemeral=True)
+
+class THSRBackHomeView(ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.add_item(THSRHomeButton(bot))
 
 class THSRResultSelect(ui.Select):
     def __init__(self, trains_data):
@@ -858,6 +868,5 @@ class THSRResultView(ui.View):
         if self.driver:
             self.driver.quit()
             self.driver = None
-        from .view import THSR_DashboardView
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
