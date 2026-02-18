@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from ...System.ui.buttons import BackToMainButton
 
@@ -24,6 +24,7 @@ from .buttons import (
 )
 
 from ..src.GetTimeStamp import STATION_MAP
+TW_TZ = timezone(timedelta(hours=8))
 
 class THSRTicketListView(ui.View):
     def __init__(self, bot):
@@ -702,65 +703,79 @@ class THSRErrorView(ui.View):
 
 class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
     def __init__(self, bot, train_code, start_st, end_st, train_date):
-        # 注意：這裡不需要再傳入 seat_prefer 了，因為要在這個視窗讓使用者自己填
         super().__init__()
         self.bot = bot
         self.train_code = train_code
         self.start_st = start_st
         self.end_st = end_st
-        self.train_date = train_date
+        self.train_date = train_date # 這是車次的出發日期 (固定)
 
-        # 1. 啟動時間輸入框
-        default_time = (datetime.now() + timedelta(minutes=5)).strftime("%H:%M:%S")
+        # 取得台北現在時間作為預設值
+        tw_now = datetime.now(TW_TZ)
+        default_trigger_date = tw_now.strftime("%Y/%m/%d")
+        default_trigger_time = (tw_now + timedelta(minutes=5)).strftime("%H:%M:%S")
+        
+        # 1. [新增] 啟動日期輸入框
+        self.trigger_date = ui.TextInput(
+            label="預定啟動日期 (YYYY/MM/DD)", 
+            placeholder="例如 2026/02/15",
+            default=default_trigger_date, # 預設為今天
+            min_length=10, 
+            max_length=10
+        )
+        self.add_item(self.trigger_date)
+
+        # 2. 啟動時間輸入框
         self.trigger_time = ui.TextInput(
-            label="啟動時間 (格式 HH:MM:SS)", 
-            placeholder="例如 23:59:55 (建議提早5-10秒)",
-            default=default_time,
+            label="預定啟動時間 (HH:MM:SS)", 
+            placeholder="例如 00:00:05",
+            default=default_trigger_time,
             min_length=8, 
             max_length=8
         )
         self.add_item(self.trigger_time)
 
-        # 2. [新增] 座位偏好輸入框
+        # 3. 座位偏好輸入框
         self.seat_input = ui.TextInput(
             label="座位偏好 (選填)",
             placeholder="請輸入：靠窗、走道 (留空則不指定)",
-            required=False, # 設為選填
+            required=False,
             max_length=10
         )
         self.add_item(self.seat_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        time_str = self.trigger_time.value
-        seat_str = self.seat_input.value.strip() # 取得座位輸入並去除空白
-        now = datetime.now()
+        # 讀取輸入值
+        t_date_str = self.trigger_date.value.strip()
+        t_time_str = self.trigger_time.value.strip()
+        seat_str = self.seat_input.value.strip()
         
         # --- 解析座位偏好 ---
-        # 預設為 None (不指定)
         final_seat_prefer = "None"
-        
         if "靠窗" in seat_str or "window" in seat_str.lower():
             final_seat_prefer = "Window"
         elif "走道" in seat_str or "aisle" in seat_str.lower():
             final_seat_prefer = "Aisle"
         
+        # --- 解析啟動時間 (日期 + 時間) ---
+        target_time = None
         try:
-            # 解析時間
-            target_time = datetime.strptime(time_str, "%H:%M:%S").replace(
-                year=now.year, month=now.month, day=now.day
-            )
-            # 如果時間比現在早，自動設為明天
-            if target_time < now:
-                target_time += timedelta(days=1)
-                
+            # 1. 組合字串
+            full_time_str = f"{t_date_str} {t_time_str}"
+            
+            # 2. 解析為 datetime (尚未帶時區)
+            target_time_naive = datetime.strptime(full_time_str, "%Y/%m/%d %H:%M:%S")
+            
+            # 3. 強制加上台北時區 (因為資料庫比對邏輯是基於台北時間)
+            target_time = target_time_naive.replace(tzinfo=TW_TZ)
+            
         except ValueError:
-            await interaction.response.send_message("❌ 時間格式錯誤，請使用 HH:MM:SS", ephemeral=True)
+            await interaction.response.send_message("❌ 時間或日期格式錯誤！\n日期格式: YYYY/MM/DD\n時間格式: HH:MM:SS", ephemeral=True)
             return
 
         # 寫入資料庫
         try:
             with DatabaseSession() as db:
-                # 確保 User 存在
                 user = db.query(User).filter(User.discord_id == interaction.user.id).first()
                 if not user:
                     user = User(discord_id=interaction.user.id, username=interaction.user.name)
@@ -772,33 +787,41 @@ class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
                     train_code=self.train_code,
                     start_station=self.start_st,
                     end_station=self.end_st,
-                    train_date=self.train_date,
-                    seat_prefer=final_seat_prefer, # 使用解析後的座位設定
-                    trigger_time=target_time,
+                    train_date=self.train_date, # 這是這班車的出發日期 (爬蟲用)
+                    seat_prefer=final_seat_prefer,
+                    trigger_time=target_time,   # 這是機器人的啟動時間 (Task檢查用)
                     status="pending"
                 )
                 db.add(new_schedule)
                 db.commit()
                 
+            # 顯示結果 Embed
             seat_display_map = {"Window": "靠窗", "Aisle": "走道", "None": "不指定"}
             display_seat = seat_display_map.get(final_seat_prefer, "不指定")
 
             embed = discord.Embed(
                 title="✅ 排程已建立！",
                 description=(
-                    f"目標：**{self.train_date} {self.train_code}次**\n"
-                    f"座位：**{display_seat}**\n"
-                    f"時間：`{target_time.strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
-                    "機器人將在後台自動執行，您可以關閉視窗，或點擊下方按鈕回主頁。"
+                    f"目標車次：**{self.train_date}** - **{self.train_code}次**\n"
+                    f"座位偏好：**{display_seat}**\n"
+                    f"啟動時間：`{target_time.strftime('%Y-%m-%d %H:%M:%S')} (Taipei)`\n\n"
+                    "機器人將在指定時間自動執行搶票。"
                 ),
                 color=discord.Color.green()
             )
-        
+            
             view = THSRBackHomeView(self.bot)
-            await interaction.response.edit_message(embed=embed, view=view)
+            
+            if not interaction.response.is_done():
+                await interaction.response.edit_message(embed=embed, view=view)
+            else:
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             
         except Exception as e:
-            await interaction.response.send_message(f"❌ 資料庫寫入失敗: {e}",ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ 資料庫寫入失敗: {e}", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ 資料庫寫入失敗: {e}", ephemeral=True)
 
 class THSRBackHomeView(ui.View):
     def __init__(self, bot):
