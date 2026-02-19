@@ -20,7 +20,9 @@ from .buttons import (
     THSRLoadEarlierButton,
     THSRLoadLaterButton,
     THSRResultEarlierButton,
-    THSRResultLaterButton
+    THSRResultLaterButton,
+    ToggleScheduleButton,
+    ToggleTicketsButton
 )
 
 from ..src.GetTimeStamp import STATION_MAP
@@ -30,16 +32,15 @@ class THSRTicketListView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
+        # 加入切換到任務列表的按鈕
+        self.add_item(ToggleScheduleButton(bot))
+        # 加入回主頁按鈕
         self.add_item(THSRHomeButton(bot))
 
     @staticmethod
     def create_ticket_ui(bot, tickets: list[Ticket]):
-        """
-        [工廠方法] 接收資料庫撈出來的 tickets 列表，回傳 Embed 與 View
-        """
         view = THSRTicketListView(bot)
 
-        # 情況 A: 沒有車票
         if not tickets:
             embed = discord.Embed(
                 title="📂 我的車票庫",
@@ -49,7 +50,6 @@ class THSRTicketListView(ui.View):
             embed.set_footer(text="尚無資料")
             return embed, view
 
-        # 情況 B: 有車票 -> 製作列表 Embed
         embed = discord.Embed(
             title=f"📂 我的車票庫 ({len(tickets)} 筆)",
             description="以下顯示您最近的訂票紀錄：",
@@ -57,18 +57,14 @@ class THSRTicketListView(ui.View):
         )
         
         for t in tickets:
-            # 1. 格式化日期與路線
             date_str = t.train_date
             route_str = f"{t.start_station} ➜ {t.end_station}"
-            
-            # 2. 判斷付款狀態圖示
             status_icon = "✅" if t.is_paid else "⚠️"
             status_text = "已付款" if t.is_paid else "未付款"
             
-            # 3. 組合顯示字串
             field_name = f"{date_str} | {route_str}"
             field_value = (
-                f"🚄 車次**{t.train_code}**  ⏰ `{t.departure}` - `{t.arrival}`\n"
+                f"🚄 車次**{t.train_code}** ⏰ `{t.departure}` - `{t.arrival}`\n"
                 f"🎫 代號: **`{t.pnr}`**\n"
                 f"💺 座位: `{t.seats}`\n"
                 f"💰 金額: {t.price} ({status_text} {status_icon})"
@@ -76,7 +72,63 @@ class THSRTicketListView(ui.View):
             embed.add_field(name=field_name, value=field_value, inline=False)
         
         embed.set_footer(text="僅顯示最近 10 筆紀錄 • 請至高鐵官網付款/取票")
+        return embed, view
+
+class THSRScheduleListView(ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+        # 加入切換回實體車票的按鈕
+        self.add_item(ToggleTicketsButton(bot))
+        # 加入回主頁按鈕
+        self.add_item(THSRHomeButton(bot))
+
+    @staticmethod
+    def create_schedule_ui(bot, schedules: list[BookingSchedule]):
+        view = THSRScheduleListView(bot)
+
+        if not schedules:
+            embed = discord.Embed(
+                title="⏳ 我的定時搶票任務",
+                description="目前沒有任何排程任務。\n請使用 **「定時訂票」** 功能來建立搶票排程。",
+                color=discord.Color.light_grey()
+            )
+            embed.set_footer(text="尚無排程任務")
+            return embed, view
+
+        embed = discord.Embed(
+            title=f"⏳ 我的定時搶票任務 ({len(schedules)} 筆)",
+            description="以下顯示您設定的搶票排程紀錄：",
+            color=discord.Color.orange()
+        )
         
+        status_map = {
+            "pending": "等待中 ⏳",
+            "processing": "執行中 🚀",
+            "completed": "已完成 ✅",
+            "failed": "失敗 ❌"
+        }
+        
+        seat_map = {"Window": "靠窗", "Aisle": "走道", "None": "不指定"}
+
+        for s in schedules:
+            route_str = f"{s.start_station} ➜ {s.end_station}"
+            status_text = status_map.get(s.status, s.status)
+            seat_text = seat_map.get(s.seat_prefer, "不指定")
+            
+            # 格式化觸發時間
+            t_time = s.trigger_time.strftime("%Y/%m/%d %H:%M:%S") if s.trigger_time else "未知"
+            
+            field_name = f"目標: {s.train_date} | {route_str}"
+            field_value = (
+                f"🚄 車次: **{s.train_code}次**\n"
+                f"⏰ 啟動時間: `{t_time}`\n"
+                f"💺 座位偏好: `{seat_text}`\n"
+                f"📊 狀態: **{status_text}**"
+            )
+            embed.add_field(name=field_name, value=field_value, inline=False)
+        
+        embed.set_footer(text="僅顯示最近 10 筆任務紀錄")
         return embed, view
 
 def mask_text(text, is_hidden=True):
@@ -544,15 +596,13 @@ class THSRTrainSelect(ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         selected_code = self.values[0]
+        user_data = {}
         
-        user_data = None
-        has_valid_profile = False
-        
+        # 1. 直接撈取個資 (不需再做防擋，因為前面按鈕已擋過)
         try:
             with DatabaseSession() as db:
                 profile = db.query(THSRProfile).filter(THSRProfile.user_id == interaction.user.id).first()
-                if profile and profile.personal_id: # 必須要有身分證
-                    has_valid_profile = True
+                if profile:
                     user_data = {
                         'pid': profile.personal_id,
                         'phone': profile.phone,
@@ -560,31 +610,19 @@ class THSRTrainSelect(ui.Select):
                         'tgo': profile.tgo_id
                     }
         except Exception as e:
-            print(f"資料庫檢查錯誤: {e}")
+            print(f"資料庫讀取錯誤: {e}")
 
-        if not has_valid_profile:
-            # A. 沒有資料 -> 報錯並關閉瀏覽器
-            if self.view.driver:
-                self.view.driver.quit() # 必須關閉，不然會殘留
-            
-            embed = discord.Embed(
-                title="❌ 無法訂票",
-                description="您尚未設定 **身分證字號**，系統無法協助訂票。\n請先返回主選單，點擊 **「📝 設定個人資料」**。",
-                color=discord.Color.red()
-            )
-            # 使用區域引用呼叫 Dashboard
-            from .view import THSR_DashboardView
-            dash_embed, dash_view = THSR_DashboardView.create_dashboard_ui(self.view.bot)
-            
-            # 因為 Interaction 已經結束 (select callback)，我們發送一個 Ephemeral 訊息提示
-            # 或者直接編輯原本的訊息回到主選單
-            await interaction.response.edit_message(embed=embed, view=dash_view)
-            return
-
-        # B. 有資料 -> 直接執行自動訂票 (不跳 Modal)
+        # 2. 直接執行自動訂票流程
         from .buttons import run_booking_flow
-        await run_booking_flow(interaction, self.view.bot, self.view.driver, selected_code, user_data,self.view.start_st,
-            self.view.end_st)
+        await run_booking_flow(
+            interaction, 
+            self.view.bot, 
+            self.view.driver, 
+            selected_code, 
+            user_data,
+            self.view.start_st,
+            self.view.end_st
+        )
 
 class THSRTrainSelectView(ui.View):
     def __init__(self, bot, driver, trains, start_st, end_st):

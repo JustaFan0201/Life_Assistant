@@ -4,10 +4,34 @@ from discord import ui
 import asyncio
 
 from database.db import DatabaseSession
-from database.models import User, THSRProfile, Ticket
+from database.models import User, THSRProfile, Ticket,BookingSchedule
 
 from ..src.GetTimeStamp import get_thsr_schedule, load_more_schedule
 from ..src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result, load_new_trains
+
+def check_user_profile(user_id):
+    """檢查使用者是否已設定身分證"""
+    try:
+        with DatabaseSession() as db:
+            profile = db.query(THSRProfile).filter(THSRProfile.user_id == user_id).first()
+            if profile and profile.personal_id:
+                return True
+    except Exception as e:
+        print(f"資料庫檢查錯誤: {e}")
+    return False
+
+async def show_profile_missing_error(interaction, bot):
+    """顯示未設定個資的錯誤訊息"""
+    embed = discord.Embed(
+        title="❌ 無法使用此功能",
+        description="您尚未設定 **身分證字號**，無法進行查詢或訂票。\n請先點擊下方按鈕設定個人資料。",
+        color=discord.Color.red()
+    )
+    from .view import THSR_DashboardView
+    
+    dash_embed, dash_view = THSR_DashboardView.create_dashboard_ui(bot)
+    
+    await interaction.response.edit_message(embed=embed, view=dash_view)
 
 async def _common_schedule_paging(interaction: discord.Interaction, button: ui.Button, direction: str):
     """一般查詢結果的翻頁邏輯"""
@@ -195,7 +219,14 @@ class OpenTHSRQueryButton(ui.Button):
     def __init__(self, bot):
         super().__init__(label="定時訂票", style=discord.ButtonStyle.success, emoji="🗓️", row=0)
         self.bot = bot
+
     async def callback(self, interaction: discord.Interaction):
+        # 1. 檢查身分證
+        if not check_user_profile(interaction.user.id):
+            await show_profile_missing_error(interaction, self.bot)
+            return
+
+        # 2. 通過檢查，進入查詢頁面
         from .view import THSRQueryView
         embed, view = THSRQueryView.create_new_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
@@ -204,7 +235,14 @@ class OpenTHSRBookingButton(ui.Button):
     def __init__(self, bot):
         super().__init__(label="線上訂票", style=discord.ButtonStyle.success, emoji="🎫", row=0)
         self.bot = bot
+
     async def callback(self, interaction: discord.Interaction):
+        # 1. 檢查身分證
+        if not check_user_profile(interaction.user.id):
+            await show_profile_missing_error(interaction, self.bot)
+            return
+
+        # 2. 通過檢查，進入訂票頁面
         from .view import THSRBookingView
         embed, view = THSRBookingView.create_new_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
@@ -238,6 +276,52 @@ class OpenTHSRTicketsButton(ui.Button):
         except:
             await interaction.followup.send("❌ 資料庫讀取失敗", ephemeral=True)
             return
+        from .view import THSRTicketListView
+        embed, view = THSRTicketListView.create_ticket_ui(self.bot, tickets)
+        await interaction.edit_original_response(embed=embed, view=view)
+
+class ToggleScheduleButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(label="查看定時任務", style=discord.ButtonStyle.secondary, emoji="⏳", row=0)
+        self.bot = bot
+        
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        schedules = []
+        try:
+            with DatabaseSession() as db:
+                # 撈取該使用者的定時任務，依照建立時間倒序排列
+                schedules = db.query(BookingSchedule).filter(
+                    BookingSchedule.user_id == interaction.user.id
+                ).order_by(BookingSchedule.created_at.desc()).limit(10).all()
+        except Exception as e:
+            print(f"查詢任務失敗: {e}")
+            await interaction.followup.send("❌ 資料庫讀取失敗", ephemeral=True)
+            return
+
+        from .view import THSRScheduleListView
+        embed, view = THSRScheduleListView.create_schedule_ui(self.bot, schedules)
+        await interaction.edit_original_response(embed=embed, view=view)
+
+class ToggleTicketsButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(label="查看已訂車票", style=discord.ButtonStyle.secondary, emoji="🎫", row=0)
+        self.bot = bot
+        
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        tickets = []
+        try:
+            with DatabaseSession() as db:
+                # 撈取該使用者的實體車票
+                tickets = db.query(Ticket).filter(
+                    Ticket.user_id == interaction.user.id
+                ).order_by(Ticket.created_at.desc()).limit(10).all()
+        except Exception as e:
+            print(f"查詢車票失敗: {e}")
+            await interaction.followup.send("❌ 資料庫讀取失敗", ephemeral=True)
+            return
+            
         from .view import THSRTicketListView
         embed, view = THSRTicketListView.create_ticket_ui(self.bot, tickets)
         await interaction.edit_original_response(embed=embed, view=view)
