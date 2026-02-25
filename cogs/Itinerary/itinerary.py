@@ -47,8 +47,7 @@ class Itinerary(commands.Cog):
                 ).delete(synchronize_session=False)
             except Exception as e:
                 print(f"❌ [清理失敗] {e}")
-
-            # 3. 精準查詢
+                
             events = session.query(CalendarEvent).filter(
                 CalendarEvent.event_time == now_tw
             ).all()
