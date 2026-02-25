@@ -65,7 +65,7 @@ class BackToMainButton(ui.Button):
         await interaction.response.edit_message(embed=embed, view=view)
         
 # 前往 GPT UI按鈕
-'''class GoToGPTButton(ui.Button):
+class GoToGPTButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="AI 助手功能", 
@@ -87,7 +87,7 @@ class BackToMainButton(ui.Button):
         
         view = GPTDashboardView(self.bot)
         
-        await interaction.response.edit_message(embed=embed, view=view)'''
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
