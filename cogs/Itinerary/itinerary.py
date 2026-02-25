@@ -14,8 +14,8 @@ class Itinerary(commands.Cog):
         self.check_reminders.start()
 
     async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
-
-        clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
+        utc_time = time_obj - timedelta(hours=8)
+        clean_time = utc_time.replace(tzinfo=None, second=0, microsecond=0)
         
         success, report = self.db_manager.add_event(
             user_id=interaction.user.id,
@@ -30,32 +30,31 @@ class Itinerary(commands.Cog):
     async def check_reminders(self):
         await self.bot.wait_until_ready()
         
-        tz_tw = timezone(timedelta(hours=8))
-        now_tw = datetime.now(tz_tw).replace(tzinfo=None, second=0, microsecond=0)
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None, second=0, microsecond=0)
         
-        if self.last_check_minute == now_tw.minute:
+        if self.last_check_minute == now_utc.minute:
             return
-        self.last_check_minute = now_tw.minute
-
-        print(f"[行程檢查] 目前比對基準時間 (TW): {now_tw}")
+        self.last_check_minute = now_utc.minute
 
         priority_map = {"0": "🔴 緊急", "1": "🟡 重要", "2": "🟢 普通"}
 
         with self.db_session() as session:
             try:
                 session.query(CalendarEvent).filter(
-                    CalendarEvent.event_time < (now_tw - timedelta(days=1))
+                    CalendarEvent.event_time < (now_utc - timedelta(days=1))
                 ).delete(synchronize_session=False)
             except Exception as e:
                 print(f"[清理失敗] {e}")
 
             events = session.query(CalendarEvent).filter(
-                CalendarEvent.event_time == now_tw
+                CalendarEvent.event_time == now_utc
             ).all()
 
             if not events:
                 session.commit()
                 return
+
+            print(f"🔔 [通知] 找到 {len(events)} 筆行程準備發送！")
 
             for event in events:
                 try:

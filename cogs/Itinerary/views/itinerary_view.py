@@ -22,11 +22,12 @@ class ItineraryModal(discord.ui.Modal, title="新增我的行程"):
             time_parts = self.time_input.value.split(':')
             
             event_time = datetime(year, month, day, int(time_parts[0]), int(time_parts[1]))
-            clean_time = event_time.replace(tzinfo=None) 
+            
+            clean_time = event_time.replace(tzinfo=None)
             
             success, report = await self.cog.process_data_sql(
                 interaction, 
-                time_obj=clean_time,
+                time_obj=clean_time, 
                 description=self.content_input.value,
                 is_private=(self.time_data.get('privacy') == "1"),
                 priority=self.time_data.get('priority', "2") 
@@ -168,7 +169,7 @@ class ItineraryDashboardView(ui.View):
         self.bot, self.cog = bot, cog
         self.add_item(BackToMainButton(self.bot))
 
-    @ui.button(label="查看行程表v3", style=discord.ButtonStyle.success, emoji="📋")
+    @ui.button(label="查看行程表v4", style=discord.ButtonStyle.success, emoji="📋")
     async def view_list(self, interaction, button):
         view = ViewPageSelect(self.cog, interaction.user.id)
         await interaction.response.edit_message(embed=view.embed, view=view)
