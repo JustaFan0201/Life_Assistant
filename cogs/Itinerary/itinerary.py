@@ -14,6 +14,7 @@ class Itinerary(commands.Cog):
         self.check_reminders.start()
 
     async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
+
         clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
         
         success, report = self.db_manager.add_event(
@@ -28,7 +29,7 @@ class Itinerary(commands.Cog):
     @tasks.loop(seconds=10.0)
     async def check_reminders(self):
         await self.bot.wait_until_ready()
-
+        
         tz_tw = timezone(timedelta(hours=8))
         now_tw = datetime.now(tz_tw).replace(tzinfo=None, second=0, microsecond=0)
         
@@ -36,7 +37,7 @@ class Itinerary(commands.Cog):
             return
         self.last_check_minute = now_tw.minute
 
-        #print(f"[時區比對] 目前台灣時間: {now_tw}")
+        print(f"[行程檢查] 目前比對基準時間 (TW): {now_tw}")
 
         priority_map = {"0": "🔴 緊急", "1": "🟡 重要", "2": "🟢 普通"}
 
@@ -46,8 +47,8 @@ class Itinerary(commands.Cog):
                     CalendarEvent.event_time < (now_tw - timedelta(days=1))
                 ).delete(synchronize_session=False)
             except Exception as e:
-                print(f"❌ [清理失敗] {e}")
-                
+                print(f"[清理失敗] {e}")
+
             events = session.query(CalendarEvent).filter(
                 CalendarEvent.event_time == now_tw
             ).all()
@@ -95,7 +96,7 @@ class Itinerary(commands.Cog):
     def create_itinerary_dashboard_ui(self):
         embed = discord.Embed(
             title="📅 個人行程管理系統",
-            description="您可以在這裡查看、新增或刪除您的行程。",
+            description="您可以在這裡查看、新增或刪除您的行程。\n💡 **提示：** 公開行程將發送到系統設定的通知頻道。",
             color=discord.Color.blue()
         )
         from .views.itinerary_view import ItineraryDashboardView 
@@ -105,3 +106,4 @@ class Itinerary(commands.Cog):
 async def setup(bot):
     db_session = getattr(bot, "db_session", None)
     await bot.add_cog(Itinerary(bot, db_session))
+    print("Itinerary Package loaded with SQL support.")

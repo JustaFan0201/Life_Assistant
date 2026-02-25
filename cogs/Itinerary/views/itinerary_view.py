@@ -165,7 +165,7 @@ class ItineraryDashboardView(ui.View):
         self.bot, self.cog = bot, cog
         self.add_item(BackToMainButton(self.bot))
 
-    @ui.button(label="查看行程表v1", style=discord.ButtonStyle.success, emoji="📋")
+    @ui.button(label="查看行程表v2", style=discord.ButtonStyle.success, emoji="📋")
     async def view_list(self, interaction, button):
         view = ViewPageSelect(self.cog, interaction.user.id)
         await interaction.response.edit_message(embed=view.embed, view=view)
