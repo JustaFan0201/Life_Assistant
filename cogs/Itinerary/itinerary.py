@@ -17,7 +17,6 @@ class Itinerary(commands.Cog):
     async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
         clean_time = time_obj.replace(second=0, microsecond=0)
         
-
         success, report = self.db_manager.add_event(
             user_id=interaction.user.id,
             event_time=clean_time,
@@ -31,7 +30,6 @@ class Itinerary(commands.Cog):
     async def check_reminders(self):
         await self.bot.wait_until_ready()
         
-
         tz_tw = timezone(timedelta(hours=8))
         now_with_tz = datetime.now(tz_tw)
         now_naive = now_with_tz.replace(tzinfo=None, second=0, microsecond=0)
@@ -40,16 +38,18 @@ class Itinerary(commands.Cog):
             return
         self.last_check_minute = now_naive.minute
 
+        print(f"[行程檢查] 伺服器判定台灣時間: {now_naive}")
+
         priority_map = {"0": "🔴 緊急", "1": "🟡 重要", "2": "🟢 普通"}
 
         with self.db_session() as session:
             try:
                 expired_count = session.query(CalendarEvent).filter(
-                    CalendarEvent.event_time < now_naive
+                    CalendarEvent.event_time < (now_naive - timedelta(hours=1))
                 ).delete(synchronize_session=False)
                 
                 if expired_count > 0:
-                    print(f"[自動清理] 已刪除 {expired_count} 筆過期未發出的行程。")
+                    print(f"[自動清理] 已刪除 {expired_count} 筆過期行程。")
             except Exception as e:
                 print(f"[清理失敗] {e}")
 
@@ -61,7 +61,7 @@ class Itinerary(commands.Cog):
                 session.commit()
                 return
 
-            print(f"[通知] 找到 {len(events)} 筆行程準備發送！")
+            print(f"[通知] 找到 {len(events)} 筆行程準備發送")
 
             for event in events:
                 try:
@@ -80,7 +80,7 @@ class Itinerary(commands.Cog):
                         try:
                             await user.send(embed=embed)
                         except:
-                            print(f"無法私訊使用者 {event.user_id}")
+                            print(f"❌ 無法私訊使用者 {event.user_id}")
                     else:
                         settings = session.query(BotSettings).filter_by(id=1).first()
                         channel_id = settings.calendar_notify_channel_id if settings else None
@@ -90,13 +90,13 @@ class Itinerary(commands.Cog):
                             if channel:
                                 await channel.send(content=f"{user.mention} 您的行程提醒：", embed=embed)
                             else:
-                                await user.send(content="通知頻道失效，改以私訊提醒：", embed=embed)
+                                await user.send(content="⚠️ 通知頻道失效，改以私訊提醒：", embed=embed)
                         else:
-                            await user.send(content="未設定通知頻道，改以私訊提醒：", embed=embed)
+                            await user.send(content="⚠️ 未設定通知頻道，改以私訊提醒：", embed=embed)
 
                     session.delete(event)
                 except Exception as e:
-                    print(f"發送提醒出錯: {e}")
+                    print(f"❌ 發送提醒出錯: {e}")
             
             session.commit()
 
