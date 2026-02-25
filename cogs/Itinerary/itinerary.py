@@ -14,8 +14,8 @@ class Itinerary(commands.Cog):
         self.check_reminders.start()
 
     async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
-        utc_time = time_obj - timedelta(hours=8)
-        clean_time = utc_time.replace(tzinfo=None, second=0, microsecond=0)
+        
+        clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
         
         success, report = self.db_manager.add_event(
             user_id=interaction.user.id,

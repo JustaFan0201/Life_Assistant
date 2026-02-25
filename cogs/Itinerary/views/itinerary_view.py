@@ -90,7 +90,7 @@ class ViewPageSelect(discord.ui.View):
         count = len(self.data_list)
         start, end = page * 10, (page + 1) * 10
         current_items = self.data_list[start:end]
-
+        
         tz_tw = timezone(timedelta(hours=8))
         self.embed = discord.Embed(title="📅 您的行程表", color=0xE0A04A, timestamp=datetime.now(tz_tw))
         
@@ -100,7 +100,9 @@ class ViewPageSelect(discord.ui.View):
             self.embed.description = "目前沒有任何行程"
         else:
             for i, item in enumerate(current_items, start + 1):
-                time_str = item.event_time.strftime("%Y-%m-%d %H:%M")
+                display_time = item.event_time + timedelta(hours=8)
+                time_str = display_time.strftime("%Y-%m-%d %H:%M")
+                
                 privacy_emoji = "🔒" if item.is_private else "🌍"
                 p_emoji = priority_map.get(str(item.priority), "🟢")
 
