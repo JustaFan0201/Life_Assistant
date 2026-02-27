@@ -122,9 +122,11 @@ async def run_booking_flow(interaction: discord.Interaction, bot, driver, train_
             pass # 直達
             
         else:
-            # 嘗試盲選
-            try: await asyncio.to_thread(select_train, driver, train_code)
-            except: pass
+            print("⚠️ [BookingFlow] 頁面狀態不明，嘗試盲選車次...")
+            select_res = await asyncio.to_thread(select_train, driver, train_code)
+            # [修改] 改用 status 來判斷，而不是依賴 except
+            if select_res["status"] != "success":
+                raise Exception(f"車次選擇失敗: {select_res['msg']}")
 
         # 處理個資
         pid = user_data.get('pid')
@@ -365,9 +367,9 @@ class THSRSearchButton(ui.Button):
         await interaction.response.defer()
         
         ticket_info = (
-            f"> 🚄 **起訖**：`{view.start_station}` ➔ `{view.end_station}`\n"
-            f"> 📅 **時間**：`{view.date_val}` 　⏰ `{view.time_val}`\n"
-            f"> 🎫 **設定**：`{view.trip_type}` ／ `{view.ticket_type}`"
+            f"🚄 **起訖**：`{view.start_station}` ➔ `{view.end_station}`\n"
+            f"📅 **時間**：`{view.date_val}` 　⏰ `{view.time_val}`\n"
+            f"🎫 **設定**：`{view.trip_type}` ／ `{view.ticket_type}`"
         )
         loading_embed = discord.Embed(
             title="🔍 正在搜尋班次...", 

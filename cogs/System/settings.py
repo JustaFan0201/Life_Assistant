@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from database.db import DatabaseSession
 from database.models import BotSettings
+from .dashboard import deploy_dashboard_message
 
 class SettingsCog(commands.Cog):
     def __init__(self, bot):
@@ -18,18 +19,14 @@ class SettingsCog(commands.Cog):
         
         try:
             with DatabaseSession() as db:
-                # 1. 查詢設定 (抓第一筆)
                 settings = db.query(BotSettings).filter(BotSettings.id == 1).first()
-                
-                # 2. 如果沒資料，初始化一筆
+
                 if not settings:
                     settings = BotSettings(id=1)
                     db.add(settings)
                 
-                # 3. 更新欄位
                 setattr(settings, column_name, value)
                 
-                # 4. 存檔
                 db.commit()
                 
             await interaction.followup.send(success_msg)
@@ -49,6 +46,7 @@ class SettingsCog(commands.Cog):
             channel.id, 
             f"✅ 已將 **Dashboard 頻道** 設定為：{channel.mention}"
         )
+        await deploy_dashboard_message(self.bot, channel.id)
 
     @app_commands.command(name="set_login_notify_channel", description="設定登入通知發送的頻道")
     @app_commands.default_permissions(administrator=True)

@@ -59,15 +59,14 @@ class THSRTicketListView(ui.View):
         for t in tickets:
             date_str = t.train_date
             route_str = f"{t.start_station} ➜ {t.end_station}"
-            status_icon = "✅" if t.is_paid else "⚠️"
-            status_text = "已付款" if t.is_paid else "未付款"
+            '''status_icon = "✅" if t.is_paid else "⚠️"
+            status_text = "已付款" if t.is_paid else "未付款"'''
             
             field_name = f"{date_str} | {route_str}"
             field_value = (
                 f"🚄 車次**{t.train_code}** ⏰ `{t.departure}` - `{t.arrival}`\n"
-                f"🎫 代號: **`{t.pnr}`**\n"
-                f"💺 座位: `{t.seats}`\n"
-                f"💰 金額: {t.price} ({status_text} {status_icon})"
+                f"🎫 代號: **`{t.pnr}`** 💺 座位: `{t.seats}`\n"
+                f"💰 金額: {t.price} "
             )
             embed.add_field(name=field_name, value=field_value, inline=False)
         

@@ -156,11 +156,11 @@ class THSRTask(commands.Cog):
         """
         處理重試邏輯：
         1. 檢查任務建立時間是否超過 30 分鐘
-        2. 若未超時 -> 設定下次觸發時間 (現在時間 + 3分鐘)，狀態改回 pending
+        2. 若未超時 -> 設定下次觸發時間 (現在時間 + 0.5分鐘)，狀態改回 pending
         3. 若已超時 -> 標記為 failed
         """
         MAX_RETRY_DURATION = timedelta(minutes=30) # 最大持續嘗試時間
-        RETRY_INTERVAL = timedelta(minutes=3)      # 每次失敗後等待多久再試
+        RETRY_INTERVAL = timedelta(seconds=30)      # 每次失敗後等待多久再試
 
         try:
             with DatabaseSession() as db:
