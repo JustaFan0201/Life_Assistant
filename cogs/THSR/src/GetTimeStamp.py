@@ -49,7 +49,7 @@ def get_thsr_schedule(start_station, end_station, search_date=None, search_time=
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--window-size=1280,720")
     options.page_load_strategy = 'eager'
     
     if os.environ.get("GOOGLE_CHROME_BIN"):

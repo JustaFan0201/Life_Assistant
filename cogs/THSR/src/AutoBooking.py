@@ -39,8 +39,9 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
     options.add_argument("--headless=new") 
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=640,320") # 建議調大一點，避免 Headless 下元素擠在一起無法點擊
-    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1280,720")
+    options.page_load_strategy = 'eager'
     
     # ★★★ 關鍵防擋 1：偽裝正常的 User-Agent (避免送出 HeadlessChrome) ★★★
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"

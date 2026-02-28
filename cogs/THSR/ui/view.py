@@ -810,6 +810,19 @@ class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
             await interaction.response.send_message("❌ 時間或日期格式錯誤！\n日期格式: YYYY/MM/DD\n時間格式: HH:MM:SS", ephemeral=True)
             return
 
+        target_time_naive_to_save = None
+        try:
+            # 1. 組合字串
+            full_time_str = f"{t_date_str} {t_time_str}"
+            
+            # 2. 解析為 datetime (這就是使用者輸入的台北時間數字)
+            # 例如: 使用者輸入 2026/02/15 12:00:00，這裡就是單純的 12:00:00
+            target_time_naive_to_save = datetime.strptime(full_time_str, "%Y/%m/%d %H:%M:%S")
+            
+        except ValueError:
+            await interaction.response.send_message("❌ 時間或日期格式錯誤！\n日期格式: YYYY/MM/DD\n時間格式: HH:MM:SS", ephemeral=True)
+            return
+
         # 寫入資料庫
         try:
             with DatabaseSession() as db:
@@ -824,9 +837,9 @@ class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
                     train_code=self.train_code,
                     start_station=self.start_st,
                     end_station=self.end_st,
-                    train_date=self.train_date, # 這是這班車的出發日期 (爬蟲用)
+                    train_date=self.train_date, 
                     seat_prefer=final_seat_prefer,
-                    trigger_time=target_time,   # 這是機器人的啟動時間 (Task檢查用)
+                    trigger_time=target_time_naive_to_save, 
                     status="pending"
                 )
                 db.add(new_schedule)
