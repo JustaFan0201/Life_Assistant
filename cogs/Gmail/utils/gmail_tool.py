@@ -15,8 +15,8 @@ class EmailTools:
         self.imap_host = "imap.gmail.com"
         self.port = 465
         
-        self.user = email_user or os.getenv("EMAIL_USER")
-        self.password = email_password or os.getenv("EMAIL_PASSWORD")
+        self.user = email_user
+        self.password = email_password
     
     def _extract_pure_email(self, text):
         if not text: return ""
