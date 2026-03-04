@@ -20,6 +20,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """初始化資料庫，建立所有 Table"""
+    print(f"🔹 Engine URL: {engine.url}")
+    try:
+        conn = engine.connect()
+        print("✅ 資料庫連線成功")
+        conn.close()
+    except Exception as e:
+        print(f"❌ 資料庫連線失敗: {e}")
+        
     Base.metadata.create_all(bind=engine)
     print("✅ 資料庫資料表已建立/更新")
 

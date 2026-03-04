@@ -7,7 +7,8 @@ from .buttons import (
     GoToTHSRButton, 
     GoToItineraryButton, 
     GoToGmailButton,
-    OpenDashboardButton
+    OpenDashboardButton,
+    GoToGPTButton
 )
 
 class SystemStartView(ui.View):
@@ -40,6 +41,7 @@ class MainControlView(ui.View):
         self.add_item(GoToItineraryButton(bot))
         self.add_item(GoToGmailButton(bot)) # 修正: 這裡應該傳入 bot，原本寫 self.bot 也行但統一比較好
         self.add_item(StatusButton(bot))
+        self.add_item(GoToGPTButton(bot))
 
     @staticmethod
     def create_dashboard_ui(bot):

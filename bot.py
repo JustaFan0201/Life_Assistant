@@ -114,6 +114,7 @@ async def load_extensions():
                     print(f"❌ 載入模組失敗 cogs.{item}: {e}")
 
 async def main():
+    print("script start.")
     async with bot:
         await load_extensions()
         if os.getenv("RENDER"):
@@ -122,14 +123,17 @@ async def main():
             keep_alive(local_test=True)
         
         if TOKEN:
+            print("get token and try to start bot.")
             await bot.start(TOKEN)
         else:
             print("❌ 錯誤：未讀取到 DISCORD_BOT_TOKEN，請檢查 .env 檔案")
 
 # 確定執行此py檔才會執行
 if __name__ == "__main__":
+    print("try to init db.")
     try:
         init_db()
         asyncio.run(main())
     except KeyboardInterrupt:
+        print("KeyboardInterrupt pass")
         pass

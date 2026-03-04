@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 from ..utils.ask_gpt import ask_gpt
 
-TARGET_CHANNEL_ID = 1423551561187070022
+TARGET_CHANNEL_ID = 1476178479329312858
 
 class ReplyCog(commands.Cog):
     def __init__(self, bot):

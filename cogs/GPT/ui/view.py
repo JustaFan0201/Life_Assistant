@@ -1,4 +1,4 @@
-import discord
+# import discord
 from discord import ui
 #從 System 模組引入返回主選單按鈕
 from ...System.ui.buttons import BackToMainButton

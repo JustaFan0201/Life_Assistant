@@ -1,5 +1,5 @@
-from .src import FortuneCog
-from .src import ReplyCog
+from .src.fortune import FortuneCog
+from .src.reply import ReplyCog
 
 async def setup(bot):
     await bot.add_cog(FortuneCog(bot))
