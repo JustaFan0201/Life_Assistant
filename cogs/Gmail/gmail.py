@@ -24,20 +24,24 @@ class Gmail(commands.Cog):
         configs = []
         try:
             with self.db_manager.Session() as session:
-                configs = session.query(EmailConfig).all()
+                user_ids = [c.user_id for c in session.query(EmailConfig.user_id).all()]
         except Exception as e:
-            print(f"❌ [資料庫輪詢] 查詢設定失敗: {e}")
+            print(f"[資料庫輪詢] 查詢設定失敗: {e}")
             return
 
-        if not configs:
+        if not user_ids:
             return
 
-        for config in configs:
+        for user_id in user_ids:
             try:
-                user_id = config.user_id
-                user_email = config.email_address
-                user_password = config.email_password
-                last_id = config.last_email_id
+                user_config = self.db_manager.get_user_config(user_id)
+
+                if not user_config:
+                    continue
+
+                user_email = user_config['email']
+                user_password = user_config['password']
+                last_id = user_config['last_email_id']
 
                 if not user_email or not user_password:
                     continue
@@ -53,7 +57,7 @@ class Gmail(commands.Cog):
                         self.db_manager.update_last_email_id(user_id, str(email_info['id']))
                     
             except Exception as e:
-                print(f"⚠️ [輪詢錯誤] 使用者 {config.user_id}: {e}")
+                print(f"[輪詢錯誤] 使用者 {user_id}: {e}")
 
     async def send_private_notification(self, info, user_id):
         from .views.gmail_view import NewEmailNotificationView

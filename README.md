@@ -30,6 +30,11 @@ cd Life_Assistant
 ```bash
 python .\bot.py
 ```
+### 4.設定
+```bash
+請在discord中 使用/set_dashboard_channel, /set_login_notify_channel等指令
+設定使用機器人功能頻道
+```
 ---
 
 
@@ -43,8 +48,10 @@ python .\bot.py
 * **跨模組調度**：控制台可直接呼叫其他模組的共用邏輯。
 
 ### 2. 🎫 高鐵服務系統 (THSR System)
-* **即時查詢**：快速查詢高鐵班次、時間與剩餘座位。
-* **自動訂票**：機器人持續監控餘票，並在有票時協助自動下訂 (Automation)。
+* **線上訂票**：依照使用者的車次條件查詢高鐵班次，完成線上訂票並將其添加進車票庫中。
+* **定時訂票**：設定好下定車次與預定時間，機器人持續訂票，並將其添加進車票庫中。
+* **車票記錄**：查看過去車票紀錄與定時訂票紀錄。
+* **設定個資**：設定身分證、信箱、手機號碼、TGO帳號，在購票時自動輸入。
 
 ### 3. 📅 行程管理 (Itinerary Management)
 * **視覺化日程表**：透過控制台一鍵查看當前安排，支援分頁顯示與過期行程自動標記。
@@ -93,7 +100,7 @@ Life_Assistant/
     │   ├─ __init__.py 
     │   ├─ dashboard.py 
     │   │ 
-    │   ├─ ui/              # 介面層 (GPT子選單)
+    │   ├─ ui/              # 介面層 (THSR子選單)
     │   │   ├─ view.py      # THSR Dashboard View
     │   │   └─ buttons.py   # THSR 功能按鈕
     │   ├─ utils/           # 工具層 

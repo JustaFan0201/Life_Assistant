@@ -1,5 +1,5 @@
 import discord
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from discord import ui
 from cogs.System.ui.buttons import BackToMainButton
 
@@ -20,11 +20,14 @@ class ItineraryModal(discord.ui.Modal, title="新增我的行程"):
             month = int(self.time_data.get('month'))
             day = int(self.date_input.value)
             time_parts = self.time_input.value.split(':')
+            
             event_time = datetime(year, month, day, int(time_parts[0]), int(time_parts[1]))
+            
+            clean_time = event_time.replace(tzinfo=None)
             
             success, report = await self.cog.process_data_sql(
                 interaction, 
-                time_obj=event_time, 
+                time_obj=clean_time, 
                 description=self.content_input.value,
                 is_private=(self.time_data.get('privacy') == "1"),
                 priority=self.time_data.get('priority', "2") 
@@ -63,7 +66,7 @@ class ItineraryAddView(discord.ui.View):
         self.new_data["privacy"] = select.values[0]
         await interaction.response.defer()
 
-    @discord.ui.select(placeholder="緊急程度 (預設普通)", row=3, options=[
+    @discord.ui.select(placeholder="緊急程度 (預設低)", row=3, options=[
         discord.SelectOption(label="緊急程度：高", value="0", emoji="🔴"),
         discord.SelectOption(label="緊急程度：中", value="1", emoji="🟡"),
         discord.SelectOption(label="緊急程度：低", value="2", emoji="🟢")
@@ -87,8 +90,9 @@ class ViewPageSelect(discord.ui.View):
         count = len(self.data_list)
         start, end = page * 10, (page + 1) * 10
         current_items = self.data_list[start:end]
-
-        self.embed = discord.Embed(title="📅 您的行程表", color=0xE0A04A, timestamp=datetime.now(timezone.utc))
+        
+        tz_tw = timezone(timedelta(hours=8))
+        self.embed = discord.Embed(title="📅 您的行程表", color=0xE0A04A, timestamp=datetime.now(tz_tw))
         
         priority_map = {"0": "🔴", "1": "🟡", "2": "🟢"}
 
@@ -96,7 +100,9 @@ class ViewPageSelect(discord.ui.View):
             self.embed.description = "目前沒有任何行程"
         else:
             for i, item in enumerate(current_items, start + 1):
-                time_str = item.event_time.strftime("%Y-%m-%d %H:%M")
+                display_time = item.event_time + timedelta(hours=8)
+                time_str = display_time.strftime("%Y-%m-%d %H:%M")
+                
                 privacy_emoji = "🔒" if item.is_private else "🌍"
                 p_emoji = priority_map.get(str(item.priority), "🟢")
 
@@ -165,7 +171,7 @@ class ItineraryDashboardView(ui.View):
         self.bot, self.cog = bot, cog
         self.add_item(BackToMainButton(self.bot))
 
-    @ui.button(label="查看行程表", style=discord.ButtonStyle.success, emoji="📋")
+    @ui.button(label="查看行程表v4", style=discord.ButtonStyle.success, emoji="📋")
     async def view_list(self, interaction, button):
         view = ViewPageSelect(self.cog, interaction.user.id)
         await interaction.response.edit_message(embed=view.embed, view=view)

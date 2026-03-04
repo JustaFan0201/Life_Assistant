@@ -82,6 +82,7 @@ class BookingSchedule(Base):
     seat_prefer = Column(String, default="None")  # 座位偏好
     
     # 排程控制
+    first_executed_at = Column(DateTime, nullable=True)
     trigger_time = Column(DateTime, nullable=False) # 觸發時間
     status = Column(String, default="pending")      # pending(等待), processing(執行中), completed(完成), failed(失敗)
     created_at = Column(DateTime, default=datetime.now)

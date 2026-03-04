@@ -8,6 +8,27 @@ from .ui.view import MainControlView, SystemStartView
 from database.db import DatabaseSession
 from database.models import User, BotSettings
 
+async def deploy_dashboard_message(bot, channel_id: int):
+    """清除指定頻道的舊訊息，並發送 Dashboard 啟動介面"""
+    try:
+        channel = bot.get_channel(int(channel_id)) or await bot.fetch_channel(int(channel_id))
+        
+        if not channel:
+            print(f"⚠️ [Dashboard] 找不到頻道 ID: {channel_id}")
+            return
+        try:
+            await channel.purge(limit=10) 
+        except Exception as e:
+            print(f"⚠️ [Dashboard] 清除舊訊息失敗 (可能無權限): {e}")
+
+        embed, view = SystemStartView.create_start_ui(bot)
+        await channel.send(embed=embed, view=view)
+        
+        print(f"✅ [Dashboard] 入口介面已發送至頻道: {channel.name}")
+
+    except Exception as e:
+        print(f"❌ [Dashboard] 發送介面失敗: {e}")
+
 class SystemCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -34,6 +55,7 @@ class SystemCog(commands.Cog):
         except Exception as e:
             print(f"❌ [Database] 使用者註冊失敗: {e}")
 
+
     @app_commands.command(name="dashboard", description="呼叫主控台")
     async def dashboard(self, interaction: discord.Interaction):
         await asyncio.to_thread(
@@ -50,7 +72,6 @@ class SystemCog(commands.Cog):
         await self.bot.wait_until_ready()
         
         channel_id = None
-        # (讀取資料庫 channel_id 的邏輯保持不變)
         try:
             with DatabaseSession() as db:
                 settings = db.query(BotSettings).filter(BotSettings.id == 1).first()
@@ -67,21 +88,4 @@ class SystemCog(commands.Cog):
             print("👉 請使用 `/set_dashboard_channel` 指令來設定顯示頻道。")
             return
 
-        try:
-            channel = await self.bot.fetch_channel(int(channel_id))
-            
-            # 清除舊訊息
-            try:
-                await channel.purge(limit=5) 
-            except Exception as e:
-                print(f"⚠️ [Dashboard] 清除舊訊息失敗: {e}")
-
-            # ★★★ 關鍵修改：發送「啟動介面 (SystemStartView)」 ★★★
-            # 這樣公共頻道就只會看到一個「開啟全能助手」的按鈕
-            embed, view = SystemStartView.create_start_ui(self.bot)
-            await channel.send(embed=embed, view=view)
-            
-            print(f"✅ [Dashboard] 入口介面已發送至頻道: {channel.name}")
-
-        except Exception as e:
-            print(f"❌ [Dashboard] 發送失敗: {e}")
+        await deploy_dashboard_message(self.bot, channel_id)

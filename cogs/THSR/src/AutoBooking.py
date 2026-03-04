@@ -39,7 +39,7 @@ def search_trains(start_station, end_station, date_str, time_str, ticket_count=1
     options.add_argument("--headless=new") 
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=1920,1080") # 建議調大一點，避免 Headless 下元素擠在一起無法點擊
+    options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-blink-features=AutomationControlled")
     
     # ★★★ 關鍵防擋 1：偽裝正常的 User-Agent (避免送出 HeadlessChrome) ★★★
@@ -354,98 +354,59 @@ def load_new_trains(driver, direction="later"):
 
 def select_train(driver, train_code):
     """
-    [搶票模式] 鎖定特定車次 (train_code)。
-    如果該車次存在 -> 嘗試購買。
-    如果該車次消失/額滿 -> 重新整理頁面，持續監控直到買到為止。
+    [單次執行模式] 鎖定特定車次 (train_code)。
+    只嘗試一次：如果該車次存在 -> 嘗試購買；如果消失/額滿 -> 立刻回傳失敗，交由 task.py 重啟。
     """
-    wait = WebDriverWait(driver, 10)
+    print(f"🎯 [單次搶票] 正在鎖定車次: {train_code}...")
     
-    # 設定重試間隔 (秒)，太快會被鎖 IP
-    REFRESH_INTERVAL = 5  
-    
-    print(f"🎯 [搶票模式啟動] 正在鎖定車次: {train_code}...")
-    start_time = time.time()
-    MAX_DURATION = 1800 # 30分鐘
-
-    while True:
-        if time.time() - start_time > MAX_DURATION:
-             return {"status": "failed", "msg": "搶票超時 (30分鐘)，自動停止", "driver": driver}
+    try:
+        # --- 步驟 1: 尋找車次按鈕 ---
+        selector = f"input[QueryCode='{train_code}']"
+        target_radio = None
+        
         try:
-            # --- 步驟 1: 尋找車次按鈕 ---
-            selector = f"input[QueryCode='{train_code}']"
-            target_radio = None
+            elements = driver.find_elements(By.CSS_SELECTOR, selector)
+            if len(elements) > 0:
+                target_radio = elements[0]
+        except:
+            pass
+
+        # --- 步驟 2: 判斷是否找到車次 ---
+        if not target_radio:
+            print(f"⏳ 車次 {train_code} 目前無座位/未顯示。")
+            return {"status": "failed", "msg": f"車次 {train_code} 目前無座位或未開放", "driver": driver}
             
-            try:
-                elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                if len(elements) > 0:
-                    target_radio = elements[0]
-            except:
-                pass
+        print(f"✨ 發現車次 {train_code}！嘗試點擊訂票...")
+        
+        # 2-1. 點擊選擇
+        driver.execute_script("arguments[0].click();", target_radio)
+        time.sleep(0.5)
 
-            # --- 步驟 2: 判斷是否找到車次 ---
-            if target_radio:
-                print(f"✨ 發現車次 {train_code}！嘗試點擊訂票...")
-                
-                # 2-1. 點擊選擇
-                driver.execute_script("arguments[0].click();", target_radio)
-                time.sleep(0.5)
+        # 2-2. 點擊送出 (Submit)
+        submit_btn = driver.find_element(By.NAME, "SubmitButton")
+        driver.execute_script("arguments[0].click();", submit_btn)
 
-                # 2-2. 點擊送出 (Submit)
-                submit_btn = driver.find_element(By.NAME, "SubmitButton")
-                driver.execute_script("arguments[0].click();", submit_btn)
-
-                # 2-3. 檢查結果 (是否成功跳轉到下一頁)
-                try:
-                    # 等待一下，看看有沒有 Alert (例如：該車次已額滿)
-                    time.sleep(1)
-                    try:
-                        alert = driver.switch_to.alert
-                        err_msg = alert.text
-                        print(f"⚠️ 訂票失敗，高鐵回傳訊息: {err_msg}")
-                        alert.accept() # 關閉警告視窗
-                        # 繼續迴圈 (重新整理再試)
-                    except NoAlertPresentException:
-                        # 沒有 Alert，檢查網址或元素看是否跳轉成功
-                        if "BookingS2Form" not in driver.current_url and ("idNumber" in driver.page_source or "btn-custom4" in driver.page_source):
-                            return {"status": "success", "msg": "搶票成功！已跳轉至個資頁面", "driver": driver}
-                except Exception as e:
-                    print(f"⚠️ 判斷跳轉時發生錯誤: {e}")
-
+        # --- 步驟 3: 檢查結果 (是否成功跳轉到下一頁) ---
+        time.sleep(1.5) # 給網頁一點時間反應
+        
+        try:
+            # 檢查是否有「該車次已額滿」的警告視窗
+            alert = driver.switch_to.alert
+            err_msg = alert.text
+            print(f"⚠️ 訂票失敗，高鐵回傳訊息: {err_msg}")
+            alert.accept() # 關閉警告視窗
+            return {"status": "failed", "msg": f"無法訂票: {err_msg}", "driver": driver}
+            
+        except NoAlertPresentException:
+            # 沒有 Alert，檢查網址或元素看是否跳轉成功到個資頁面
+            if "BookingS2Form" in driver.current_url or "idNumber" in driver.page_source or "btn-custom4" in driver.page_source:
+                return {"status": "success", "msg": "搶票成功！已跳轉至個資頁面", "driver": driver}
             else:
-                print(f"⏳ 車次 {train_code} 目前無座位/未顯示，繼續監控中...")
+                return {"status": "failed", "msg": "送出後未成功跳轉至個資頁面", "driver": driver}
 
-            # --- 步驟 3: 重新整理頁面 (Refresh) ---
-            # 隨機延遲，模擬人類行為並避免被鎖
-            sleep_time = REFRESH_INTERVAL + random.uniform(0, 2)
-            print(f"🔄 {sleep_time:.1f} 秒後重新整理...")
-            time.sleep(sleep_time)
-
-            try:
-                driver.refresh()
-                # 重新整理後，通常會有「確認重新提交表單」的 Alert
-                # 我們需要等待並接受它，不然程式會卡住
-                WebDriverWait(driver, 5).until(EC.alert_is_present())
-                alert = driver.switch_to.alert
-                alert.accept()
-                print("✅ 已確認表單重送")
-                
-                # 等待頁面載入完成 (等待表格出現)
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "table_simple")))
-
-            except TimeoutException:
-                # 沒跳出 Alert 可能只是單純重新整理，或是頁面載入慢，繼續執行
-                pass
-            except NoAlertPresentException:
-                pass
-
-        except Exception as e:
-            print(f"❌ 搶票迴圈發生未預期錯誤: {e}")
-            # 發生錯誤時不要立刻死掉，休息一下再試 (增加容錯率)
-            time.sleep(5)
-            try:
-                driver.refresh()
-            except:
-                return {"status": "error", "msg": f"搶票程式崩潰: {e}", "driver": driver}
+    except Exception as e:
+        print(f"❌ 選擇車次時發生錯誤: {e}")
+        return {"status": "error", "msg": f"選車程序崩潰: {e}", "driver": driver}
 
 def submit_passenger_info(driver, personal_id, phone="", email="", tgo_id=None, tgo_same_as_pid=False):
     """
