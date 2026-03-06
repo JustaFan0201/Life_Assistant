@@ -15,6 +15,8 @@ class SettingsCog(commands.Cog):
         """
         更新 BotSettings 表中 ID=1 的特定欄位
         """
+        
+        print("開始更新BotSettings")
         await interaction.response.defer(ephemeral=True)
         
         try:
@@ -69,4 +71,14 @@ class SettingsCog(commands.Cog):
             "calendar_notify_channel_id", # 💡 對應 models.py 中的欄位名稱
             channel.id, 
             f"✅ 已將 **行程公開通知頻道** 設定為：{channel.mention}"
+        )
+
+    @app_commands.command(name="set_gpt_channel", description="設定GPT對話頻道")
+    @app_commands.default_permissions(administrator=True)
+    async def set_gpt_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        await self._update_setting(
+            interaction, 
+            "gpt_channel_id",
+            channel.id, 
+            f"✅ 已將 **GPT對話頻道** 設定為：{channel.mention}"
         )

@@ -17,6 +17,7 @@ class BotSettings(Base):
     # 未來如果要加其他設定，直接在這裡加欄位即可
     # example_role_id = Column(BigInteger, nullable=True)
     calendar_notify_channel_id = Column(BigInteger, nullable=True)
+    gpt_channel_id = Column(BigInteger, nullable=True)
     
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

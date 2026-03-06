@@ -4,3 +4,9 @@ email_list.json
 itinerary.json
 .venv/
 .vscode/
+*.py[cod]
+
+build/
+dist/
+*.egg-info/
+*.egg

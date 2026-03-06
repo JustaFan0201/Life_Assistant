@@ -1,35 +1,33 @@
 # database/db.py
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-from pathlib import Path
 from .models import Base
+from config import DATABASE_URL
 
-# 載入環境變數
-base_dir = Path(__file__).resolve().parent.parent
-load_dotenv(dotenv_path=base_dir / '.env')
+_engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={
+        "connect_timeout": 30
+    }
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def init_db():
-    """初始化資料庫，建立所有 Table"""
-    print(f"🔹 Engine URL: {engine.url}")
+def init_db() -> bool:
+    """初始化資料庫，建立所有 Table
+        return True if succeed
+    """
+    
+    print(f"🔹 Engine URL: {_engine.url}")
     try:
-        conn = engine.connect()
+        conn = _engine.connect()
         print("✅ 資料庫連線成功")
         conn.close()
     except Exception as e:
         print(f"❌ 資料庫連線失敗: {e}")
-        
-    Base.metadata.create_all(bind=engine)
-    print("✅ 資料庫資料表已建立/更新")
+        return False
+    # print("✅ 資料庫資料表已建立/更新")
+    return True
 
 # Context Manager 用法，確保 Session 會被關閉
 class DatabaseSession:

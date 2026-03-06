@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=65.5.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "life_assistant"
+version = "0.1.0"
+description = "A personal assistant bot"
+requires-python = ">=3.10"
+
+# 將 cogs 和 utils 視為套件，方便 import
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cogs*", "database*"]

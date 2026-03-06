@@ -28,4 +28,5 @@ ENV CHROME_BIN=/usr/bin/google-chrome
 ENV PORT=10000
 
 # 6. 啟動指令 (請確認你的主程式檔名是 main.py 還是 bot.py)
-CMD ["python", "bot.py"]
+# CMD ["python", "bot.py"]
+CMD bash -c "alembic upgrade head && python -m pip install -e . && python -m bot"

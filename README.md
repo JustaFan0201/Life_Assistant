@@ -25,10 +25,12 @@ cd Life_Assistant
 ### 2.設定
 ```bash
 請參考example.env內容
+
+pip install -e .
 ```
 ### 3.啟動
 ```bash
-python .\bot.py
+python -m .\bot.py
 ```
 ### 4.設定
 ```bash

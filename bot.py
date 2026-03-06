@@ -2,22 +2,15 @@ import os
 import asyncio
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 from keep_alive import keep_alive
 import datetime
 from database.db import init_db, DatabaseSession, SessionLocal
 from database.models import BotSettings
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
-COGS_DIR = os.path.join(BASE_DIR, "cogs")
-
-load_dotenv()
-TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-NOTIFY_CHANNEL_ID = os.getenv("Login_Notify_Channel_ID")
+from config import COGS_DIR, DISCORD_BOT_TOKEN, RENDER
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix = "!", intents = intents)
-
 bot.db_session = SessionLocal
 
 @bot.event
@@ -94,16 +87,7 @@ async def load_extensions():
 
     for item in os.listdir(COGS_DIR):
         item_path = os.path.join(COGS_DIR, item)
-
-        # 情況 1: 傳統的單一 .py 檔案 (例如 cogs/general.py)
-        '''if os.path.isfile(item_path) and item.endswith(".py"):
-            try:
-                await bot.load_extension(f"cogs.{item[:-3]}")
-                print(f"Loaded extension: cogs.{item[:-3]}")
-            except Exception as e:
-                print(f"Failed to load extension {item}: {e}")'''
-
-        # 情況 2: 資料夾形式的專案 (例如 cogs/ticket/)
+        # 開始遍歷
         if os.path.isdir(item_path):
             if os.path.exists(os.path.join(item_path, "__init__.py")):
                 # 如果有 __init__.py，直接載入資料夾名稱
@@ -117,23 +101,22 @@ async def main():
     print("script start.")
     async with bot:
         await load_extensions()
-        if os.getenv("RENDER"):
-            keep_alive(local_test=False)
-        else:
-            keep_alive(local_test=True)
+        keep_alive(local_test=not RENDER)
         
-        if TOKEN:
+        if DISCORD_BOT_TOKEN:
             print("get token and try to start bot.")
-            await bot.start(TOKEN)
+            await bot.start(DISCORD_BOT_TOKEN)
         else:
             print("❌ 錯誤：未讀取到 DISCORD_BOT_TOKEN，請檢查 .env 檔案")
 
 # 確定執行此py檔才會執行
 if __name__ == "__main__":
-    print("try to init db.")
     try:
-        init_db()
-        asyncio.run(main())
+        if init_db():
+            asyncio.run(main())
+            pass
+        else:
+            print("Error: Database connection failed. Program will stop.")
     except KeyboardInterrupt:
-        print("KeyboardInterrupt pass")
+        print("\nProgram interrupted by user. Exiting...")
         pass
