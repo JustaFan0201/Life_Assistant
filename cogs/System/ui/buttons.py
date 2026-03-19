@@ -9,8 +9,7 @@ class OpenDashboardButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="開啟生活助手", 
-            style=discord.ButtonStyle.primary, 
-            emoji="🚀", 
+            style=discord.ButtonStyle.primary,
             custom_id="sys_open_dashboard"
         )
         self.bot = bot
@@ -147,4 +146,20 @@ class GoToGmailButton(ui.Button):
             await interaction.response.edit_message(embed=embed, view=view)
         else:
             await interaction.response.send_message("❌ 錯誤：找不到 Gmail 模組。", ephemeral=True)
+
+class GoToLifeTrackerButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="生活日記", 
+            style=discord.ButtonStyle.primary, 
+            emoji="📔",
+            row=0
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
+        
+        embed, view = LifeDashboardView.create_dashboard(self.bot)
+        await interaction.response.edit_message(embed=embed, view=view)
 
