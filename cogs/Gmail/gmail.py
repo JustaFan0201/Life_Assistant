@@ -3,7 +3,7 @@ import os
 from discord.ext import commands, tasks
 from .utils.gmail_tool import EmailTools 
 
-from database import EmailDatabaseManager, EmailConfig
+from .utils.gmail_manager import EmailDatabaseManager, EmailConfig
 
 class Gmail(commands.Cog):
     def __init__(self, bot, db_session):

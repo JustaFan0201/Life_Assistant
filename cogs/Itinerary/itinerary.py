@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from discord.ext import commands, tasks
 from database.models import CalendarEvent, BotSettings
-from database.calendar_manager import CalendarDatabaseManager
+from .utils.calendar_manager import CalendarDatabaseManager
 
 class Itinerary(commands.Cog):
     def __init__(self, bot, db_session):

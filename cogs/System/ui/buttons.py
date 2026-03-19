@@ -40,15 +40,6 @@ class OpenDashboardButton(ui.Button):
                     user.username = username
                     db.commit()
 
-#狀態按鈕，顯示系統延遲
-class StatusButton(ui.Button):
-    def __init__(self, bot):
-        super().__init__(label="系統狀態", style=discord.ButtonStyle.gray, row=1, emoji="ℹ️")
-        self.bot = bot
-
-    async def callback(self, interaction: discord.Interaction):
-        latency = round(self.bot.latency * 1000)
-        await interaction.response.send_message(f"✅ 系統運作中，延遲：{latency}ms", ephemeral=True)
 # 返回主選單按鈕
 class BackToMainButton(ui.Button):
     def __init__(self, bot):
@@ -89,7 +80,7 @@ class GoToGPTButton(ui.Button):
         
         await interaction.response.edit_message(embed=embed, view=view)
 
-class GoToTHSRButton(ui.Button):
+'''class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="高鐵功能服務", 
@@ -102,7 +93,7 @@ class GoToTHSRButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from cogs.THSR.ui.view import THSR_DashboardView
         embed, view = THSR_DashboardView.create_dashboard_ui(self.bot)
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view)'''
 
 class GoToItineraryButton(ui.Button):
     def __init__(self, bot):

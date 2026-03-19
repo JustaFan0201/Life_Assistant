@@ -3,7 +3,7 @@ from typing import Optional, Dict
 import os 
 from cryptography.fernet import Fernet
 from sqlalchemy.orm import Session
-from .models import User, EmailConfig, EmailContact
+from database.models import User, EmailConfig, EmailContact
 
 class EmailDatabaseManager:
     def __init__(self, session_factory):

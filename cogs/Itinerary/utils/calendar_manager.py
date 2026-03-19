@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
-from .models import User, CalendarEvent
+from database.models import User, CalendarEvent
 
 class CalendarDatabaseManager:
     def __init__(self, session_factory):

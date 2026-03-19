@@ -17,6 +17,3 @@ class THSR_Cog(commands.Cog):
     async def thsr(self, interaction: discord.Interaction):
         embed, view = TicketDashboardView.create_dashboard_ui(self.bot)
         await interaction.response.send_message(embed=embed, view=view)'''
-
-async def setup(bot):
-    await bot.add_cog(THSR_Cog(bot))
