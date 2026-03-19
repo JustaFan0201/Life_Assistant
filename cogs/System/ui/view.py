@@ -6,7 +6,8 @@ from .buttons import (
     GoToItineraryButton, 
     GoToGmailButton,
     OpenDashboardButton,
-    GoToGPTButton
+    GoToGPTButton,
+    GoToLifeTrackerButton
 )
 
 class SystemStartView(ui.View):
@@ -20,7 +21,7 @@ class SystemStartView(ui.View):
         產生公共頻道的「啟動介面」
         """
         embed = discord.Embed(
-            title="🤖 Life Assistant 啟動中心",
+            title="Life Assistant 啟動中心",
             description="點擊下方按鈕以開啟您的個人控制台。\n(控制台內容僅您可見，請安心使用)",
             color=discord.Color.blue()
         )
@@ -34,6 +35,7 @@ class MainControlView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
+        self.add_item(GoToLifeTrackerButton(bot))
         self.add_item(GoToItineraryButton(bot))
         self.add_item(GoToGmailButton(bot))
         self.add_item(GoToGPTButton(bot))
@@ -54,6 +56,7 @@ class MainControlView(ui.View):
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
 
         #embed.add_field(name="🚄 高鐵工具", value="包含：高鐵時刻表查詢、定時訂票、線上訂票", inline=False)
+        embed.add_field(name="📔 生活日記", value="紀錄與分析您的日常生活紀錄", inline=False)
         embed.add_field(name="📅 行程管理", value="規劃與查詢您的個人行程", inline=False)
         embed.add_field(name="📧 郵件管理", value="包含：新信即時通知、快速撰寫與寄送 Gmail", inline=False)
 

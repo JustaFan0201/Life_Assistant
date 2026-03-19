@@ -89,7 +89,7 @@ async def load_extensions():
         item_path = os.path.join(COGS_DIR, item)
         # 開始遍歷
         if os.path.isdir(item_path):
-            if os.path.exists(os.path.join(item_path, "__init__.py")):
+            if os.path.exists(os.path.join(item_path, "__init__.py")) and ("Suspend" not in item):
                 # 如果有 __init__.py，直接載入資料夾名稱
                 try:
                     await bot.load_extension(f"cogs.{item}")

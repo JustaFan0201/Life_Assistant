@@ -6,10 +6,6 @@ flask
 SQLAlchemy
 psycopg2-binary
 
-selenium
-webdriver-manager
-ddddocr==1.0.6
-
 aiosmtplib
 aioimaplib
 cryptography

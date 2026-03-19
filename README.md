@@ -9,10 +9,10 @@
 
 本專案採用 **進階模組化架構 (Package-based Cogs)**，徹底解決了傳統單一檔案開發的雜亂問題。透過將功能拆分為獨立的「專案包」，我們實現了以下設計目標：
 
-* ✅ **邏輯分離 (Logic Separation)**：每個功能 (如 GPT, Ticketing) 擁有獨立的命名空間。
-* ✅ **介面分離 (UI Separation)**：採用 **MVC 風格**，將 View (按鈕)、Modal (視窗) 與 Controller (邏輯) 分層管理。
-* ✅ **依賴隔離 (Dependency Isolation)**：各模組可獨立管理其工具函式 (Utils)。
-* ✅ **易於擴充 (Extensibility)**：採用 `__init__.py` 入口設計，功能隨插即用。
+**邏輯分離 (Logic Separation)**：每個功能 (如 GPT, Ticketing) 擁有獨立的命名空間。
+**介面分離 (UI Separation)**：採用 **MVC 風格**，將 View (按鈕)、Modal (視窗) 與 Controller (邏輯) 分層管理。
+**依賴隔離 (Dependency Isolation)**：各模組可獨立管理其工具函式 (Utils)。
+**易於擴充 (Extensibility)**：採用 `__init__.py` 入口設計，功能隨插即用。
 
 ---
 ## 環境建置與使用
@@ -37,9 +37,15 @@ python -m .\bot.py
 請在discord中 使用/set_dashboard_channel, /set_login_notify_channel等指令
 設定使用機器人功能頻道
 ```
----
-
-
+### 資料庫遷移功能
+生成檔案
+```bash
+alembic revision --autogenerate -m "想要打的留言"
+```
+更新資料庫
+```bash
+alembic upgrade head
+```
 ## 🚀 功能模組 (Features)。
 
 所有的功能模組皆獨立存放於 `cogs/` 資料夾中，並由 `System` 模組進行統一調度。
@@ -49,20 +55,14 @@ python -m .\bot.py
 * **視覺化操作**：使用 Embeds 與 Buttons 取代繁瑣的文字指令。
 * **跨模組調度**：控制台可直接呼叫其他模組的共用邏輯。
 
-### 2. 🎫 高鐵服務系統 (THSR System)
-* **線上訂票**：依照使用者的車次條件查詢高鐵班次，完成線上訂票並將其添加進車票庫中。
-* **定時訂票**：設定好下定車次與預定時間，機器人持續訂票，並將其添加進車票庫中。
-* **車票記錄**：查看過去車票紀錄與定時訂票紀錄。
-* **設定個資**：設定身分證、信箱、手機號碼、TGO帳號，在購票時自動輸入。
-
-### 3. 📅 行程管理 (Itinerary Management)
+### 2. 📅 行程管理 (Itinerary Management)
 * **視覺化日程表**：透過控制台一鍵查看當前安排，支援分頁顯示與過期行程自動標記。
 * **互動式操作**：提供 Modal 視窗功能，讓使用者能快速新增、編輯或刪除行程資料。
 * **主動提醒任務**：具備背景監控任務 (Tasks Loop)，定時掃描 JSON 資料庫。
 * **在行程開始前自動發送 Discord 通知**：確保重要預約不遺漏。
 * **本地資料庫同步**：所有行程資料持久化儲存於 JSON 檔案，確保資料在機器人重啟後依然存在。
 
-### 4. 📧 郵件管理 (Gmail Management)
+### 3. 📧 郵件管理 (Gmail Management)
 * **高效郵件輪詢 (Polling)**：採用高效 IMAP 輪詢機制取代不穩定長連線，確保在任何網路環境下都能穩定抓取新信。
 * **新信即時通知**：偵測到新郵件時，自動發送包含發件人、主旨與內容摘要的精美 Embed 通知。
 * **智慧防漏/防刷機制**：透過唯一 ID (UID) 比對技術，即使在檢查間隔內收到多封郵件也能依序處理。
@@ -97,20 +97,6 @@ Life_Assistant/
     │   └─ views/               # 介面層：負責 Discord UI 互動
     │       ├─ __init__.py      
     │       └─ gmail_view.py    # 處理寄信 Modal (EmailSendView) 與新信通知介面(NewEmailNotificationView)
-    │
-    ├─ THSR/           # 高鐵服務系統
-    │   ├─ __init__.py 
-    │   ├─ dashboard.py 
-    │   │ 
-    │   ├─ ui/              # 介面層 (THSR子選單)
-    │   │   ├─ view.py      # THSR Dashboard View
-    │   │   └─ buttons.py   # THSR 功能按鈕
-    │   ├─ utils/           # 工具層 
-    │   │   └─ 
-    │   └─ src/                 # 核心邏輯層
-    │       ├─__init__.py
-    │       ├─ AutoBooking.py   # 訂票功能
-    │       └─ GetTimeStamp.py  # 查詢車次時間功能
     │
     ├─ System/              # UI  
     │   ├─ __init__.py      # 模組入口 (Setup)
