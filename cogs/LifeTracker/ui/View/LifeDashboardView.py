@@ -3,7 +3,6 @@ from discord import ui
 
 from cogs.LifeTracker.ui.Modal.SetupCategoryModal import SetupCategoryModal
 from cogs.LifeTracker.ui.View.CategorySelectView import CategorySelectView
-from cogs.System.ui.buttons import BackToMainButton
 from database.db import DatabaseSession
 from database.models import TrackerCategory
 
@@ -11,7 +10,8 @@ class LifeDashboardView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
-        self.add_item(BackToMainButton(self))
+        from cogs.System.ui.buttons import BackToMainButton
+        self.add_item(BackToMainButton(self.bot))
 
     @staticmethod
     def create_dashboard(bot):
