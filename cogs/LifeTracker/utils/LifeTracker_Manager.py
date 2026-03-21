@@ -40,6 +40,18 @@ class LifeTrackerDatabaseManager:
             return True
 
     @staticmethod
+    def delete_category(category_id: int):
+        """刪除整個主分類及其所有子分類與紀錄"""
+        with DatabaseSession() as db:
+            from database.models import TrackerCategory
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat:
+                db.delete(cat)
+                db.commit()
+                return True
+            return False
+
+    @staticmethod
     def get_user_categories(user_id: int):
         """
         取得特定使用者的所有主分類 (未來給下拉選單使用)
@@ -91,7 +103,7 @@ class LifeTrackerDatabaseManager:
                     "sub_name": display_name,
                     "values": r.values, # JSON 欄位
                     "note": r.note,
-                    "created_at": r.created_at.strftime("%Y/%m/%d %H:%M")
+                    "created_at": r.created_at.strftime("%Y/%m/%d")
                 })
                 
             return record_list
@@ -111,30 +123,39 @@ class LifeTrackerDatabaseManager:
         with DatabaseSession() as db:
             from database.models import LifeRecord, TrackerSubCategory
             
-            final_time = datetime.now(TW_TZ) 
+            # 取得目前的精確時間 (包含時分秒)
+            now = datetime.now(TW_TZ)
             
             if record_time_str:
                 try:
-                    parsed_time = datetime.strptime(record_time_str, "%Y/%m/%d %H:%M")
-                    final_time = parsed_time.replace(tzinfo=TW_TZ)
+                    # 💡 解析使用者輸入的日期 (YYYY/MM/DD)
+                    parsed_date = datetime.strptime(record_time_str, "%Y/%m/%d")
+                    # 💡 結合：使用者的日期 + 系統當下的時分秒
+                    final_time = parsed_date.replace(
+                        hour=now.hour, 
+                        minute=now.minute, 
+                        second=now.second, 
+                        tzinfo=TW_TZ
+                    )
                 except ValueError:
-                    pass
+                    final_time = now # 解析失敗則用當下時間
+            else:
+                final_time = now
 
-            # 💡 [新增] 儲存前，找出對應的標籤名稱，拍下「名稱快照」
+            # 拍下名稱快照邏輯不變...
             snapshot_name = None
             if subcat_id:
                 subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
-                if subcat:
-                    snapshot_name = subcat.name
+                snapshot_name = subcat.name if subcat else None
 
             new_record = LifeRecord(
                 user_id=user_id,
                 category_id=category_id,
                 subcategory_id=subcat_id,
-                subcat_name=snapshot_name, # 💡 存入這個名稱快照
+                subcat_name=snapshot_name,
                 values=values_dict, 
                 note=note,
-                created_at=final_time
+                created_at=final_time # 這裡存的是帶有時間精度的 datetime
             )
             db.add(new_record)
             db.commit()

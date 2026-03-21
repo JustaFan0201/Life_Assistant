@@ -6,6 +6,9 @@ from .BackToLifeDashboardBtn import BackToLifeDashboardBtn
 from .ManageSubcatBtn import ManageSubcatBtn
 from .ToggleDeleteBtn import ToggleDeleteBtn
 from .BackToDetailBtn import BackToDetailBtn
+from .DeleteCategoryBtn import DeleteCategoryBtn
+from .SubmitRecordBtn import SubmitRecordBtn
+from .FillRecordBtn import FillRecordBtn
 
 __all__ = [
     "LogRecordBtn",
@@ -15,5 +18,8 @@ __all__ = [
     "AddSubCategoryBtn",
     "ManageSubcatBtn",
     "ToggleDeleteBtn",
-    "BackToDetailBtn"
+    "BackToDetailBtn",
+    "DeleteCategoryBtn",
+    "SubmitRecordBtn",
+    "FillRecordBtn"
 ]

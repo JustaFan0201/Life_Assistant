@@ -41,11 +41,12 @@ class OpenDashboardButton(ui.Button):
 
 # 返回主選單按鈕
 class BackToMainButton(ui.Button):
-    def __init__(self, bot):
+    def __init__(self, bot, label="返回主選單", emoji=None, row=4):
         super().__init__(
-            label="返回主選單",
+            label=label,
+            emoji=emoji,
             style=discord.ButtonStyle.danger,
-            row=4
+            row=row
         )
         self.bot = bot
 

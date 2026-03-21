@@ -22,7 +22,6 @@ class SetupCategoryModal(ui.Modal, title="⚙️ 新增自訂紀錄分類"):
         subcats_list = [s.strip() for s in self.subcats_input.value.split(',') if s.strip()]
 
         try:
-            # 💡 [關鍵修改] 呼叫 Manager，一行搞定所有資料庫操作！
             LifeTrackerDatabaseManager.create_category(
                 user_id=interaction.user.id,
                 username=interaction.user.name,
@@ -30,22 +29,12 @@ class SetupCategoryModal(ui.Modal, title="⚙️ 新增自訂紀錄分類"):
                 fields_list=fields_list,
                 subcats_list=subcats_list
             )
-
-            # 建立成功畫面的 Embed
-            embed = discord.Embed(
-                title="✅ 分類建立成功！",
-                description=(
-                    f"**主分類**：{cat_name}\n"
-                    f"**數值欄位**：{', '.join(fields_list)}\n"
-                    f"**子分類**：{', '.join(subcats_list) if subcats_list else '無'}\n\n"
-                    "**你可以點擊下方的「查看分類紀錄」來開始使用這個新分類！**"
-                ),
-                color=discord.Color.green()
-            )
             
-            # 刷新原本的 View
-            from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
-            view = LifeDashboardView(self.bot)
+            from cogs.LifeTracker.ui.View import LifeDashboardView
+            embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
+            
+            embed.title = "✅ 分類建立成功！"
+            
             await interaction.response.edit_message(embed=embed, view=view)
 
         except Exception as e:

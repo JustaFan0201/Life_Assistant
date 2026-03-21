@@ -11,14 +11,14 @@ class CategoryDetailView(ui.View):
         self.page = page
 
         # 加入按鈕
-        self.add_item(LogRecordBtn(bot, category_id))
-        self.add_item(ManageSubcatBtn(bot, category_id))
+        self.add_item(LogRecordBtn(bot, category_id,row=0))
+        self.add_item(ManageSubcatBtn(bot, category_id,row=0))
         # 翻頁按鈕 (如果不在第一頁，顯示上一頁)
         if page > 0:
-            self.add_item(PageBtn(bot, category_id, page - 1, "⬅️ 上一頁"))
-        self.add_item(PageBtn(bot, category_id, page + 1, "➡️ 下一頁"))
+            self.add_item(PageBtn(bot, category_id, page - 1, emoji="◀️",row=1))
+        self.add_item(PageBtn(bot, category_id, page + 1, emoji="▶️",row=1))
         
-        self.add_item(BackToLifeDashboardBtn(bot))
+        self.add_item(BackToLifeDashboardBtn(bot,row=1))
         
     @staticmethod
     def create_ui(bot, category_id: int, page: int = 0):

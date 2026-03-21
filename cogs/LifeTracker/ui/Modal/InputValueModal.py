@@ -18,17 +18,16 @@ class InputValueModal(ui.Modal):
             self.field_inputs[f] = text_input
             self.add_item(text_input)
 
-        # 如果 parent_view 已經有存過時間，就用存好的；否則抓當下的台灣時間
         default_time = getattr(parent_view, 'record_time', None)
         if not default_time:
-            default_time = datetime.now(TW_TZ).strftime("%Y/%m/%d %H:%M")
+            default_time = datetime.now(TW_TZ).strftime("%Y/%m/%d")
 
         self.time_input = ui.TextInput(
-            label="紀錄時間 (可修改)",
+            label="紀錄日期 (YYYY/MM/DD)",
             default=default_time,
-            placeholder="例如：2026/03/20 14:30",
+            placeholder="例如：2026/03/22",
             required=True,
-            max_length=16
+            max_length=10
         )
         self.add_item(self.time_input)
 
@@ -38,15 +37,12 @@ class InputValueModal(ui.Modal):
         self.add_item(self.note_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # 將填寫的資料存回 parent_view 的狀態中
         for f_name, input_ui in self.field_inputs.items():
             self.parent_view.input_values[f_name] = input_ui.value.strip()
             
         self.parent_view.note = self.note_input.value.strip()
         
-        # 將使用者修改後的時間也存回去
         self.parent_view.record_time = self.time_input.value.strip()
 
-        # 刷新 parent_view 的畫面
         embed, view = self.parent_view.build_ui()
         await interaction.response.edit_message(embed=embed, view=view)

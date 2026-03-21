@@ -2,8 +2,8 @@ import discord
 from discord import ui
 
 class ToggleDeleteBtn(ui.Button):
-    def __init__(self, bot, category_id, subcats_info):
-        super().__init__(label="刪除標籤", style=discord.ButtonStyle.danger, emoji="🗑️", row=1)
+    def __init__(self, bot, category_id, subcats_info,label="", emoji="🗑️", row=1):
+        super().__init__(label=label, style=discord.ButtonStyle.danger, emoji=emoji, row=row)
         self.bot = bot
         self.category_id = category_id
         self.subcats_info = subcats_info

@@ -2,8 +2,8 @@ import discord
 from discord import ui
 
 class BackToDetailBtn(ui.Button):
-    def __init__(self, bot, category_id):
-        super().__init__(label="返回", style=discord.ButtonStyle.danger, row=2)
+    def __init__(self, bot, category_id,label="", style=discord.ButtonStyle.danger,emoji="🔙", row=1):
+        super().__init__(label=label, style=style, emoji=emoji, row=row)
         self.bot = bot
         self.category_id = category_id
 

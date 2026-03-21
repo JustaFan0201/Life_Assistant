@@ -30,14 +30,11 @@ class ManageSubcatView(ui.View):
         self.bot = bot
         self.category_id = category_id
 
-        # 如果點擊了「刪除標籤」，就把下拉選單掛上去
         if show_delete and subcats_info:
             self.add_item(DeleteSubcatSelect(bot, category_id, subcats_info))
 
-        # 1. 掛上你原本寫好的 [➕ 新增子分類] 按鈕
         self.add_item(AddSubCategoryBtn(bot, category_id))
         
-        # 2. 如果有子分類才顯示 [🗑️ 刪除標籤] 按鈕
         if subcats_info:
             self.add_item(ToggleDeleteBtn(bot, category_id, subcats_info))
 
@@ -49,10 +46,12 @@ class ManageSubcatView(ui.View):
 
         embed = discord.Embed(
             title=f"⚙️ 管理標籤：{cat_info['name']}",
-            description="這裡是該分類目前所有的專屬標籤。\n*(刪除標籤不會刪除過去的紀錄)*",
+            description="",
             color=discord.Color.orange()
         )
-
+        embed.add_field(name="🏷️新增標籤", value="新增標籤到該分類中",inline=False)
+        embed.add_field(name="🗑️刪除標籤", value="從該分類中刪除標籤",inline=False)
+        embed.add_field(name="標籤列表", value="這裡是該分類目前所有的專屬標籤。\n(刪除標籤不會刪除過去的紀錄)",inline=False)
         if not subcats_info:
             embed.add_field(name="目前標籤清單", value="*目前沒有任何標籤喔！快點擊下方新增吧！*")
         else:

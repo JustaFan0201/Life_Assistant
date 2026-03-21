@@ -2,8 +2,8 @@ import discord
 from discord import ui
 
 class ManageSubcatBtn(ui.Button):
-    def __init__(self, bot, category_id):
-        super().__init__(label="管理子分類", style=discord.ButtonStyle.primary, emoji="⚙️", row=0)
+    def __init__(self, bot, category_id, label="", emoji="⚙️", row=0):
+        super().__init__(label=label, style=discord.ButtonStyle.primary, emoji=emoji, row=row)
         self.bot = bot
         self.category_id = category_id
 

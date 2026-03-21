@@ -2,8 +2,8 @@ import discord
 from discord import ui
 
 class BackToLifeDashboardBtn(ui.Button):
-    def __init__(self, bot):
-        super().__init__(label="返回", style=discord.ButtonStyle.danger, row=1)
+    def __init__(self, bot, label="", emoji="🔙", row=4):
+        super().__init__(label=label, style=discord.ButtonStyle.danger, emoji=emoji, row=row)
         self.bot = bot
         
     async def callback(self, interaction: discord.Interaction):

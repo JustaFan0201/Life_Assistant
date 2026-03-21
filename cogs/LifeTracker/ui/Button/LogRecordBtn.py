@@ -3,8 +3,8 @@ from discord import ui
 from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
 
 class LogRecordBtn(ui.Button):
-    def __init__(self, bot, category_id):
-        super().__init__(label="記錄", style=discord.ButtonStyle.success, emoji="📝", row=0)
+    def __init__(self, bot, category_id, label="", emoji="➕", row=0):
+        super().__init__(label=label, style=discord.ButtonStyle.success, emoji=emoji, row=row)
         self.bot = bot
         self.category_id = category_id
 

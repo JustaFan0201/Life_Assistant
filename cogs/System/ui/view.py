@@ -48,7 +48,7 @@ class MainControlView(ui.View):
         """
         embed = discord.Embed(
             title="Life Assistant 控制中心",
-            description="> 歡迎使用全能助手，請點擊下方按鈕操作：",
+            description="> 歡迎使用生活助手，請點擊下方按鈕操作：",
             color=0x2b2d31,
             timestamp=discord.utils.utcnow()
         )
