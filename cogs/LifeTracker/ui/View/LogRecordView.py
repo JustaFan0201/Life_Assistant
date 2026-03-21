@@ -57,7 +57,7 @@ class LogRecordView(ui.View):
     def build_ui(self):
         """根據目前的草稿狀態產生 Embed"""
         embed = discord.Embed(
-            title=f"📝 新增紀錄草稿：{self.cat_info['name']}",
+            title=f"📝 新增紀錄：{self.cat_info['name']}",
             color=discord.Color.blue()
         )
         

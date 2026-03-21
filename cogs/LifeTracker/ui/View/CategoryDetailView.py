@@ -1,7 +1,7 @@
 import discord
 from discord import ui
 from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
-from cogs.LifeTracker.ui.Button import BackToCategorySelectBtn,LogRecordBtn,PageBtn,ManageSubcatBtn
+from cogs.LifeTracker.ui.Button import BackToLifeDashboardBtn,LogRecordBtn,PageBtn,ManageSubcatBtn
 
 class CategoryDetailView(ui.View):
     def __init__(self, bot, category_id: int, page: int = 0):
@@ -18,8 +18,8 @@ class CategoryDetailView(ui.View):
             self.add_item(PageBtn(bot, category_id, page - 1, "⬅️ 上一頁"))
         self.add_item(PageBtn(bot, category_id, page + 1, "➡️ 下一頁"))
         
-        self.add_item(BackToCategorySelectBtn(bot))
-
+        self.add_item(BackToLifeDashboardBtn(bot))
+        
     @staticmethod
     def create_ui(bot, category_id: int, page: int = 0):
         # 1. 撈取分類與子分類資訊
@@ -27,8 +27,8 @@ class CategoryDetailView(ui.View):
         if not cat_info:
             return discord.Embed(title="❌ 找不到該分類", color=discord.Color.red()), None
 
-        # 2. 撈取近期紀錄 (每頁顯示 5 筆)
-        records = LifeTrackerDatabaseManager.get_recent_records(category_id, page=page, limit=5)
+        # 2. 撈取近期紀錄 (每頁顯示 10 筆)
+        records = LifeTrackerDatabaseManager.get_recent_records(category_id, page=page, limit=10)
 
         # 3. 組裝 Embed 畫面
         embed = discord.Embed(

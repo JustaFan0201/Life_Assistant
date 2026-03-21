@@ -67,7 +67,7 @@ class LifeTrackerDatabaseManager:
             return cat_data, subcats_data
 
     @staticmethod
-    def get_recent_records(category_id: int, page: int = 0, limit: int = 5):
+    def get_recent_records(category_id: int, page: int = 0, limit: int = 10):
         """取得該分類近期的紀錄 (支援分頁)"""
         with DatabaseSession() as db:
             from database.models import LifeRecord
@@ -151,3 +151,4 @@ class LifeTrackerDatabaseManager:
                 db.commit()
                 return True
             return False
+        

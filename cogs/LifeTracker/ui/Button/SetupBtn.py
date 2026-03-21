@@ -6,10 +6,11 @@ from cogs.LifeTracker.ui.Modal import SetupCategoryModal
 class SetupBtn(ui.Button):
     def __init__(self, bot):
         super().__init__(
-            label="設定分類", 
-            style=discord.ButtonStyle.primary, 
+            label="設定主分類", 
+            style=discord.ButtonStyle.green, 
             emoji="⚙️", 
-            custom_id="life_setup_btn"
+            custom_id="life_setup_btn",
+            row=4
         )
         self.bot = bot
 

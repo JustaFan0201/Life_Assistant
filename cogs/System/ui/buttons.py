@@ -44,7 +44,7 @@ class BackToMainButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="返回主選單",
-            style=discord.ButtonStyle.secondary,
+            style=discord.ButtonStyle.danger,
             row=4
         )
         self.bot = bot
@@ -160,6 +160,6 @@ class GoToLifeTrackerButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
         
-        embed, view = LifeDashboardView.create_dashboard(self.bot)
+        embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
         await interaction.response.edit_message(embed=embed, view=view)
 
