@@ -8,8 +8,9 @@ class SubmitRecordBtn(ui.Button):
         self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
         try:
-            # 寫入資料庫
             LifeTrackerDatabaseManager.add_life_record(
                 user_id=interaction.user.id,
                 category_id=self.parent_view.category_id,
@@ -20,11 +21,15 @@ class SubmitRecordBtn(ui.Button):
             )
             
             from cogs.LifeTracker.ui.View import CategoryDetailView
-            embed, view = CategoryDetailView.create_ui(self.parent_view.bot, self.parent_view.category_id, page=0)
-            await interaction.response.edit_message(embed=embed, view=view)
             
-        except Exception as e:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ 寫入失敗: {e}", ephemeral=True)
+            embed, view, chart_file = CategoryDetailView.create_ui(self.parent_view.bot, self.parent_view.category_id, page=0)
+            
+            if chart_file:
+                await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
             else:
-                await interaction.followup.send(f"❌ 寫入失敗: {e}", ephemeral=True)
+                await interaction.edit_original_response(embed=embed, view=view, attachments=[])
+                
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await interaction.followup.send(f"❌ 寫入失敗或產生畫面錯誤: {e}", ephemeral=True)

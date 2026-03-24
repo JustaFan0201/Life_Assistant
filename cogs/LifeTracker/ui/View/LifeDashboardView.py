@@ -19,11 +19,17 @@ class CategoryDashboardDropdown(ui.Select):
         super().__init__(placeholder="🔍 選擇一個分類來查看或紀錄...", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
         selected_category_id = int(self.values[0])
         from cogs.LifeTracker.ui.View import CategoryDetailView
         
-        embed, view = CategoryDetailView.create_ui(self.bot, selected_category_id, page=0)
-        await interaction.response.edit_message(embed=embed, view=view)
+        embed, view, chart_file = CategoryDetailView.create_ui(self.bot, selected_category_id, page=0)
+        
+        if chart_file:
+            await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
+        else:
+            await interaction.edit_original_response(embed=embed, view=view, attachments=[])
 
 class LifeDashboardView(ui.View):
     def __init__(self, bot, categories=None):

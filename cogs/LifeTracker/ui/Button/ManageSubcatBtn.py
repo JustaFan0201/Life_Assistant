@@ -8,7 +8,6 @@ class ManageSubcatBtn(ui.Button):
         self.category_id = category_id
 
     async def callback(self, interaction: discord.Interaction):
-        # 點擊後，切換到我們等一下要寫的「管理面板」
         from cogs.LifeTracker.ui.View import ManageSubcatView
         embed, view = ManageSubcatView.create_ui(self.bot, self.category_id)
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view, attachments=[])

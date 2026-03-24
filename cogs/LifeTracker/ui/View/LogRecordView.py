@@ -18,6 +18,7 @@ class SubcatSelect(ui.Select):
         self.parent_view.selected_subcat_id = None if val == "none" else int(val)
         embed, view = self.parent_view.build_ui()
         await interaction.response.edit_message(embed=embed, view=view)
+        
 
 class LogRecordView(ui.View):
     def __init__(self, bot, category_id: int, cat_info: dict, subcats_info: list):

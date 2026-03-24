@@ -101,7 +101,7 @@ class LifeTrackerDatabaseManager:
                 record_list.append({
                     "id": r.id,
                     "sub_name": display_name,
-                    "values": r.values, # JSON 欄位
+                    "values": r.values,
                     "note": r.note,
                     "created_at": r.created_at.strftime("%Y/%m/%d")
                 })
@@ -128,9 +128,9 @@ class LifeTrackerDatabaseManager:
             
             if record_time_str:
                 try:
-                    # 💡 解析使用者輸入的日期 (YYYY/MM/DD)
+                    # 解析使用者輸入的日期 (YYYY/MM/DD)
                     parsed_date = datetime.strptime(record_time_str, "%Y/%m/%d")
-                    # 💡 結合：使用者的日期 + 系統當下的時分秒
+                    # 結合：使用者的日期 + 系統當下的時分秒
                     final_time = parsed_date.replace(
                         hour=now.hour, 
                         minute=now.minute, 
@@ -142,7 +142,6 @@ class LifeTrackerDatabaseManager:
             else:
                 final_time = now
 
-            # 拍下名稱快照邏輯不變...
             snapshot_name = None
             if subcat_id:
                 subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
@@ -155,7 +154,7 @@ class LifeTrackerDatabaseManager:
                 subcat_name=snapshot_name,
                 values=values_dict, 
                 note=note,
-                created_at=final_time # 這裡存的是帶有時間精度的 datetime
+                created_at=final_time
             )
             db.add(new_record)
             db.commit()
@@ -172,4 +171,46 @@ class LifeTrackerDatabaseManager:
                 db.commit()
                 return True
             return False
+        
+    @staticmethod
+    def get_subcat_stats(category_id: int, target_field: str = None) -> dict:
+        """
+        取得該分類下各子分類的「數值總和」。
+        如果傳入 target_field，就只加總該欄位的數值。
+        """
+        with DatabaseSession() as db:
+            from database.models import LifeRecord
+            records = db.query(LifeRecord).filter(LifeRecord.category_id == category_id).all()
+
+            result_dict = {}
+            for r in records:
+                display_name = r.subcat_name if r.subcat_name else "無標籤"
+                amount = 0
+                
+                if isinstance(r.values, dict):
+                    # 如果有指定目標欄位，且該紀錄有這個欄位
+                    if target_field and target_field in r.values:
+                        try:
+                            amount = float(r.values[target_field])
+                        except (ValueError, TypeError):
+                            pass 
+                    # 舊邏輯防呆：如果沒有指定，就抓第一個數字
+                    elif not target_field:
+                        for val in r.values.values():
+                            try:
+                                amount = float(val)
+                                break 
+                            except (ValueError, TypeError):
+                                continue 
+                
+                if display_name not in result_dict:
+                    result_dict[display_name] = 0
+                result_dict[display_name] += amount
+
+            final_stats = {}
+            for k, v in result_dict.items():
+                if v > 0:
+                    final_stats[k] = int(v) if v.is_integer() else round(v, 2)
+                    
+            return final_stats
         

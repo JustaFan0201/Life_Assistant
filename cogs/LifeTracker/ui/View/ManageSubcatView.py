@@ -20,7 +20,7 @@ class DeleteSubcatSelect(ui.Select):
 
         # 重新整理畫面，讓刪除的標籤消失
         embed, view = ManageSubcatView.create_ui(self.bot, self.category_id)
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view, attachments=[])
 
 
 # --- 2. 管理面板本體 ---

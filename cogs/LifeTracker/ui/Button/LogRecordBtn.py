@@ -9,17 +9,14 @@ class LogRecordBtn(ui.Button):
         self.category_id = category_id
 
     async def callback(self, interaction: discord.Interaction):
-        # 1. 取得該分類資訊
         cat_info, subcats_info = LifeTrackerDatabaseManager.get_category_details(self.category_id)
         if not cat_info:
             await interaction.response.send_message("❌ 發生錯誤：找不到該分類資訊", ephemeral=True)
             return
             
-        # 2. 引入我們剛寫好的「記帳準備面板」
         from cogs.LifeTracker.ui.View import LogRecordView
         
-        # 3. 建立並切換畫面
         view = LogRecordView(self.bot, self.category_id, cat_info, subcats_info)
         embed, final_view = view.build_ui()
         
-        await interaction.response.edit_message(embed=embed, view=final_view)
+        await interaction.response.edit_message(embed=embed, view=final_view, attachments=[])

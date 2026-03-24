@@ -9,6 +9,8 @@ from .BackToDetailBtn import BackToDetailBtn
 from .DeleteCategoryBtn import DeleteCategoryBtn
 from .SubmitRecordBtn import SubmitRecordBtn
 from .FillRecordBtn import FillRecordBtn
+from .ToggleChartBtn import ToggleChartBtn
+from .ToggleListModeBtn import ToggleListModeBtn
 
 __all__ = [
     "LogRecordBtn",
@@ -21,5 +23,7 @@ __all__ = [
     "BackToDetailBtn",
     "DeleteCategoryBtn",
     "SubmitRecordBtn",
-    "FillRecordBtn"
+    "FillRecordBtn",
+    "ToggleChartBtn",
+    "ToggleListModeBtn"
 ]

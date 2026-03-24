@@ -9,4 +9,4 @@ class BackToLifeDashboardBtn(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from cogs.LifeTracker.ui.View import LifeDashboardView
         embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view, attachments=[])

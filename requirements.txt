@@ -5,9 +5,10 @@ flask
 
 SQLAlchemy
 psycopg2-binary
+alembic
 
 aiosmtplib
 aioimaplib
 cryptography
 
-alembic
+matplotlib
