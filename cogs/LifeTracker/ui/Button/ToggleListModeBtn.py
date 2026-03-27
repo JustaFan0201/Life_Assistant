@@ -9,7 +9,7 @@ class ToggleListModeBtn(ui.Button):
         self.is_showing_list = is_showing_list
         
         # 根據目前的狀態，決定按鈕要長什麼樣子
-        label = "返回圖表" if is_showing_list else "數值明細"
+        label = "" if is_showing_list else ""
         style = discord.ButtonStyle.primary if not is_showing_list else discord.ButtonStyle.secondary
         emoji = "📊" if is_showing_list else "📋"
         

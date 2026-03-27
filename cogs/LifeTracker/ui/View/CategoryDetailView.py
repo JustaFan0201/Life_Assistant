@@ -50,24 +50,31 @@ class CategoryDetailView(ui.View):
 
         embed = discord.Embed(
             title=f"📊 分類看板：{cat_info['name']}",
-            description=f"紀錄分類：`{', '.join(fields)}`\n目前焦點：**{target_field}**",
+            description=f"紀錄數值分類：`{', '.join(fields)}`\n目前：**{target_field}**",
             color=discord.Color.gold()
         )
 
         chart_file = None
+        embed.description += "\n➕ 新增紀錄 - 新增紀錄到此分類。"
+        embed.description += "\n⚙️ 管理標籤 - 新增或刪除標籤。"
+        
         
         # 根據模式決定要抓什麼資料
         if not show_list:
+            embed.description += "\n📋 數值明細 - 查看詳細紀錄列表。"
+            embed.description += "\n🔄 切換圖表 - 切換到不同數值分類的圖表查看統計數據。"
             # 【圖表模式】: 只抓統計數據畫圖
             stats_data = LifeTrackerDatabaseManager.get_subcat_stats(category_id, target_field)
             if stats_data:
                 chart_file = generate_donut_chart(cat_info['name'], stats_data, target_field)
                 if chart_file:
                     embed.set_image(url="attachment://chart.png")
-            embed.description += "\n📋 數值明細 - 查看詳細紀錄列表。"
+                else:
+                    embed.add_field(name="目前暫無數據", value="無法生成圖表，請透過「➕」來新增紀錄。", inline=False)
         
         else:
             # 【列表模式】: 不畫圖，只抓歷史紀錄
+            embed.description += "\n📊 圖表模式 - 以圖表方式呈現統計數據。"
             embed.description += f"\n\n目前所在頁數：第 {page + 1} 頁"
             records = LifeTrackerDatabaseManager.get_recent_records(category_id, page=page, limit=10)
             
@@ -76,7 +83,7 @@ class CategoryDetailView(ui.View):
             else:
                 for r in records:
                     val_str = " | ".join([f"{k}: {v}" for k, v in r['values'].items()])
-                    note_str = f"\n📝備註: {r['note']}" if r.get('note') else ""
+                    note_str = f" - 📝備註: {r['note']}" if r.get('note') else ""
                     embed.add_field(
                         name=f"🏷️ [{r['sub_name']}] - {r['created_at']}",
                         value=f"**{val_str}**{note_str}",

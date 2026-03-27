@@ -96,7 +96,7 @@ class LifeTrackerDatabaseManager:
             record_list = []
             for r in records:
                 # 💡 [修改] 這裡再也不用去比對 subcategory_id 了，直接讀取快照名稱！
-                display_name = r.subcat_name if r.subcat_name else "無標籤"
+                display_name = r.subcat_name if r.subcat_name else "其他"
                 
                 record_list.append({
                     "id": r.id,
@@ -162,14 +162,32 @@ class LifeTrackerDatabaseManager:
         
     @staticmethod
     def delete_subcategory(subcat_id: int):
-        """刪除指定的子分類 (標籤)"""
+        """
+        刪除指定的子分類 (標籤)
+        核心邏輯：在刪除標籤前，將所有關聯紀錄的 ID 設為 None，並將快照名稱更新為「其他」
+        """
         with DatabaseSession() as db:
-            from database.models import TrackerSubCategory
+            from database.models import TrackerSubCategory, LifeRecord
+            
+            # 1. 找到要刪除的標籤
             subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
+            
             if subcat:
-                db.delete(subcat)
-                db.commit()
-                return True
+                try:
+                    # 2. 💡 [關鍵更新] 找到所有關聯紀錄，將 subcategory_id 歸零，名稱改為「其他」
+                    db.query(LifeRecord).filter(LifeRecord.subcategory_id == subcat_id).update({
+                        "subcategory_id": None,      # 解除外鍵關聯
+                        "subcat_name": "其他"        # 更新顯示名稱
+                    }, synchronize_session=False)    # 提升批次更新效率
+                    
+                    # 3. 刪除標籤本體
+                    db.delete(subcat)
+                    db.commit()
+                    return True
+                except Exception as e:
+                    db.rollback()
+                    print(f"[Error] 刪除標籤失敗: {e}")
+                    return False
             return False
         
     @staticmethod
@@ -184,7 +202,7 @@ class LifeTrackerDatabaseManager:
 
             result_dict = {}
             for r in records:
-                display_name = r.subcat_name if r.subcat_name else "無標籤"
+                display_name = r.subcat_name if r.subcat_name else "其他"
                 amount = 0
                 
                 if isinstance(r.values, dict):

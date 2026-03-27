@@ -51,7 +51,11 @@ class ManageSubcatView(ui.View):
         )
         embed.add_field(name="🏷️新增標籤", value="新增標籤到該分類中",inline=False)
         embed.add_field(name="🗑️刪除標籤", value="從該分類中刪除標籤",inline=False)
-        embed.add_field(name="標籤列表", value="這裡是該分類目前所有的專屬標籤。\n(刪除標籤不會刪除過去的紀錄)",inline=False)
+        embed.add_field(
+            name="標籤列表", 
+            value="這裡是該分類目前所有的專屬標籤。\n( 刪除標籤後，原紀錄將自動歸類至「其他」)", 
+            inline=False
+        )
         if not subcats_info:
             embed.add_field(name="目前標籤清單", value="*目前沒有任何標籤喔！快點擊下方新增吧！*")
         else:
