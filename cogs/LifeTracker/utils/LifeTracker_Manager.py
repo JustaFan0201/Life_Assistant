@@ -107,15 +107,6 @@ class LifeTrackerDatabaseManager:
                 })
                 
             return record_list
-
-    @staticmethod
-    def add_subcategory(category_id: int, subcat_name: str):
-        """為指定的分類新增一個子分類"""
-        with DatabaseSession() as db:
-            new_sub = TrackerSubCategory(category_id=category_id, name=subcat_name)
-            db.add(new_sub)
-            db.commit()
-            return True
         
     @staticmethod
     def add_life_record(user_id: int, category_id: int, subcat_id: int, values_dict: dict, note: str, record_time_str: str = None):
@@ -159,7 +150,16 @@ class LifeTrackerDatabaseManager:
             db.add(new_record)
             db.commit()
             return True
-        
+
+    @staticmethod
+    def add_subcategory(category_id: int, subcat_name: str):
+        """為指定的分類新增一個子分類"""
+        with DatabaseSession() as db:
+            new_sub = TrackerSubCategory(category_id=category_id, name=subcat_name)
+            db.add(new_sub)
+            db.commit()
+            return True
+
     @staticmethod
     def delete_subcategory(subcat_id: int):
         """
@@ -231,4 +231,21 @@ class LifeTrackerDatabaseManager:
                     final_stats[k] = int(v) if v.is_integer() else round(v, 2)
                     
             return final_stats
+        
+    @staticmethod
+    def update_subcategory_name(subcat_id: int, new_name: str):
+        """修改子分類名稱，並同步更新歷史紀錄的快照名稱"""
+        with DatabaseSession() as db:
+            from database.models import TrackerSubCategory, LifeRecord
+            subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
+            if subcat:
+                # 1. 更新紀錄中的快照名稱
+                db.query(LifeRecord).filter(LifeRecord.subcategory_id == subcat_id).update({
+                    "subcat_name": new_name
+                })
+                # 2. 更新標籤本體名稱
+                subcat.name = new_name
+                db.commit()
+                return True
+            return False
         

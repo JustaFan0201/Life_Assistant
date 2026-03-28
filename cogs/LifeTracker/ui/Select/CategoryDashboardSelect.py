@@ -1,0 +1,28 @@
+import discord
+from discord import ui
+class CategoryDashboardSelect(ui.Select):
+    def __init__(self, bot, categories):
+        self.bot = bot
+        options = []
+        for cat in categories:
+            fields_str = ", ".join(cat.fields)
+            options.append(discord.SelectOption(
+                label=cat.name,
+                description=f"欄位: {fields_str}",
+                value=str(cat.id),
+                emoji="📂"
+            ))
+        super().__init__(placeholder="🔍 選擇一個分類來查看或紀錄...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        selected_category_id = int(self.values[0])
+        from cogs.LifeTracker.ui.View import CategoryDetailView
+        
+        embed, view, chart_file = CategoryDetailView.create_ui(self.bot, selected_category_id, page=0)
+        
+        if chart_file:
+            await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
+        else:
+            await interaction.edit_original_response(embed=embed, view=view, attachments=[])

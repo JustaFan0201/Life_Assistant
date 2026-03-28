@@ -11,6 +11,8 @@ from .SubmitRecordBtn import SubmitRecordBtn
 from .FillRecordBtn import FillRecordBtn
 from .ToggleChartBtn import ToggleChartBtn
 from .ToggleListModeBtn import ToggleListModeBtn
+from .EditModeBtn import EditModeBtn
+
 
 __all__ = [
     "LogRecordBtn",
@@ -25,5 +27,6 @@ __all__ = [
     "SubmitRecordBtn",
     "FillRecordBtn",
     "ToggleChartBtn",
-    "ToggleListModeBtn"
+    "ToggleListModeBtn",
+    "EditModeBtn"
 ]

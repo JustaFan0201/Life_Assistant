@@ -9,6 +9,6 @@ class ToggleDeleteBtn(ui.Button):
         self.subcats_info = subcats_info
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.LifeTracker.ui.View import ManageSubcatView
-        embed, view = ManageSubcatView.create_ui(self.bot, self.category_id, show_delete=True)
+        from cogs.LifeTracker.ui.View.ManageSubcatView import ManageSubcatView
+        embed, view = ManageSubcatView.create_ui(self.bot, self.category_id, mode="delete")
         await interaction.response.edit_message(embed=embed, view=view)

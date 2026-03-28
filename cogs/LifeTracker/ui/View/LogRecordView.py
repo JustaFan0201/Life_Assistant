@@ -2,24 +2,10 @@ import discord
 from discord import ui
 from datetime import datetime, timezone, timedelta
 from cogs.LifeTracker.ui.Button import FillRecordBtn, SubmitRecordBtn, BackToDetailBtn
+from cogs.LifeTracker.ui.Select import SubcatSelect
 
 TW_TZ = timezone(timedelta(hours=8))
-
-class SubcatSelect(ui.Select):
-    def __init__(self, parent_view, subcats):
-        self.parent_view = parent_view
-        options = [discord.SelectOption(label="其他", value="none")] 
-        for s in subcats:
-            options.append(discord.SelectOption(label=s['name'], value=str(s['id'])))
-        super().__init__(placeholder="點此選擇標籤", min_values=1, max_values=1, options=options[:25])
-
-    async def callback(self, interaction: discord.Interaction):
-        val = self.values[0]
-        self.parent_view.selected_subcat_id = None if val == "none" else int(val)
-        embed, view = self.parent_view.build_ui()
-        await interaction.response.edit_message(embed=embed, view=view)
         
-
 class LogRecordView(ui.View):
     def __init__(self, bot, category_id: int, cat_info: dict, subcats_info: list):
         super().__init__(timeout=None)
@@ -51,14 +37,12 @@ class LogRecordView(ui.View):
             color=discord.Color.blue()
         )
         
-        # --- 💡 修正標籤顯示邏輯 ---
-        # 1. 如果有 ID，去找出對應的名稱
+        # 如果有 ID，去找出對應的名稱
         if self.selected_subcat_id:
             sub_name = next((s['name'] for s in self.subcats_info if s['id'] == self.selected_subcat_id), "未知標籤")
-        # 2. 如果 ID 為 None，但 input_values 已經有資料或已經點過下拉選單 (這裡我們判斷邏輯)
+        # 如果 ID 為 None，但 input_values 已經有資料或已經點過下拉選單
         # 為了更精準，我們檢查是否真的點了「其他」
         else:
-            # 我們可以在 SubcatSelect 的 callback 裡多設一個 flag，或是直接判斷
             # 這裡簡單處理：只要有 subcats_info，且 ID 為 None，我們就視為「其他」
             sub_name = "其他" 
         
