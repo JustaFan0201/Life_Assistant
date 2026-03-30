@@ -9,6 +9,7 @@ ENV_PATH = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 GPT_API = os.getenv("GPT_API")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -20,3 +21,4 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 RENDER = os.getenv("RENDER")
+

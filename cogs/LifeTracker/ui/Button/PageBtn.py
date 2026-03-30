@@ -17,7 +17,7 @@ class PageBtn(ui.Button):
         from cogs.LifeTracker.ui.View import CategoryDetailView
         
         # 翻頁時，記得告訴系統「我還要繼續看列表 (show_list)，而且欄位是 field_index」
-        embed, view, chart_file = CategoryDetailView.create_ui(
+        embed, view, chart_file =await CategoryDetailView.create_ui(
             self.bot, self.category_id, self.target_page, field_index=self.field_index, show_list=self.show_list
         )
 

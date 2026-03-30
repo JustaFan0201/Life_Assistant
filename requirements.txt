@@ -12,3 +12,5 @@ aioimaplib
 cryptography
 
 matplotlib
+
+google-genai

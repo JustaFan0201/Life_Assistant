@@ -248,4 +248,40 @@ class LifeTrackerDatabaseManager:
                 db.commit()
                 return True
             return False
-        
+
+    @staticmethod
+    def get_records_for_analysis(category_id: int, range_type: str = "week"):
+        """
+        根據指定的範圍撈取紀錄：'week' (7天), 'month' (30天), 'half_year' (180天)
+        """
+        with DatabaseSession() as db:
+            from database.models import LifeRecord
+            
+            # 1. 計算起始時間
+            now = datetime.now(TW_TZ)
+            if range_type == "week":
+                start_date = now - timedelta(days=7)
+            elif range_type == "month":
+                start_date = now - timedelta(days=30)
+            elif range_type == "half_year":
+                start_date = now - timedelta(days=180)
+            else:
+                start_date = now - timedelta(days=7) # 預設一週
+
+            # 2. 查詢資料庫
+            # 條件：分類 ID 符合 且 建立時間大於等於起始時間
+            records = db.query(LifeRecord).filter(
+                LifeRecord.category_id == category_id,
+                LifeRecord.created_at >= start_date
+            ).order_by(LifeRecord.created_at.asc()).all() # 分析建議用升序(舊到新)，讓 AI 看出時序變化
+            
+            if not records:
+                return None
+
+            # 3. 格式化為文字串
+            data_str = f"--- 紀錄範圍：自 {start_date.strftime('%Y/%m/%d')} 起 ---\n"
+            for r in records:
+                val_text = ", ".join([f"{k}:{v}" for k, v in r.values.items()])
+                data_str += f"- {r.created_at.strftime('%m/%d')} | {r.subcat_name or '其他'} | {val_text} | {r.note or '無'}\n"
+            
+            return data_str

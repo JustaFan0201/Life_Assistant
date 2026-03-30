@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import io
 
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager, generate_donut_chart
+from cogs.LifeTracker.utils import LifeTrackerDatabaseManager, generate_donut_chart, GeminiAnalyzer
 from cogs.LifeTracker.ui.Button import BackToLifeDashboardBtn, LogRecordBtn, PageBtn, ManageSubcatBtn, ToggleChartBtn, ToggleListModeBtn
 
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei', 'Taipei Sans TC Beta', 'Arial Unicode MS']
@@ -39,7 +39,7 @@ class CategoryDetailView(ui.View):
         self.add_item(BackToLifeDashboardBtn(bot, row=1))
 
     @staticmethod
-    def create_ui(bot, category_id: int, page: int = 0, field_index: int = 0, show_list: bool = False):
+    async def create_ui(bot, category_id: int, page: int = 0, field_index: int = 0, show_list: bool = False):
         cat_info, subcats_info = LifeTrackerDatabaseManager.get_category_details(category_id)
         if not cat_info:
             return discord.Embed(title="❌ 找不到該分類", color=discord.Color.red()), None, None
@@ -50,10 +50,34 @@ class CategoryDetailView(ui.View):
 
         embed = discord.Embed(
             title=f"📊 分類看板：{cat_info['name']}",
-            description=f"紀錄數值分類：`{', '.join(fields)}`\n目前：**{target_field}**",
+            description=f"紀錄數值分類：`{', '.join(fields)}`\n目前檢視：**{target_field}**",
             color=discord.Color.gold()
         )
 
+        # Gemini AI 週分析區塊 ---
+        analysis_data = LifeTrackerDatabaseManager.get_records_for_analysis(category_id, range_type="week")
+        
+        if analysis_data:
+            try:
+                ai_suggestion = await GeminiAnalyzer.analyze_lifestyle(cat_info['name'], analysis_data)
+                embed.add_field(
+                    name="🪄 AI 本週客觀總結與建議", 
+                    value=ai_suggestion, 
+                    inline=False
+                )
+            except Exception as e:
+                embed.add_field(
+                    name="🪄 AI 分析服務", 
+                    value="*暫時無法取得分析建議，請稍後再試。*", 
+                    inline=False
+                )
+                print(f"Gemini Analysis Error: {e}")
+        else:
+            embed.add_field(
+                name="🪄 AI 分析服務", 
+                value="*本週尚無足夠紀錄進行 AI 分析，多記錄一些生活點滴吧！*", 
+                inline=False
+            )
         chart_file = None
         embed.description += "\n➕ 新增紀錄 - 新增紀錄到此分類。"
         embed.description += "\n⚙️ 管理標籤 - 新增或刪除標籤。"

@@ -17,7 +17,7 @@ class ToggleChartBtn(ui.Button):
         from cogs.LifeTracker.ui.View import CategoryDetailView
         
         # 重新產生 UI，並把新的索引值傳進去！
-        embed, view, chart_file = CategoryDetailView.create_ui(
+        embed, view, chart_file =await CategoryDetailView.create_ui(
             self.bot, self.category_id, page=0, field_index=next_index
         )
 

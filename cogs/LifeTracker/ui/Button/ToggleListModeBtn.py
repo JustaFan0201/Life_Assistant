@@ -26,7 +26,7 @@ class ToggleListModeBtn(ui.Button):
         
         from cogs.LifeTracker.ui.View import CategoryDetailView
         
-        embed, view, chart_file = CategoryDetailView.create_ui(
+        embed, view, chart_file =await CategoryDetailView.create_ui(
             self.bot, self.category_id, page=target_page, field_index=self.field_index, show_list=new_show_list
         )
         

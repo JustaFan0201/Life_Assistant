@@ -22,7 +22,7 @@ class SubmitRecordBtn(ui.Button):
             
             from cogs.LifeTracker.ui.View import CategoryDetailView
             
-            embed, view, chart_file = CategoryDetailView.create_ui(self.parent_view.bot, self.parent_view.category_id, page=0)
+            embed, view, chart_file =await CategoryDetailView.create_ui(self.parent_view.bot, self.parent_view.category_id, page=0)
             
             if chart_file:
                 await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])

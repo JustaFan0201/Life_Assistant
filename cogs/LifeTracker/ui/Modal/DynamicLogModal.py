@@ -63,7 +63,7 @@ class DynamicLogModal(ui.Modal):
             )
 
             from cogs.LifeTracker.ui.View import CategoryDetailView
-            embed, view = CategoryDetailView.create_ui(self.bot, self.category_id, page=0)
+            embed, view =await CategoryDetailView.create_ui(self.bot, self.category_id, page=0)
             await interaction.response.edit_message(embed=embed, view=view)
 
         except Exception as e:

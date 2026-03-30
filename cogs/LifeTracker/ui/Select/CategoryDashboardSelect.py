@@ -20,7 +20,7 @@ class CategoryDashboardSelect(ui.Select):
         selected_category_id = int(self.values[0])
         from cogs.LifeTracker.ui.View import CategoryDetailView
         
-        embed, view, chart_file = CategoryDetailView.create_ui(self.bot, selected_category_id, page=0)
+        embed, view, chart_file =await CategoryDetailView.create_ui(self.bot, selected_category_id, page=0)
         
         if chart_file:
             await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
