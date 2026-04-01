@@ -1,15 +1,15 @@
+# cogs/LifeTracker/ui/Button/SubmitRecordBtn.py
 import discord
 from discord import ui
 from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
+from cogs.Base import SafeButton
 
-class SubmitRecordBtn(ui.Button):
+class SubmitRecordBtn(SafeButton): 
     def __init__(self, parent_view, label="", emoji="✅", row=1):
         super().__init__(label=label, style=discord.ButtonStyle.success, emoji=emoji, row=row)
         self.parent_view = parent_view
 
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        
+    async def do_action(self, interaction: discord.Interaction):
         try:
             LifeTrackerDatabaseManager.add_life_record(
                 user_id=interaction.user.id,
@@ -20,10 +20,14 @@ class SubmitRecordBtn(ui.Button):
                 record_time_str=self.parent_view.record_time
             )
             
-            from cogs.LifeTracker.ui.View import CategoryDetailView
+            from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
             
-            embed, view, chart_file =await CategoryDetailView.create_ui(self.parent_view.bot, self.parent_view.category_id, page=0)
-            
+            embed, view, chart_file = await CategoryDetailView.create_ui(
+                self.parent_view.bot, 
+                self.parent_view.category_id, 
+                page=0
+            )
+
             if chart_file:
                 await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
             else:
@@ -32,4 +36,8 @@ class SubmitRecordBtn(ui.Button):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            await interaction.followup.send(f"❌ 寫入失敗或產生畫面錯誤: {e}", ephemeral=True)
+            
+            if self.view:
+                await self.view.unlock_all(interaction)
+                
+            await interaction.followup.send(f"❌ 錯誤: {e}", ephemeral=True)

@@ -16,5 +16,5 @@ class DeleteSubcatSelect(ui.Select):
 
         from cogs.LifeTracker.ui.View import ManageSubcatView
         # 重新整理畫面，讓刪除的標籤消失
-        embed, view = ManageSubcatView.create_ui(self.bot, self.category_id)
+        embed, view =await ManageSubcatView.create_ui(self.bot, self.category_id)
         await interaction.response.edit_message(embed=embed, view=view, attachments=[])

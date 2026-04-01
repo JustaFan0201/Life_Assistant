@@ -70,22 +70,28 @@ class SystemCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         await self.bot.wait_until_ready()
-        
-        channel_id = None
+        print(f"🚀 [System] 機器人已就緒，開始掃描各伺服器 Dashboard...")
+
         try:
             with DatabaseSession() as db:
-                settings = db.query(BotSettings).filter(BotSettings.id == 1).first()
-                if settings and settings.dashboard_channel_id:
+                all_settings = db.query(BotSettings).filter(BotSettings.dashboard_channel_id.isnot(None)).all()
+                
+                if not all_settings:
+                    print("⚠️ [Dashboard] 目前沒有任何伺服器設定 Dashboard 頻道。")
+                    return
+
+                for settings in all_settings:
+                    guild_id = settings.id
                     channel_id = settings.dashboard_channel_id
-                    print(f"🔍 [Dashboard] 從資料庫讀取到 Channel ID: {channel_id}")
-                else:
-                    print("⚠️ [Dashboard] 資料庫中尚未設定 Dashboard 頻道。")
+                    
+                    guild = self.bot.get_guild(guild_id)
+                    if not guild:
+                        print(f"⏩ [Dashboard] 跳過伺服器 {guild_id} (機器人已不在該伺服器)")
+                        continue
+
+                    print(f"🔄 [Dashboard] 正在伺服器 '{guild.name}' ({guild_id}) 的頻道 {channel_id} 部署介面...")
+                    
+                    asyncio.create_task(deploy_dashboard_message(self.bot, channel_id))
+
         except Exception as e:
             print(f"❌ [Dashboard] 讀取資料庫失敗: {e}")
-            return
-
-        if not channel_id:
-            print("👉 請使用 `/set_dashboard_channel` 指令來設定顯示頻道。")
-            return
-
-        await deploy_dashboard_message(self.bot, channel_id)

@@ -3,10 +3,17 @@ import io
 import matplotlib
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+import os
 
-# 解決 Matplotlib 中文顯示問題
-plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei', 'Taipei Sans TC Beta', 'Arial Unicode MS']
-plt.rcParams['axes.unicode_minus'] = False
+from config import FONT_PATH
+if os.path.exists(FONT_PATH):
+    custom_font = fm.FontProperties(fname=FONT_PATH)
+    fe = fm.FontEntry(fname=FONT_PATH, name='CustomFont')
+    fm.fontManager.ttflist.insert(0, fe)
+    plt.rcParams['font.family'] = fe.name
+else:
+    print(f"⚠️ 警告：找不到字體檔案於 {FONT_PATH}，將使用系統預設字體。")
 
 def generate_donut_chart(category_name: str, stats_data: dict, target_field: str = "") -> discord.File:
     """生成甜甜圈圖並回傳 Discord File 物件"""
@@ -40,17 +47,17 @@ def generate_donut_chart(category_name: str, stats_data: dict, target_field: str
         startangle=140,
         textprops={
             'color': "white", 
-            'fontsize': 10, 
+            'fontsize': 14, 
             'fontweight': 'bold',
             'ha': 'center',       
             'va': 'center'        
         },
         # 移除 edgecolor='none'，因為 pie 本身沒 edgecolor 
-        wedgeprops=dict(width=0.4) 
+        wedgeprops=dict(width=0.45) 
     )
 
     center_text = f"{category_name}-{target_field}\n總計: {total}"
-    ax.text(0, 0, center_text, ha='center', va='center', fontsize=16, fontweight='bold', color='white')
+    ax.text(0, 0, center_text, ha='center', va='center', fontsize=18, fontweight='bold', color='white')
     
     legend_labels = [f"{label}: {size}" for label, size in zip(raw_labels, sizes)]
     
@@ -62,14 +69,14 @@ def generate_donut_chart(category_name: str, stats_data: dict, target_field: str
         bbox_to_anchor=(1.0, 0.5), 
         frameon=False,             
         labelcolor='white',        
-        fontsize=13
+        fontsize=15
     )
     
     # 讓圖例的標題也變成白色跟粗體
     if legend.get_title():
         legend.get_title().set_color("white")
         legend.get_title().set_fontweight("bold")
-        legend.get_title().set_fontsize(12)
+        legend.get_title().set_fontsize(16)
 
     # 確保畫出來是正圓
     ax.axis('equal')  

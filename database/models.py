@@ -7,15 +7,11 @@ Base = declarative_base()
 
 class BotSettings(Base):
     __tablename__ = 'bot_settings'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=False) 
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    
-    # 這裡定義你要存的所有頻道 ID
-    dashboard_channel_id = Column(BigInteger, nullable=True)      # 主控台頻道
-    login_notify_channel_id = Column(BigInteger, nullable=True)   # 登入通知頻道
-    
-    # 未來如果要加其他設定，直接在這裡加欄位即可
-    # example_role_id = Column(BigInteger, nullable=True)
+    dashboard_channel_id = Column(BigInteger, nullable=True)
+    login_notify_channel_id = Column(BigInteger, nullable=True)
     calendar_notify_channel_id = Column(BigInteger, nullable=True)
     gpt_channel_id = Column(BigInteger, nullable=True)
     

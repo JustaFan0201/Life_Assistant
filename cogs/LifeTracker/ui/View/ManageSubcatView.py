@@ -5,7 +5,8 @@ from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
 from cogs.LifeTracker.ui.Button import ToggleDeleteBtn,BackToDetailBtn,AddSubCategoryBtn,EditModeBtn
 from cogs.LifeTracker.ui.Select import DeleteSubcatSelect,EditSubcatSelect
 
-class ManageSubcatView(ui.View):
+from cogs.Base import LockableView
+class ManageSubcatView(LockableView):
     def __init__(self, bot, category_id: int, subcats_info: list, mode: str = None):
         super().__init__(timeout=None)
         self.bot = bot
@@ -25,10 +26,10 @@ class ManageSubcatView(ui.View):
             self.add_item(EditModeBtn(bot, category_id))
             self.add_item(ToggleDeleteBtn(bot, category_id, subcats_info))
 
-        self.add_item(BackToDetailBtn(bot, category_id))
+        self.add_item(BackToDetailBtn(bot, category_id, row=1))
 
     @staticmethod
-    def create_ui(bot, category_id: int, mode: str = None):
+    async def create_ui(bot, category_id: int, mode: str = None):
         cat_info, subcats_info = LifeTrackerDatabaseManager.get_category_details(category_id)
 
         embed = discord.Embed(

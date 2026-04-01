@@ -29,7 +29,7 @@ class AddSubCategoryModal(ui.Modal, title="🏷️ 新增標籤"):
         
         if total_count > 20:
             # 產生原本的介面，但在 Embed 中加上錯誤提示
-            embed, view = ManageSubcatView.create_ui(self.bot, self.category_id)
+            embed, view =await ManageSubcatView.create_ui(self.bot, self.category_id)
             embed.title = "⚠️ 新增失敗：標籤過多"
             embed.description = (
                 f"❌ 分類 **{cat_info['name']}** 的標籤上限為 20 個。\n"
@@ -45,7 +45,7 @@ class AddSubCategoryModal(ui.Modal, title="🏷️ 新增標籤"):
                 LifeTrackerDatabaseManager.add_subcategory(self.category_id, name)
 
             # 成功後，重新渲染管理介面
-            embed, view = ManageSubcatView.create_ui(self.bot, self.category_id)
+            embed, view =await ManageSubcatView.create_ui(self.bot, self.category_id)
             embed.title = "✅ 標籤新增成功！"
             embed.color = discord.Color.green()
             

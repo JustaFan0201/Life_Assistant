@@ -26,6 +26,6 @@ class EditSubcatNameModal(ui.Modal):
 
         # 刷新管理介面
         from cogs.LifeTracker.ui.View.ManageSubcatView import ManageSubcatView
-        embed, view = ManageSubcatView.create_ui(self.bot, self.category_id)
+        embed, view =await ManageSubcatView.create_ui(self.bot, self.category_id)
         embed.title = "✅ 標籤名稱已更新"
         await interaction.response.edit_message(embed=embed, view=view)

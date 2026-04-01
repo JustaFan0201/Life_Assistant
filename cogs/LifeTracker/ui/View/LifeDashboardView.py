@@ -4,8 +4,8 @@ from cogs.System.ui.buttons import BackToMainButton
 from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
 from cogs.LifeTracker.ui.Button import SetupBtn,DeleteCategoryBtn
 from cogs.LifeTracker.ui.Select import CategoryDashboardSelect
-
-class LifeDashboardView(ui.View):
+from cogs.Base import LockableView
+class LifeDashboardView(LockableView):
     def __init__(self, bot, categories=None):
         super().__init__(timeout=None)
         self.bot = bot

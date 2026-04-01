@@ -22,3 +22,4 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 RENDER = os.getenv("RENDER")
 
+FONT_PATH = os.path.join(BASE_DIR, "jf-openhuninn-1.1.ttf")

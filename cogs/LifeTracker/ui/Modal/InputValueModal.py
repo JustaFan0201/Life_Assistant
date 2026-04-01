@@ -37,12 +37,34 @@ class InputValueModal(ui.Modal):
         self.add_item(self.note_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        for f_name, input_ui in self.field_inputs.items():
-            self.parent_view.input_values[f_name] = input_ui.value.strip()
-            
-        self.parent_view.note = self.note_input.value.strip()
+        invalid_fields = []
+        temp_values = {}
         
-        self.parent_view.record_time = self.time_input.value.strip()
+        self.parent_view.error_msg = None
+
+        for f_name, input_ui in self.field_inputs.items():
+            val = input_ui.value.strip()
+            try:
+                num = float(val)
+                if num < 0:
+                    invalid_fields.append(f_name)
+                else:
+                    temp_values[f_name] = str(int(num) if num.is_integer() else num)
+            except ValueError:
+                invalid_fields.append(f_name)
+
+        if invalid_fields:
+            self.parent_view.error_msg = f"欄位 {', '.join(invalid_fields)} 格式錯誤，請輸入正數。"
+        else:
+            time_val = self.time_input.value.strip()
+            try:
+                datetime.strptime(time_val, "%Y/%m/%d")
+                for f_name, final_val in temp_values.items():
+                    self.parent_view.input_values[f_name] = final_val
+                self.parent_view.note = self.note_input.value.strip()
+                self.parent_view.record_time = time_val
+            except ValueError:
+                self.parent_view.error_msg = "日期格式錯誤 (應為 YYYY/MM/DD)。"
 
         embed, view = self.parent_view.build_ui()
         await interaction.response.edit_message(embed=embed, view=view)
