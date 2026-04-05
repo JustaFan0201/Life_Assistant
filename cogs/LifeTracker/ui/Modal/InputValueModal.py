@@ -2,7 +2,7 @@ import discord
 from discord import ui
 from datetime import datetime, timezone, timedelta
 
-TW_TZ = timezone(timedelta(hours=8))
+from config import TW_TZ
 
 class InputValueModal(ui.Modal):
     def __init__(self, parent_view, fields: list):

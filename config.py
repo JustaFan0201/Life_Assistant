@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from pathlib import Path
 import os
-
+from datetime import timezone, timedelta
 BASE_DIR = Path(__file__).resolve().parent
 COGS_DIR = os.path.join(BASE_DIR, "cogs")
 
@@ -23,3 +23,4 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 RENDER = os.getenv("RENDER")
 
 FONT_PATH = os.path.join(BASE_DIR, "jf-openhuninn-1.1.ttf")
+TW_TZ = timezone(timedelta(hours=8))

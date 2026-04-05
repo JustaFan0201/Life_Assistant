@@ -1,7 +1,6 @@
-# cogs\LifeTracker\ui\Select\SubcatSelect.py
 import discord
 from discord import ui
-from cogs.Base import LockableView # 確保引入
+from cogs.Base import LockableView
 
 class SubcatSelect(ui.Select):
     def __init__(self, parent_view, subcats):

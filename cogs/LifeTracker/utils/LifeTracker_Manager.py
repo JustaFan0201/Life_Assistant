@@ -1,15 +1,14 @@
 from database.db import DatabaseSession
 from database.models import User, TrackerCategory, TrackerSubCategory
-from datetime import datetime, timezone, timedelta
-
-TW_TZ = timezone(timedelta(hours=8))
+from datetime import datetime, timedelta, timezone
+from config import TW_TZ
 
 class LifeTrackerDatabaseManager:
     
     @staticmethod
     def create_category(user_id: int, username: str, cat_name: str, fields_list: list[str], subcats_list: list[str]):
         """
-        處理建立「主分類」與「子分類」的邏輯，並確保使用者存在。
+        建立「主分類」時同時寫入 range_options
         """
         with DatabaseSession() as db:
             # 確保使用者存在
@@ -19,14 +18,15 @@ class LifeTrackerDatabaseManager:
                 db.add(user)
                 db.flush()
 
-            # 建立主分類
+            # 建立主分類 (💡 加入 range_options)
             new_category = TrackerCategory(
                 user_id=user_id,
                 name=cat_name,
-                fields=fields_list
+                fields=fields_list,
+                range_options=[7, 30, 180, 365],
             )
             db.add(new_category)
-            db.flush() # 取得 new_category.id
+            db.flush()
 
             # 建立對應的子分類
             for sub_name in subcats_list:
@@ -62,17 +62,20 @@ class LifeTrackerDatabaseManager:
 
     @staticmethod
     def get_category_details(category_id: int):
-        """取得單一分類的詳細資訊與它的子分類"""
+        """取得單一分類詳情，包含 range_options"""
         with DatabaseSession() as db:
             category = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not category:
                 return None
             
-            # 將資料轉為 Dictionary 避免 Session 關閉後無法讀取
+            # 將資料轉為 Dictionary (💡 加入 range_options)
             cat_data = {
                 "id": category.id,
                 "name": category.name,
-                "fields": category.fields
+                "fields": category.fields,
+                "range_options": category.range_options,
+                "last_ai_analysis": category.last_ai_analysis,
+                "analysis_updated_at": category.analysis_updated_at
             }
             subcats_data = [{"id": s.id, "name": s.name} for s in category.subcategories]
             
@@ -191,14 +194,20 @@ class LifeTrackerDatabaseManager:
             return False
         
     @staticmethod
-    def get_subcat_stats(category_id: int, target_field: str = None) -> dict:
+    def get_subcat_stats(category_id: int, target_field: str, range_days: int = 7) -> dict:
         """
         取得該分類下各子分類的「數值總和」。
         如果傳入 target_field，就只加總該欄位的數值。
         """
         with DatabaseSession() as db:
             from database.models import LifeRecord
-            records = db.query(LifeRecord).filter(LifeRecord.category_id == category_id).all()
+            now = datetime.now(TW_TZ)
+            start_date = now - timedelta(days=int(range_days)) 
+
+            records = db.query(LifeRecord).filter(
+                LifeRecord.category_id == category_id,
+                LifeRecord.created_at >= start_date
+            ).all()
 
             result_dict = {}
             for r in records:
@@ -285,3 +294,55 @@ class LifeTrackerDatabaseManager:
                 data_str += f"- {r.created_at.strftime('%m/%d')} | {r.subcat_name or '其他'} | {val_text} | {r.note or '無'}\n"
             
             return data_str
+        
+
+    @staticmethod
+    def delete_range_option(category_id: int, days: int):
+        """刪除一個時間區間選項 (保留至少一個)"""
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat and cat.range_options:
+                options = list(cat.range_options)
+                if days in options and len(options) > 1:
+                    options.remove(days)
+                    cat.range_options = options
+                    # 如果刪掉的是目前的，就把目前的設為剩下的第一個
+                    if cat.current_range == days:
+                        cat.current_range = options[0]
+                    db.commit()
+                    return True
+            return False
+
+    @staticmethod
+    def update_current_range(category_id: int, days: int):
+        """更新目前正在檢視的區間 (持久化)"""
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat:
+                cat.current_range = days
+                db.commit()
+
+    @staticmethod
+    def add_range_option(category_id: int, days: int):
+        """新增一個時間區間選項"""
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat:
+                # 💡 [關鍵修正]：增加型別檢查，確保 options 絕對是 list
+                if isinstance(cat.range_options, list):
+                    options = list(cat.range_options)
+                elif isinstance(cat.range_options, int):
+                    # 如果原本不小心存成 int (如 7)，就把它變成 list [7]
+                    options = [cat.range_options]
+                else:
+                    # 如果是 None 或其他奇怪的東西，給予初始預設清單
+                    options = [7, 30, 180, 365]
+
+                # 執行新增邏輯
+                if days not in options:
+                    options.append(days)
+                    options.sort() # 排序讓選單整齊
+                    cat.range_options = options # 寫回資料庫
+                    db.commit()
+                return True
+            return False

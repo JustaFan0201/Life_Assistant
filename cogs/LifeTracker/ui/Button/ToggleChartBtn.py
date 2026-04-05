@@ -1,3 +1,4 @@
+# cogs\LifeTracker\ui\Button\ToggleChartBtn.py
 import discord
 from cogs.Base import SafeButton
 
@@ -12,10 +13,16 @@ class ToggleChartBtn(SafeButton):
     async def do_action(self, interaction: discord.Interaction):
         next_index = (self.current_field_index + 1) % self.fields_count
         
+        current_range = getattr(self.view, 'range_days', 7)
+        
         from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
         
         embed, view, chart_file = await CategoryDetailView.create_ui(
-            self.bot, self.category_id, page=0, field_index=next_index
+            self.bot, 
+            self.category_id, 
+            page=0, 
+            field_index=next_index,
+            range_days=current_range
         )
 
         if chart_file:

@@ -1,12 +1,12 @@
 # cogs\LifeTracker\ui\View\LogRecordView.py
 import discord
 from discord import ui
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from cogs.LifeTracker.ui.Button import FillRecordBtn, SubmitRecordBtn, BackToDetailBtn
 from cogs.LifeTracker.ui.Select import SubcatSelect
 from cogs.Base import LockableView
 
-TW_TZ = timezone(timedelta(hours=8))
+from config import TW_TZ
         
 class LogRecordView(LockableView):
     def __init__(self, bot, category_id: int, cat_info: dict, subcats_info: list):

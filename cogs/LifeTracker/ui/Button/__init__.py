@@ -12,6 +12,7 @@ from .FillRecordBtn import FillRecordBtn
 from .ToggleChartBtn import ToggleChartBtn
 from .ToggleListModeBtn import ToggleListModeBtn
 from .EditModeBtn import EditModeBtn
+from .CustomRangeBtn import CustomRangeBtn
 
 
 __all__ = [
@@ -28,5 +29,6 @@ __all__ = [
     "FillRecordBtn",
     "ToggleChartBtn",
     "ToggleListModeBtn",
-    "EditModeBtn"
+    "EditModeBtn",
+    "CustomRangeBtn"
 ]

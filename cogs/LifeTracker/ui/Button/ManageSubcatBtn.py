@@ -3,7 +3,7 @@ from cogs.Base import SafeButton
 
 class ManageSubcatBtn(SafeButton):
     def __init__(self, bot, category_id, label="", emoji="⚙️", row=0):
-        super().__init__(label=label, style=discord.ButtonStyle.primary, emoji=emoji, row=row)
+        super().__init__(label=label, style=discord.ButtonStyle.secondary, emoji=emoji, row=row)
         self.bot = bot
         self.category_id = category_id
 

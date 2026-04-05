@@ -75,11 +75,12 @@ class TrackerCategory(Base):
     user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
     
     name = Column(String, nullable=False)
-    
-    # 這裡存儲該分類需要輸入哪些「數值欄位」 (使用 JSON 陣列)
-    # 例如：["花費金額"] 或 ["運動時間(分)", "消耗卡路里"]
+    range_options = Column(JSON, default=lambda: [7, 30, 180, 365])
     fields = Column(JSON, nullable=False) 
     
+    last_ai_analysis = Column(Text, nullable=True)
+    analysis_updated_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.now)
 
     subcategories = relationship("TrackerSubCategory", back_populates="category", cascade="all, delete-orphan")

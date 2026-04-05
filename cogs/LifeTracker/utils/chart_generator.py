@@ -5,7 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
-
+import time
 from config import FONT_PATH
 if os.path.exists(FONT_PATH):
     custom_font = fm.FontProperties(fname=FONT_PATH)
@@ -56,7 +56,7 @@ def generate_donut_chart(category_name: str, stats_data: dict, target_field: str
         wedgeprops=dict(width=0.45) 
     )
 
-    center_text = f"{category_name}-{target_field}\n總計: {total}"
+    center_text = f"{target_field}\n總計: {total}"
     ax.text(0, 0, center_text, ha='center', va='center', fontsize=18, fontweight='bold', color='white')
     
     legend_labels = [f"{label}: {size}" for label, size in zip(raw_labels, sizes)]
@@ -81,10 +81,10 @@ def generate_donut_chart(category_name: str, stats_data: dict, target_field: str
     # 確保畫出來是正圓
     ax.axis('equal')  
 
-    # 將圖片存入記憶體中 (bbox_inches='tight' 會裁掉多餘空白)
     buf = io.BytesIO()
     plt.savefig(buf, format='png', transparent=True, bbox_inches='tight')
     buf.seek(0)
     plt.close(fig)
 
-    return discord.File(buf, filename="chart.png")
+    timestamp = int(time.time() * 1000) 
+    return discord.File(buf, filename=f"chart_{timestamp}.png")
