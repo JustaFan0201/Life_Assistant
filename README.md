@@ -7,7 +7,7 @@
 
 ## 📖 專案簡介 (Introduction)
 
-本專案採用 **進階模組化架構 (Package-based Cogs)**，徹底解決了傳統單一檔案開發的雜亂問題。透過將功能拆分為獨立的「專案包」，我們實現了以下設計目標：
+本專案採用 **進階模組化架構 (Package-based Cogs)**，解決了傳統單一檔案開發的雜亂問題。透過將功能拆分為獨立的「專案包」，我們實現了以下設計目標：
 
 **邏輯分離 (Logic Separation)**：每個功能 (如 GPT, Ticketing) 擁有獨立的命名空間。
 **介面分離 (UI Separation)**：採用 **MVC 風格**，將 View (按鈕)、Modal (視窗) 與 Controller (邏輯) 分層管理。
@@ -55,14 +55,22 @@ alembic upgrade head
 * **視覺化操作**：使用 Embeds 與 Buttons 取代繁瑣的文字指令。
 * **跨模組調度**：控制台可直接呼叫其他模組的共用邏輯。
 
-### 2. 📅 行程管理 (Itinerary Management)
+### 2. 📊 生活日記 (Life Tracker)
+* **自定義數據追蹤**：使用者可自由建立「主分類」（如：開銷、健身、學習）並定義專屬的「數值欄位」。
+* **動態圖表生成**：整合 Matplotlib，根據紀錄自動產生「甜甜圈統計圖」，視覺化各項佔比。
+* **智慧區間切換**：提供週、月、半年、一年等快速切換按鈕，並支援「自訂時間區間」功能。
+* **數據持久化儲存**：採用 SQLAlchemy 進行資料庫管理，確保數萬筆紀錄也能高效讀取與遷移。
+* **AI 智慧分析建議**：整合 Gemini AI，每週一自動根據上週數據產生個人化的生活建議與趨勢分析。
+* **標籤化管理**：支援子分類（標籤）功能，並在刪除標籤時自動進行歷史紀錄重分組，確保資料完整性。
+
+### 3. 📅 行程管理 (Itinerary Management)
 * **視覺化日程表**：透過控制台一鍵查看當前安排，支援分頁顯示與過期行程自動標記。
 * **互動式操作**：提供 Modal 視窗功能，讓使用者能快速新增、編輯或刪除行程資料。
 * **主動提醒任務**：具備背景監控任務 (Tasks Loop)，定時掃描 JSON 資料庫。
 * **在行程開始前自動發送 Discord 通知**：確保重要預約不遺漏。
 * **本地資料庫同步**：所有行程資料持久化儲存於 JSON 檔案，確保資料在機器人重啟後依然存在。
 
-### 3. 📧 郵件管理 (Gmail Management)
+### 4. 📧 郵件管理 (Gmail Management)
 * **高效郵件輪詢 (Polling)**：採用高效 IMAP 輪詢機制取代不穩定長連線，確保在任何網路環境下都能穩定抓取新信。
 * **新信即時通知**：偵測到新郵件時，自動發送包含發件人、主旨與內容摘要的精美 Embed 通知。
 * **智慧防漏/防刷機制**：透過唯一 ID (UID) 比對技術，即使在檢查間隔內收到多封郵件也能依序處理。
@@ -85,7 +93,7 @@ Life_Assistant/
 │── keep_alive.py           # 後端 Web Server (防止休眠)
 │
 └─ cogs/                    # 功能模組存放區 (Plugins)
-    │
+    ├─ Base.py              # Discord物件父類 可添加共用函式
     ├─ Gmail/                   # Gmail 郵件管理模組
     │   ├─ __init__.py          # 模組入口：包含 setup(bot) 函式
     │   ├─ gmail.py             # 核心 Cog：處理定時輪詢 (Polling) 與產生儀表板 UI
@@ -119,6 +127,58 @@ Life_Assistant/
     │       ├─ __init__.py      # 使其成為子套件
     │       ├─ itinerary_view.py # 處理 Modal 彈窗輸入、下拉選單選取
     │       └─ view.py          # 通用的分頁或基礎介面元件
+    │
+    ├─ LifeTracker/              # 生活日記模組
+    │   ├─ __init__.py           # 模組入口：載入 Cog 並初始化資料庫
+    │   ├─ LifeTrackerTasks.py   # 核心 Cog：處理每週 AI 總結任務與指令分發
+    │   │
+    │   ├─ utils/                # 工具層：後端邏輯與數據處理
+    │   │   ├─ __init__.py      
+    │   │   ├─ LifeTracker_Manager.py # 資料庫管理器：處理 CRUD、統計邏輯與 JSON 快照
+    │   │   ├─ chart_generator.py     # 圖表引擎：繪製 Matplotlib 統計圖
+    │   │   └─ gemini_analyzer.py      # AI 分析器：對接 Gemini API
+    │   │
+    │   └─ ui/                   # 介面層：遵循 MVC 模式
+    │       ├─ __init__.py      
+    │       ├─ View/             # 視圖層：各級控制面板
+    │       │   ├─ LifeDashboardView.py       # 模組主入口介面
+    │       │   ├─ CategoryDetailView.py      # 分類看板 (圖表與分頁清單)
+    │       │   ├─ LogRecordView.py           # 紀錄數據專用視圖
+    │       │   ├─ ManageSubcatView.py        # 子分類管理主視圖
+    │       │   └─ DeleteCategorySelectView.py # 刪除分類確認視圖
+    │       │
+    │       ├─ Select/           # 選擇組件：下拉選單邏輯
+    │       │   ├─ CategoryDashboardSelect.py # 主介面分類切換
+    │       │   ├─ RangeSelect.py             # 統計區間切換 (週/月/年)
+    │       │   ├─ SubcatSelect.py            # 紀錄時選擇標籤
+    │       │   ├─ EditSubcatSelect.py        # 選擇欲編輯的標籤
+    │       │   ├─ DeleteSubcatSelect.py      # 選擇欲刪除的標籤
+    │       │   └─ DeleteCategorySelect.py    # 選擇欲刪除的主分類
+    │       │
+    │       ├─ Button/           # 按鈕組件：封裝互動行為
+    │       │   ├─ SetupBtn.py             # 初始化設定按鈕
+    │       │   ├─ LogRecordBtn.py         # 開啟紀錄視窗按鈕
+    │       │   ├─ FillRecordBtn.py        # 填寫數據按鈕
+    │       │   ├─ SubmitRecordBtn.py      # 提交紀錄按鈕
+    │       │   ├─ ManageSubcatBtn.py      # 管理標籤按鈕
+    │       │   ├─ AddSubCategoryBtn.py    # 新增子分類按鈕
+    │       │   ├─ CustomRangeBtn.py       # 自定義區間按鈕
+    │       │   ├─ ToggleChartBtn.py       # 切換圖表維度按鈕
+    │       │   ├─ ToggleListModeBtn.py    # 切換清單/圖表模式按鈕
+    │       │   ├─ ToggleDeleteBtn.py      # 切換刪除狀態按鈕
+    │       │   ├─ ToggleDeleteBtn.py      # 切換刪除模式按鈕
+    │       │   ├─ EditModeBtn.py          # 進入編輯模式按鈕
+    │       │   ├─ PageBtn.py              # 清單分頁控制按鈕
+    │       │   ├─ BackToDetailBtn.py      # 返回分類詳情按鈕
+    │       │   └─ BackToLifeDashboardBtn.py # 返回生活日記主頁按鈕
+    │       │
+    │       └─ Modal/            # 視窗層：表單輸入介面
+    │           ├─ SetupCategoryModal.py    # 初始建立分類表單
+    │           ├─ AddSubCategoryModal.py   # 新增子分類標籤表單
+    │           ├─ DynamicLogModal.py       # 根據欄位動態生成的紀錄表單
+    │           ├─ InputValueModal.py       # 數值輸入修正表單
+    │           ├─ EditSubcatNameModal.py   # 修改標籤名稱表單
+    │           └─ SetRangeModal.py         # 設定自定義天數範圍
     ├─ if more.../
     
 
