@@ -62,18 +62,19 @@ class LifeTrackerDatabaseManager:
 
     @staticmethod
     def get_category_details(category_id: int):
-        """取得單一分類詳情，包含 range_options"""
+        """取得單一分類詳情，包含區間選項與目前預設區間"""
         with DatabaseSession() as db:
             category = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not category:
                 return None
             
-            # 將資料轉為 Dictionary (💡 加入 range_options)
+            # 將資料轉為 Dictionary
             cat_data = {
                 "id": category.id,
                 "name": category.name,
                 "fields": category.fields,
                 "range_options": category.range_options,
+                "current_range": category.current_range,
                 "last_ai_analysis": category.last_ai_analysis,
                 "analysis_updated_at": category.analysis_updated_at
             }
@@ -306,9 +307,11 @@ class LifeTrackerDatabaseManager:
                 if days in options and len(options) > 1:
                     options.remove(days)
                     cat.range_options = options
-                    # 如果刪掉的是目前的，就把目前的設為剩下的第一個
-                    if cat.current_range == days:
-                        cat.current_range = options[0]
+                    
+                    if hasattr(cat, 'current_range'):
+                        if cat.current_range == days:
+                            cat.current_range = options[0]
+                    
                     db.commit()
                     return True
             return False

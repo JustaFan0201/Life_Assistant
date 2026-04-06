@@ -4,7 +4,7 @@ import traceback
 from cogs.LifeTracker.utils import LifeTrackerDatabaseManager, generate_donut_chart
 from cogs.LifeTracker.ui.Button import (
     BackToLifeDashboardBtn, LogRecordBtn, PageBtn, 
-    ManageSubcatBtn, ToggleChartBtn, ToggleListModeBtn, CustomRangeBtn
+    ManageSubcatBtn, ToggleChartBtn, ToggleListModeBtn, ToggleRangeEditBtn
 )
 from cogs.LifeTracker.ui.Select import RangeSelect
 from cogs.Base import LockableView
@@ -32,7 +32,7 @@ class CategoryDetailView(LockableView):
             if fields_count > 1:
                 self.add_item(ToggleChartBtn(bot, category_id, field_index, fields_count, row=2))
             
-            self.add_item(CustomRangeBtn(bot, category_id, row=2))
+            self.add_item(ToggleRangeEditBtn(bot, category_id, row=2))
             self.add_item(BackToLifeDashboardBtn(bot, row=2))
         else:
             if page > 0:
@@ -63,13 +63,14 @@ class CategoryDetailView(LockableView):
                 color=discord.Color.gold()
             )
             embed.description += "\n➕ 新增紀錄 - 新增紀錄到此分類。"
-            embed.description += "\n⚙️ 管理標籤 - 新增或刪除標籤。"
+            embed.description += "\n🏷️ 管理標籤 - 新增或刪除標籤。"
 
             chart_file = None
             
             if not show_list:
                 embed.description += "\n📋 數值明細 - 查看詳細紀錄列表。"
                 embed.description += "\n🔄 切換圖表 - 切換到不同數值分類的圖表查看統計數據。"
+                embed.description += "\n⚙️ 管理時間區間 - 新增或刪除時間區間。"
                 embed.description += f"\n⌛ **目前統計區間：過去 {current_days} 天**"
                 # AI 部分
                 ai_suggestion = cat_info.get('last_ai_analysis')
@@ -90,6 +91,7 @@ class CategoryDetailView(LockableView):
                     embed.add_field(name="目前暫無數據", value=f"在過去 {current_days} 天內沒有紀錄。", inline=False)
             else:
                 # 清單模式
+                embed.description += "\n📊 顯示圖表 - 查看詳細紀錄圓餅圖。"
                 records = LifeTrackerDatabaseManager.get_recent_records(category_id, page=page, limit=10)
                 if not records:
                     embed.add_field(name="近期紀錄", value="這頁目前還沒有任何紀錄！", inline=False)

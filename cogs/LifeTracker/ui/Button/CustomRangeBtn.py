@@ -4,8 +4,8 @@ class CustomRangeBtn(ui.Button):
     def __init__(self, bot, category_id, row=1):
         super().__init__(
             label="",
-            emoji="⚙️",
-            style=discord.ButtonStyle.secondary,
+            emoji="➕",
+            style=discord.ButtonStyle.success,
             row=row
         )
         self.bot = bot

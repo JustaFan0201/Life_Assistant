@@ -12,6 +12,11 @@ class LockableView(ui.View):
             await interaction.response.edit_message(view=self)
         else:
             await interaction.edit_original_response(view=self)
+    async def unlock_all(self):
+        """解鎖所有按鈕（僅修改狀態，不主動推送，通常配合後續的 edit 使用）"""
+        for item in self.children:
+            if isinstance(item, (ui.Button, ui.Select)):
+                item.disabled = False
 
 class SafeButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):

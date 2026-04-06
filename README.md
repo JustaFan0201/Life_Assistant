@@ -135,50 +135,49 @@ Life_Assistant/
     │   ├─ utils/                # 工具層：後端邏輯與數據處理
     │   │   ├─ __init__.py      
     │   │   ├─ LifeTracker_Manager.py # 資料庫管理器：處理 CRUD、統計邏輯與 JSON 快照
-    │   │   ├─ chart_generator.py     # 圖表引擎：繪製 Matplotlib 統計圖
-    │   │   └─ gemini_analyzer.py      # AI 分析器：對接 Gemini API
+    │   │   ├─ chart_generator.py     # 圖表引擎：動態繪製 Matplotlib 統計圖
+    │   │   └─ gemini_analyzer.py      # AI 分析器：對接 Gemini API 進行數據分析
     │   │
     │   └─ ui/                   # 介面層：遵循 MVC 模式
     │       ├─ __init__.py      
-    │       ├─ View/             # 視圖層：各級控制面板
-    │       │   ├─ LifeDashboardView.py       # 模組主入口介面
-    │       │   ├─ CategoryDetailView.py      # 分類看板 (圖表與分頁清單)
-    │       │   ├─ LogRecordView.py           # 紀錄數據專用視圖
-    │       │   ├─ ManageSubcatView.py        # 子分類管理主視圖
-    │       │   └─ DeleteCategorySelectView.py # 刪除分類確認視圖
+    │       ├─ View/             # 視圖層：各級控制面板 (Layouts)
+    │       │   ├─ LifeDashboardView.py       # 模組主入口：分類選擇與概覽
+    │       │   ├─ CategoryDetailView.py      # 分類看板：統計圖表與歷史清單
+    │       │   ├─ RangeEditView.py           # [新] 區間編輯模式：管理時間快捷選項
+    │       │   ├─ LogRecordView.py           # 紀錄數據專用導覽視圖
+    │       │   ├─ ManageSubcatView.py        # 子分類 (標籤) 管理主視圖
+    │       │   └─ DeleteCategorySelectView.py # 刪除分類確認安全視圖
     │       │
-    │       ├─ Select/           # 選擇組件：下拉選單邏輯
+    │       ├─ Select/           # 選擇組件：下拉選單邏輯 (Controllers)
     │       │   ├─ CategoryDashboardSelect.py # 主介面分類切換
-    │       │   ├─ RangeSelect.py             # 統計區間切換 (週/月/年)
+    │       │   ├─ RangeSelect.py             # [升級] 支援「切換顯示」與「刪除區間」雙模式
     │       │   ├─ SubcatSelect.py            # 紀錄時選擇標籤
     │       │   ├─ EditSubcatSelect.py        # 選擇欲編輯的標籤
     │       │   ├─ DeleteSubcatSelect.py      # 選擇欲刪除的標籤
     │       │   └─ DeleteCategorySelect.py    # 選擇欲刪除的主分類
     │       │
-    │       ├─ Button/           # 按鈕組件：封裝互動行為
-    │       │   ├─ SetupBtn.py             # 初始化設定按鈕
-    │       │   ├─ LogRecordBtn.py         # 開啟紀錄視窗按鈕
-    │       │   ├─ FillRecordBtn.py        # 填寫數據按鈕
-    │       │   ├─ SubmitRecordBtn.py      # 提交紀錄按鈕
-    │       │   ├─ ManageSubcatBtn.py      # 管理標籤按鈕
-    │       │   ├─ AddSubCategoryBtn.py    # 新增子分類按鈕
-    │       │   ├─ CustomRangeBtn.py       # 自定義區間按鈕
-    │       │   ├─ ToggleChartBtn.py       # 切換圖表維度按鈕
-    │       │   ├─ ToggleListModeBtn.py    # 切換清單/圖表模式按鈕
-    │       │   ├─ ToggleDeleteBtn.py      # 切換刪除狀態按鈕
-    │       │   ├─ ToggleDeleteBtn.py      # 切換刪除模式按鈕
-    │       │   ├─ EditModeBtn.py          # 進入編輯模式按鈕
-    │       │   ├─ PageBtn.py              # 清單分頁控制按鈕
-    │       │   ├─ BackToDetailBtn.py      # 返回分類詳情按鈕
-    │       │   └─ BackToLifeDashboardBtn.py # 返回生活日記主頁按鈕
+    │       ├─ Button/           # 按鈕組件：封裝互動行為 (Actions)
+    │       │   ├─ SetupBtn.py             # 初始化設定
+    │       │   ├─ LogRecordBtn.py         # 開啟紀錄視窗
+    │       │   ├─ FillRecordBtn.py        # 進入數據填充流程
+    │       │   ├─ SubmitRecordBtn.py      # 提交數據至資料庫
+    │       │   ├─ ManageSubcatBtn.py      # 管理標籤介面切換
+    │       │   ├─ AddSubCategoryBtn.py    # 新增子分類標籤
+    │       │   ├─ ToggleRangeEditBtn.py    # [新] 進入時間區間編輯模式
+    │       │   ├─ ToggleChartBtn.py       # 切換圖表統計維度
+    │       │   ├─ ToggleListModeBtn.py    # 切換清單/圖表模式
+    │       │   ├─ EditModeBtn.py          # 進入編輯模式
+    │       │   ├─ PageBtn.py              # 歷史紀錄分頁控制
+    │       │   ├─ BackToDetailBtn.py      # 返回分類詳情面板
+    │       │   └─ BackToLifeDashboardBtn.py # 返回生活日記主分頁
     │       │
-    │       └─ Modal/            # 視窗層：表單輸入介面
-    │           ├─ SetupCategoryModal.py    # 初始建立分類表單
-    │           ├─ AddSubCategoryModal.py   # 新增子分類標籤表單
-    │           ├─ DynamicLogModal.py       # 根據欄位動態生成的紀錄表單
-    │           ├─ InputValueModal.py       # 數值輸入修正表單
-    │           ├─ EditSubcatNameModal.py   # 修改標籤名稱表單
-    │           └─ SetRangeModal.py         # 設定自定義天數範圍
+    │       └─ Modal/            # 視窗層：表單輸入介面 (Forms)
+    │           ├─ SetupCategoryModal.py    # 初始建立分類 (定義欄位)
+    │           ├─ AddSubCategoryModal.py   # 新增子分類標籤
+    │           ├─ DynamicLogModal.py       # 根據分類欄位動態生成的紀錄表單
+    │           ├─ InputValueModal.py       # 數值修正輸入
+    │           ├─ EditSubcatNameModal.py   # 修改標籤名稱
+    │           └─ SetRangeModal.py         # [升級] 自定義天數輸入 (支援年/月/週/天換算)
     ├─ if more.../
     
 

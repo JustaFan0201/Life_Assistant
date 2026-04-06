@@ -76,6 +76,7 @@ class TrackerCategory(Base):
     
     name = Column(String, nullable=False)
     range_options = Column(JSON, default=lambda: [7, 30, 180, 365])
+    current_range = Column(Integer, default=7)
     fields = Column(JSON, nullable=False) 
     
     last_ai_analysis = Column(Text, nullable=True)

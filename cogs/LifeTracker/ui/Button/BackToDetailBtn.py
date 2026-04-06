@@ -12,12 +12,17 @@ class BackToDetailBtn(SafeButton):
         from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
         
         try:
-            embed, view, chart_file = await CategoryDetailView.create_ui(self.bot, self.category_id, page=0)
+            embed, view, chart_file = await CategoryDetailView.create_ui(
+                self.bot, 
+                self.category_id
+            )
             
-            if chart_file:
-                await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
-            else:
-                await interaction.edit_original_response(embed=embed, view=view, attachments=[])
+            attachments = [chart_file] if chart_file else []
+            await interaction.edit_original_response(
+                embed=embed, 
+                view=view, 
+                attachments=attachments
+            )
         except Exception as e:
             if self.view:
                 await self.view.unlock_all()
