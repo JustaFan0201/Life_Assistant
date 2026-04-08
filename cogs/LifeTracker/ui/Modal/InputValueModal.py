@@ -3,7 +3,7 @@ from discord import ui
 from datetime import datetime, timezone, timedelta
 
 from config import TW_TZ
-
+MAX_VALUE = 1000000
 class InputValueModal(ui.Modal):
     def __init__(self, parent_view, fields: list):
         super().__init__(title="⌨️ 填寫數值與備註")
@@ -12,7 +12,7 @@ class InputValueModal(ui.Modal):
         self.field_inputs = {}
         
         for f in fields[:3]: 
-            text_input = ui.TextInput(label=f, required=True, max_length=50)
+            text_input = ui.TextInput(label=f+"(最大值: {:,})".format(MAX_VALUE), required=True, max_length=50)
             if f in parent_view.input_values:
                 text_input.default = parent_view.input_values[f]
             self.field_inputs[f] = text_input
@@ -37,7 +37,9 @@ class InputValueModal(ui.Modal):
         self.add_item(self.note_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        
         invalid_fields = []
+        overflow_fields = []
         temp_values = {}
         
         self.parent_view.error_msg = None
@@ -48,14 +50,20 @@ class InputValueModal(ui.Modal):
                 num = float(val)
                 if num < 0:
                     invalid_fields.append(f_name)
+                elif num > MAX_VALUE:
+                    overflow_fields.append(f_name)
                 else:
                     temp_values[f_name] = str(int(num) if num.is_integer() else num)
             except ValueError:
                 invalid_fields.append(f_name)
 
+        # --- 錯誤訊息優先順序處理 ---
         if invalid_fields:
-            self.parent_view.error_msg = f"欄位 {', '.join(invalid_fields)} 格式錯誤，請輸入正數。"
+            self.parent_view.error_msg = f"❌ 欄位 {', '.join(invalid_fields)} 格式錯誤，請輸入正數。"
+        elif overflow_fields:
+            self.parent_view.error_msg = f"⚠️ 數值過大！{', '.join(overflow_fields)} 不能超過 {MAX_VALUE:,}。"
         else:
+            # 日期檢查邏輯維持不變...
             time_val = self.time_input.value.strip()
             try:
                 datetime.strptime(time_val, "%Y/%m/%d")
@@ -64,7 +72,7 @@ class InputValueModal(ui.Modal):
                 self.parent_view.note = self.note_input.value.strip()
                 self.parent_view.record_time = time_val
             except ValueError:
-                self.parent_view.error_msg = "日期格式錯誤 (應為 YYYY/MM/DD)。"
+                self.parent_view.error_msg = "❌ 日期格式錯誤 (應為 YYYY/MM/DD)。"
 
         embed, view = self.parent_view.build_ui()
         await interaction.response.edit_message(embed=embed, view=view)

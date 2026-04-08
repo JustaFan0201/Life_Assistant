@@ -6,7 +6,6 @@ from .buttons import (
     GoToItineraryButton, 
     GoToGmailButton,
     OpenDashboardButton,
-    GoToGPTButton,
     GoToLifeTrackerButton
 )
 
@@ -38,7 +37,7 @@ class MainControlView(ui.View):
         self.add_item(GoToLifeTrackerButton(bot))
         self.add_item(GoToItineraryButton(bot))
         self.add_item(GoToGmailButton(bot))
-        self.add_item(GoToGPTButton(bot))
+        #self.add_item(GoToGPTButton(bot))
 
     @staticmethod
     def create_dashboard_ui(bot):
