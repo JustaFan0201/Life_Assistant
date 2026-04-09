@@ -1,9 +1,9 @@
 from .LifeTracker_Manager import LifeTrackerDatabaseManager
 from .chart_generator import generate_donut_chart
-from .Gemini_Analyzer import GeminiAnalyzer
+from .AI_Analyzer import AI_Analyzer
 
 __all__ = [
     "LifeTrackerDatabaseManager",
     "generate_donut_chart",
-    "GeminiAnalyzer"
+    "AI_Analyzer"
 ]

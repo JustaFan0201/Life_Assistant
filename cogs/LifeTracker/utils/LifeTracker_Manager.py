@@ -11,14 +11,12 @@ class LifeTrackerDatabaseManager:
         建立「主分類」時同時寫入 range_options
         """
         with DatabaseSession() as db:
-            # 確保使用者存在
             user = db.query(User).filter(User.discord_id == user_id).first()
             if not user:
                 user = User(discord_id=user_id, username=username)
                 db.add(user)
                 db.flush()
 
-            # 建立主分類 (💡 加入 range_options)
             new_category = TrackerCategory(
                 user_id=user_id,
                 name=cat_name,
@@ -28,7 +26,6 @@ class LifeTrackerDatabaseManager:
             db.add(new_category)
             db.flush()
 
-            # 建立對應的子分類
             for sub_name in subcats_list:
                 new_sub = TrackerSubCategory(
                     category_id=new_category.id,
@@ -349,3 +346,35 @@ class LifeTrackerDatabaseManager:
                     db.commit()
                 return True
             return False
+        
+    @staticmethod
+    def add_voice_record(user_id: int, ai_result: dict):
+        """
+        處理來自語音/AI 解析的紀錄結果
+        """
+        category_id = ai_result.get("category_id")
+        subcat_name_from_ai = ai_result.get("subcat_name")
+        values = ai_result.get("values", {})
+        note = ai_result.get("note", "")
+
+        with DatabaseSession() as db:
+            from database.models import TrackerSubCategory
+            
+            # 1. 根據 AI 給的分類 ID 與 標籤名稱，找尋資料庫中對應的 subcat_id
+            subcat = db.query(TrackerSubCategory).filter(
+                TrackerSubCategory.category_id == category_id,
+                TrackerSubCategory.name == subcat_name_from_ai
+            ).first()
+
+            # 2. 如果找到了就拿 ID，沒找到（例如 AI 歸類為「其他」）就給 None
+            subcat_id = subcat.id if subcat else None
+
+        # 3. 💡 直接利用你現有的 add_life_record 方法完成寫入
+        # 這樣可以確保「時間處理」、「快照名稱生成」等邏輯保持一致，不用寫兩次
+        return LifeTrackerDatabaseManager.add_life_record(
+            user_id=user_id,
+            category_id=category_id,
+            subcat_id=subcat_id,
+            values_dict=values,
+            note=note
+        )

@@ -1,6 +1,5 @@
 discord.py
 python-dotenv
-openai
 flask
 
 SQLAlchemy
@@ -12,5 +11,5 @@ aioimaplib
 cryptography
 
 matplotlib
-
-google-genai
+openai
+faster-whisper

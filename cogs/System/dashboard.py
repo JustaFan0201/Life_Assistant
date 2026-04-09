@@ -17,7 +17,7 @@ async def deploy_dashboard_message(bot, channel_id: int):
             print(f"⚠️ [Dashboard] 找不到頻道 ID: {channel_id}")
             return
         try:
-            await channel.purge(limit=10) 
+            await channel.purge(limit=15) 
         except Exception as e:
             print(f"⚠️ [Dashboard] 清除舊訊息失敗 (可能無權限): {e}")
 

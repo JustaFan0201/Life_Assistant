@@ -9,7 +9,7 @@ ENV_PATH = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 GPT_API = os.getenv("GPT_API")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
