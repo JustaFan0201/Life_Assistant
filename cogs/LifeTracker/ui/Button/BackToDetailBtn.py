@@ -1,6 +1,6 @@
 # cogs\LifeTracker\ui\Button\BackToDetailBtn.py
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class BackToDetailBtn(SafeButton):
     def __init__(self, bot, category_id, label="", style=discord.ButtonStyle.danger, emoji="🔙", row=1):

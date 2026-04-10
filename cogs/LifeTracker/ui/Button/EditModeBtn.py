@@ -8,6 +8,6 @@ class EditModeBtn(ui.Button):
         self.category_id = category_id
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.LifeTracker.ui.View.ManageSubcatView import ManageSubcatView
+        from cogs.LifeTracker.ui.View import ManageSubcatView
         embed, view =await ManageSubcatView.create_ui(self.bot, self.category_id, mode="edit")
         await interaction.response.edit_message(embed=embed, view=view)

@@ -1,7 +1,7 @@
 # cogs/LifeTracker/ui/View/RangeEditView.py
 import discord
-from cogs.Base import LockableView
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
+from cogs.BasicDiscordObject import LockableView
+from cogs.LifeTracker.utils import LifeTracker_Manager
 from cogs.LifeTracker.ui.Select import RangeSelect
 from cogs.LifeTracker.ui.Button import CustomRangeBtn,BackToDetailBtn
 class RangeEditView(LockableView):
@@ -18,7 +18,7 @@ class RangeEditView(LockableView):
 
     @staticmethod
     async def create_ui(bot, category_id):
-        cat_info, _ = LifeTrackerDatabaseManager.get_category_details(category_id)
+        cat_info, _ = LifeTracker_Manager.get_category_details(category_id)
         options_list = cat_info.get('range_options') or [7, 30, 180, 365]
 
         embed = discord.Embed(

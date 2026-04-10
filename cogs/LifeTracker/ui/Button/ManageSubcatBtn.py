@@ -1,5 +1,5 @@
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class ManageSubcatBtn(SafeButton):
     def __init__(self, bot, category_id, label="", emoji="🏷️", row=0):

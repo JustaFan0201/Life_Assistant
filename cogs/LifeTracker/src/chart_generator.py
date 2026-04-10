@@ -7,6 +7,7 @@ import matplotlib.font_manager as fm
 import os
 import time
 from config import FONT_PATH
+
 if os.path.exists(FONT_PATH):
     custom_font = fm.FontProperties(fname=FONT_PATH)
     fe = fm.FontEntry(fname=FONT_PATH, name='CustomFont')

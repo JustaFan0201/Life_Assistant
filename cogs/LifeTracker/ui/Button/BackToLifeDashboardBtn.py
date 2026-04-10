@@ -1,5 +1,5 @@
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class BackToLifeDashboardBtn(SafeButton):
     def __init__(self, bot, label="", emoji="🔙", row=4):

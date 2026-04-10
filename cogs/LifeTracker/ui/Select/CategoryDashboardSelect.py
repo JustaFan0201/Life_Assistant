@@ -1,8 +1,7 @@
 # cogs\LifeTracker\ui\Select\CategoryDashboardSelect.py
 import discord
 from discord import ui
-from cogs.Base import LockableView
-
+from cogs.BasicDiscordObject import LockableView
 class CategoryDashboardSelect(ui.Select):
     def __init__(self, bot, categories):
         self.bot = bot
@@ -35,8 +34,7 @@ class CategoryDashboardSelect(ui.Select):
             await self.view.lock_all(interaction)
 
         selected_category_id = int(self.values[0])
-        from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
-        
+        from cogs.LifeTracker.ui.View import CategoryDetailView
         embed, view, chart_file = await CategoryDetailView.create_ui(
             self.bot, 
             selected_category_id, 

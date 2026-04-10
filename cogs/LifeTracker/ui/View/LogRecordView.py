@@ -4,7 +4,7 @@ from discord import ui
 from datetime import datetime
 from cogs.LifeTracker.ui.Button import FillRecordBtn, SubmitRecordBtn, BackToDetailBtn
 from cogs.LifeTracker.ui.Select import SubcatSelect
-from cogs.Base import LockableView
+from cogs.BasicDiscordObject import LockableView
 
 from config import TW_TZ
         

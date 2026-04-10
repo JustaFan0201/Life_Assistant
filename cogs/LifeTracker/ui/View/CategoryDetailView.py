@@ -1,13 +1,14 @@
 # cogs\LifeTracker\ui\View\CategoryDetailView.py
 import discord
 import traceback
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager, generate_donut_chart
+from cogs.LifeTracker.utils import LifeTracker_Manager
 from cogs.LifeTracker.ui.Button import (
     BackToLifeDashboardBtn, LogRecordBtn, PageBtn, 
     ManageSubcatBtn, ToggleChartBtn, ToggleListModeBtn, ToggleRangeEditBtn
 )
+from cogs.LifeTracker.src import generate_donut_chart
 from cogs.LifeTracker.ui.Select import RangeSelect
-from cogs.Base import LockableView
+from cogs.BasicDiscordObject import LockableView
 
 class CategoryDetailView(LockableView):
     def __init__(self, bot, category_id: int, page: int = 0, field_index: int = 0, 
@@ -44,7 +45,7 @@ class CategoryDetailView(LockableView):
     async def create_ui(bot, category_id: int, page: int = 0, field_index: int = 0, 
                         show_list: bool = False, range_days: int = None):
         try:
-            cat_info, subcats_info = LifeTrackerDatabaseManager.get_category_details(category_id)
+            cat_info, subcats_info = LifeTracker_Manager.get_category_details(category_id)
             
             if range_days is not None:
                 current_days = range_days
@@ -82,7 +83,7 @@ class CategoryDetailView(LockableView):
                 else:
                     embed.add_field(name="🪄 AI 分析服務", value="目前尚無分析紀錄，將在下週一自動產生。", inline=False)
 
-                stats_data = LifeTrackerDatabaseManager.get_subcat_stats(category_id, target_field, range_days=current_days)
+                stats_data = LifeTracker_Manager.get_subcat_stats(category_id, target_field, range_days=current_days)
                 if stats_data:
                     chart_file = generate_donut_chart(cat_info['name'], stats_data, target_field)
                     if chart_file:
@@ -92,7 +93,7 @@ class CategoryDetailView(LockableView):
             else:
                 # 清單模式
                 embed.description += "\n📊 顯示圖表 - 查看詳細紀錄圓餅圖。"
-                records = LifeTrackerDatabaseManager.get_recent_records(category_id, page=page, limit=10)
+                records = LifeTracker_Manager.get_recent_records(category_id, page=page, limit=10)
                 if not records:
                     embed.add_field(name="近期紀錄", value="這頁目前還沒有任何紀錄！", inline=False)
                 else:

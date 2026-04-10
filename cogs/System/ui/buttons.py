@@ -159,8 +159,11 @@ class GoToLifeTrackerButton(ui.Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.LifeTracker.ui.View import LifeDashboardView
-        
-        embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
-        await interaction.response.edit_message(embed=embed, view=view)
+        try:
+            from cogs.LifeTracker.ui.View import LifeDashboardView
+            
+            embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)
 

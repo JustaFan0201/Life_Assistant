@@ -1,6 +1,6 @@
 # cogs\LifeTracker\ui\Button\ToggleChartBtn.py
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class ToggleChartBtn(SafeButton):
     def __init__(self, bot, category_id, current_field_index, fields_count, row=0):

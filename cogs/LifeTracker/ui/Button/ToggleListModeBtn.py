@@ -1,5 +1,5 @@
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class ToggleListModeBtn(SafeButton):
     def __init__(self, bot, category_id, page, field_index, is_showing_list, row=0):

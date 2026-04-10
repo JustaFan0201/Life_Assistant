@@ -1,8 +1,8 @@
 # cogs\LifeTracker\ui\Select\RangeSelect.py
 import discord
 from discord import ui
-from cogs.Base import LockableView
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
+from cogs.BasicDiscordObject import LockableView
+from cogs.LifeTracker.utils import LifeTracker_Manager
 
 class RangeSelect(ui.Select):
     def __init__(self, bot, category_id, current_days, options_list, row=None, mode="switch"):
@@ -70,7 +70,7 @@ class RangeSelect(ui.Select):
             days = int(self.values[0])
 
             if self.mode == "delete":
-                success = LifeTrackerDatabaseManager.delete_range_option(self.category_id, days)
+                success = LifeTracker_Manager.delete_range_option(self.category_id, days)
                 
                 from cogs.LifeTracker.ui.View.RangeEditView import RangeEditView
                 embed, view = await RangeEditView.create_ui(self.bot, self.category_id)
@@ -86,7 +86,7 @@ class RangeSelect(ui.Select):
                 await interaction.edit_original_response(embed=embed, view=view, attachments=[])
             
             else:
-                LifeTrackerDatabaseManager.update_current_range(self.category_id, days)
+                LifeTracker_Manager.update_current_range(self.category_id, days)
                 
                 from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
                 embed, view, chart_file = await CategoryDetailView.create_ui(

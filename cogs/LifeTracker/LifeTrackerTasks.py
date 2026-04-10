@@ -1,9 +1,8 @@
-import discord
 from discord.ext import commands,tasks
 from datetime import time, datetime
 from database.db import DatabaseSession
 from database.models import TrackerCategory
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager, AI_Analyzer
+from cogs.LifeTracker.utils import LifeTracker_Manager, AI_Analyzer
 from cogs.LifeTracker.src import stt_whisper
 from config import TW_TZ
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
@@ -27,7 +26,7 @@ class LifeTrackerTasks(commands.Cog):
                 categories = db.query(TrackerCategory).all()
                 
                 for cat in categories:
-                    analysis_data = LifeTrackerDatabaseManager.get_records_for_analysis(cat.id, range_type="week")
+                    analysis_data = LifeTracker_Manager.get_records_for_analysis(cat.id, range_type="week")
                     
                     if analysis_data:
                         try:
@@ -55,12 +54,12 @@ class LifeTrackerTasks(commands.Cog):
                 audio_data = await voice_file.read()
                 
                 # --- 1. 準備 Whisper 暗示與 AI 上下文 ---
-                raw_cats = LifeTrackerDatabaseManager.get_user_categories(message.author.id)
+                raw_cats = LifeTracker_Manager.get_user_categories(message.author.id)
                 all_labels = []
                 full_context_cats = []
                 
                 for cat in raw_cats:
-                    _, subcats = LifeTrackerDatabaseManager.get_category_details(cat.id)
+                    _, subcats = LifeTracker_Manager.get_category_details(cat.id)
                     all_labels.append(cat.name)
                     sub_names = [s['name'] for s in subcats]
                     all_labels.extend(sub_names)
@@ -92,7 +91,7 @@ class LifeTrackerTasks(commands.Cog):
                     if result and "category_id" in result:
                         # 💡 執行資料庫寫入 (從 AI 回傳結果中尋找對應 subcat_id)
                         # 注意：這裡需要你的 Manager 有一個根據名稱找 ID 的輔助方法
-                        success = LifeTrackerDatabaseManager.add_voice_record(message.author.id, result)
+                        success = LifeTracker_Manager.add_voice_record(message.author.id, result)
                         
                         if success:
                             await processing_msg.edit(

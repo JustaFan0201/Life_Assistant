@@ -1,6 +1,6 @@
 # cogs/LifeTracker/ui/Button/ToggleRangeEditBtn.py (原本的 CustomRangeBtn 位置)
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class ToggleRangeEditBtn(SafeButton):
     def __init__(self, bot, category_id, row=2):

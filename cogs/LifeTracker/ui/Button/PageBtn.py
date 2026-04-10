@@ -1,5 +1,5 @@
 import discord
-from cogs.Base import SafeButton
+from cogs.BasicDiscordObject import SafeButton
 
 class PageBtn(SafeButton):
     def __init__(self, bot, category_id, target_page, field_index=0, show_list=True, label=None, emoji=None, row=1):

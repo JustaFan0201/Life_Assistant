@@ -1,9 +1,9 @@
 from database.db import DatabaseSession
 from database.models import User, TrackerCategory, TrackerSubCategory
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from config import TW_TZ
 
-class LifeTrackerDatabaseManager:
+class LifeTracker_Manager:
     
     @staticmethod
     def create_category(user_id: int, username: str, cat_name: str, fields_list: list[str], subcats_list: list[str]):
@@ -371,7 +371,7 @@ class LifeTrackerDatabaseManager:
 
         # 3. 💡 直接利用你現有的 add_life_record 方法完成寫入
         # 這樣可以確保「時間處理」、「快照名稱生成」等邏輯保持一致，不用寫兩次
-        return LifeTrackerDatabaseManager.add_life_record(
+        return LifeTracker_Manager.add_life_record(
             user_id=user_id,
             category_id=category_id,
             subcat_id=subcat_id,

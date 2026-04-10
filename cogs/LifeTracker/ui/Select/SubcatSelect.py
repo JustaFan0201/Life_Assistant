@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from cogs.Base import LockableView
+from cogs.BasicDiscordObject import LockableView
 
 class SubcatSelect(ui.Select):
     def __init__(self, parent_view, subcats):

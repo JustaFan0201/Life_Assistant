@@ -1,6 +1,6 @@
 import discord
-from cogs.Base import SafeButton
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
+from cogs.BasicDiscordObject import SafeButton
+from cogs.LifeTracker.utils import LifeTracker_Manager
 
 class LogRecordBtn(SafeButton):
     def __init__(self, bot, category_id, label="", emoji="➕", row=0):
@@ -9,7 +9,7 @@ class LogRecordBtn(SafeButton):
         self.category_id = category_id
 
     async def do_action(self, interaction: discord.Interaction):
-        cat_info, subcats_info = LifeTrackerDatabaseManager.get_category_details(self.category_id)
+        cat_info, subcats_info = LifeTracker_Manager.get_category_details(self.category_id)
         if not cat_info:
             await interaction.followup.send("❌ 發生錯誤：找不到該分類資訊", ephemeral=True)
             return
