@@ -1,5 +1,6 @@
 import discord
 from discord import ui
+import asyncio
 class LockableView(ui.View):
     async def lock_all(self, interaction: discord.Interaction):
         """立即鎖定所有按鈕並推送到 Discord"""
@@ -34,8 +35,14 @@ class ValidatedModal(ui.Modal):
         error_msg = await self.validate_logic(interaction)
         
         if error_msg:
-            return await interaction.response.send_message(f"⚠️ {error_msg}", ephemeral=True)  
-        
+            await interaction.response.send_message(f"⚠️ {error_msg}", ephemeral=True)
+            await asyncio.sleep(5)
+            try:
+                await interaction.delete_original_response()
+            except discord.NotFound:
+                # 防呆機制：如果使用者在 5 秒內自己把訊息按掉了，機器人找不到訊息會噴錯，這裡直接忽略即可
+                pass  
+            return
         await self.do_action(interaction)
 
     def check_range(self, value: str, min_val: float = None, max_val: float = None, field_name: str = "數值") -> str:

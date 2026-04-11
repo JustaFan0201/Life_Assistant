@@ -2,9 +2,12 @@
 import discord
 from discord import ui
 from cogs.LifeTracker.utils import LifeTracker_Manager
-from cogs.BasicDiscordObject import ValidatedModal # 💡 引入父類
-
-class SetRangeModal(ValidatedModal): # 💡 繼承父類
+from cogs.BasicDiscordObject import ValidatedModal
+from cogs.LifeTracker.LifeTracker_config import (
+    MAX_DAY_RANGE,
+    MIN_DAY_RANGE
+)
+class SetRangeModal(ValidatedModal):
     def __init__(self, bot, category_id):
         super().__init__(title="⏳ 新增自訂時間區間")
         self.bot = bot
@@ -13,8 +16,8 @@ class SetRangeModal(ValidatedModal): # 💡 繼承父類
         self.days_input = ui.TextInput(
             label="請輸入天數", 
             placeholder="例如：10 (天)、90 (天)...", 
-            min_length=1, 
-            max_length=4
+            min_length=len(str(MIN_DAY_RANGE)), 
+            max_length=len(str(MAX_DAY_RANGE)),
         )
         self.add_item(self.days_input)
 
@@ -22,7 +25,7 @@ class SetRangeModal(ValidatedModal): # 💡 繼承父類
         """💡 執行天數格式與範圍校驗"""
         val = self.days_input.value.strip()
         
-        error = self.check_range(val, min_val=1, max_val=9999, field_name="天數")
+        error = self.check_range(val, min_val=MIN_DAY_RANGE, max_val=MAX_DAY_RANGE, field_name="天數")
         if error:
             return error
             

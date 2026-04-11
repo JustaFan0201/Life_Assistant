@@ -27,24 +27,24 @@ class RangeSelect(ui.Select):
             # 1. 計算年 (365天)
             years = remaining_days // 365
             if years > 0:
-                parts.append(f"{years} 年")
+                parts.append(f"{years} 年 ")
                 remaining_days %= 365
             
             # 2. 計算月 (30天)
             months = remaining_days // 30
             if months > 0:
-                parts.append(f"{months} 個月")
+                parts.append(f"{months} 個月 ")
                 remaining_days %= 30
                 
             # 3. 計算週 (7天)
             weeks = remaining_days // 7
             if weeks > 0:
-                parts.append(f"{weeks} 週")
+                parts.append(f"{weeks} 週 ")
                 remaining_days %= 7
                 
             # 4. 計算剩餘天數
             if remaining_days > 0 or not parts:
-                parts.append(f"{remaining_days} 天")
+                parts.append(f"{remaining_days} 天 ")
             
             # 組合標籤 (例如: 1年1個月1天)
             label = "".join(parts)

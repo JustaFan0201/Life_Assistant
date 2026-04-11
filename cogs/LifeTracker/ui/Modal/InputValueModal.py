@@ -3,8 +3,10 @@ from discord import ui
 from datetime import datetime
 from config import TW_TZ
 from cogs.BasicDiscordObject import ValidatedModal # 💡 引入你的父類
-
-MAX_VALUE = 1000000
+from cogs.LifeTracker.LifeTracker_config import (
+    MAX_INPUT_VALUE,
+    MAX_TEXT_LENGTH
+)
 class InputValueModal(ValidatedModal):
     def __init__(self, parent_view, fields: list):
         super().__init__(title="⌨️ 填寫數值與備註")
@@ -13,9 +15,9 @@ class InputValueModal(ValidatedModal):
         # 動態生成數值輸入欄位
         for f in fields[:3]: 
             text_input = ui.TextInput(
-                label=f + f"(最大值: {MAX_VALUE:,})", 
+                label=f + f"(最大值: {MAX_INPUT_VALUE:,})", 
                 required=True, 
-                max_length=10
+                max_length=len(str(MAX_INPUT_VALUE))
             )
             if f in parent_view.input_values:
                 text_input.default = parent_view.input_values[f]
@@ -40,7 +42,7 @@ class InputValueModal(ValidatedModal):
         self.note_input = ui.TextInput(
             label="備註 (選填)", 
             required=False, 
-            max_length=50
+            max_length=MAX_TEXT_LENGTH
         )
         if parent_view.note:
             self.note_input.default = parent_view.note
@@ -53,7 +55,7 @@ class InputValueModal(ValidatedModal):
         for f_name, input_ui in self.field_inputs.items():
             val_str = input_ui.value.strip()
             # 利用父類的 check_range 工具
-            error = self.check_range(val_str, min_val=0, max_val=MAX_VALUE, field_name=f_name)
+            error = self.check_range(val_str, min_val=0, max_val=MAX_INPUT_VALUE, field_name=f_name)
             if error:
                 return error
 

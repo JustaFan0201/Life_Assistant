@@ -4,6 +4,9 @@ from discord import ui
 from cogs.LifeTracker.utils import LifeTracker_Manager
 from cogs.BasicDiscordObject import ValidatedModal
 from cogs.LifeTracker.ui.View import ManageSubcatView
+from cogs.LifeTracker.LifeTracker_config import (
+    MAX_SUBCAT_LENGTH
+)
 class EditSubcatNameModal(ValidatedModal):
     def __init__(self, bot, category_id, subcat_id, old_name):
         super().__init__(title=f"📝 修改標籤：{old_name}")
@@ -16,22 +19,25 @@ class EditSubcatNameModal(ValidatedModal):
             default=old_name,
             placeholder="請輸入新名稱...",
             required=True,
-            max_length=20
+            max_length=MAX_SUBCAT_LENGTH
         )
         self.add_item(self.new_name_input)
 
     async def validate_logic(self, interaction: discord.Interaction) -> str:
-        """💡 執行名稱長度與內容校驗"""
+        """💡 執行名稱長度與重複校驗"""
         new_name = self.new_name_input.value.strip()
         
-        # 使用父類的 check_length 檢查 (設定至少要 1 個字)
-        error = self.check_length(new_name, min_len=1, max_len=20, field_name="標籤名稱")
+        error = self.check_length(new_name, min_len=1, max_len=MAX_SUBCAT_LENGTH, field_name="標籤名稱")
         if error:
             return error
             
-        # 額外檢查：如果名稱沒變，其實不需要提交資料庫
-        # 雖然這不是錯誤，但可以回傳提示讓使用者知道沒改到
-        # if new_name == self.old_name: return "新名稱不能與舊名稱相同。"
+        # 檢查是否與現有標籤重複
+        # 先抓取該分類的所有標籤詳情
+        cat_info, current_subcats = LifeTracker_Manager.get_category_details(self.category_id)
+        
+        for subcat in current_subcats:
+            if subcat['name'] == new_name and subcat['id'] != self.subcat_id:
+                return f"標籤名稱「{new_name}」已存在，請換一個名字。"
         
         return None # 通過校驗
 
