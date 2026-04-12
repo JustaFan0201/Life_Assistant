@@ -7,7 +7,7 @@ class BackToLifeDashboardBtn(SafeButton):
         self.bot = bot
         
     async def do_action(self, interaction: discord.Interaction):
-        from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
-
+        from cogs.LifeTracker.ui.View import LifeDashboardView
+        
         embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
         await interaction.edit_original_response(embed=embed, view=view, attachments=[])

@@ -23,41 +23,23 @@ class EditSubcatNameModal(ValidatedModal):
         )
         self.add_item(self.new_name_input)
 
-    async def validate_logic(self, interaction: discord.Interaction) -> str:
-        """💡 執行名稱長度與重複校驗"""
+    async def execute_logic(self, interaction: discord.Interaction) -> str:
         new_name = self.new_name_input.value.strip()
         
-        error = self.check_length(new_name, min_len=1, max_len=MAX_SUBCAT_LENGTH, field_name="標籤名稱")
-        if error:
-            return error
-            
-        # 檢查是否與現有標籤重複
-        # 先抓取該分類的所有標籤詳情
-        cat_info, current_subcats = LifeTracker_Manager.get_category_details(self.category_id)
+        success, error_msg = LifeTracker_Manager.update_subcategory_name(
+            self.category_id, self.subcat_id, new_name
+        )
         
-        for subcat in current_subcats:
-            if subcat['name'] == new_name and subcat['id'] != self.subcat_id:
-                return f"標籤名稱「{new_name}」已存在，請換一個名字。"
-        
-        return None # 通過校驗
+        if not success:
+            return error_msg
+        return None
 
-    async def do_action(self, interaction: discord.Interaction):
-        """💡 校驗通過後，執行資料庫更新並刷新介面"""
+    async def on_success(self, interaction: discord.Interaction):
         try:
-            new_name = self.new_name_input.value.strip()
-            
-            # 執行資料庫更新
-            LifeTracker_Manager.update_subcategory_name(self.subcat_id, new_name)
-
-            # 重新渲染管理介面 (ManageSubcatView)
+            from cogs.LifeTracker.ui.View.ManageSubcatView import ManageSubcatView
             embed, view = await ManageSubcatView.create_ui(self.bot, self.category_id)
-            
             embed.title = "✅ 標籤名稱已更新"
             embed.color = discord.Color.green()
-            
-            # 更新原始訊息
             await interaction.response.edit_message(embed=embed, view=view)
-
         except Exception as e:
-            print(f"❌ 修改標籤名稱失敗: {e}")
-            await interaction.response.send_message(f"❌ 系統更新失敗：{e}", ephemeral=True)
+            await interaction.response.send_message(f"❌ 畫面刷新失敗：{e}", ephemeral=True)

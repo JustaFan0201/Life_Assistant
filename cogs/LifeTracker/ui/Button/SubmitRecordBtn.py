@@ -10,7 +10,7 @@ class SubmitRecordBtn(SafeButton):
 
     async def do_action(self, interaction: discord.Interaction):
         try:
-            LifeTracker_Manager.add_life_record(
+            success, error_msg = LifeTracker_Manager.add_life_record(
                 user_id=interaction.user.id,
                 category_id=self.parent_view.category_id,
                 subcat_id=self.parent_view.selected_subcat_id,
@@ -19,6 +19,12 @@ class SubmitRecordBtn(SafeButton):
                 record_time_str=self.parent_view.record_time
             )
             
+            if not success:
+                if self.view:
+                    await self.view.unlock_all(interaction)
+                
+                return await interaction.followup.send(f"⚠️ 儲存失敗：{error_msg}", ephemeral=True)
+
             from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
             
             embed, view, chart_file = await CategoryDetailView.create_ui(
@@ -27,10 +33,12 @@ class SubmitRecordBtn(SafeButton):
                 page=0
             )
 
-            if chart_file:
-                await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
-            else:
-                await interaction.edit_original_response(embed=embed, view=view, attachments=[])
+            attachments = [chart_file] if chart_file else []
+            await interaction.edit_original_response(
+                embed=embed, 
+                view=view, 
+                attachments=attachments
+            )
                 
         except Exception as e:
             import traceback
@@ -38,5 +46,4 @@ class SubmitRecordBtn(SafeButton):
             
             if self.view:
                 await self.view.unlock_all(interaction)
-                
-            await interaction.followup.send(f"❌ 錯誤: {e}", ephemeral=True)
+            await interaction.followup.send(f"❌ 發生系統錯誤: {e}", ephemeral=True)

@@ -12,7 +12,8 @@ from cogs.BasicDiscordObject import LockableView
 
 class CategoryDetailView(LockableView):
     def __init__(self, bot, category_id: int, page: int = 0, field_index: int = 0, 
-                 fields_count: int = 1, show_list: bool = False, range_days: int = 7, options_list: list = None):
+                 fields_count: int = 1, show_list: bool = False, range_days: int = 7, 
+                 options_list: list = None, total_pages: int = 0):
         super().__init__(timeout=None)
         self.bot = bot
         self.category_id = category_id
@@ -20,33 +21,34 @@ class CategoryDetailView(LockableView):
         self.field_index = field_index
         self.show_list = show_list
         self.range_days = range_days
-
-        # --- 第一排：核心操作 ---
+        self.total_pages = total_pages
+        
         self.add_item(LogRecordBtn(bot, category_id, row=0))
         self.add_item(ManageSubcatBtn(bot, category_id, row=0))
         self.add_item(ToggleListModeBtn(bot, category_id, page, field_index, show_list, row=0))
+    
+        self.add_item(RangeSelect(bot, category_id, range_days, options_list or [7, 30, 180, 365], row=1))
         
-        # --- 第二排：數據與時間篩選 ---
         if not show_list:
-            self.add_item(RangeSelect(bot, category_id, range_days, options_list or [7, 30, 180, 365], row=1))
-            
             if fields_count > 1:
                 self.add_item(ToggleChartBtn(bot, category_id, field_index, fields_count, row=2))
-            
             self.add_item(ToggleRangeEditBtn(bot, category_id, row=2))
             self.add_item(BackToLifeDashboardBtn(bot, row=2))
         else:
             if page > 0:
-                self.add_item(PageBtn(bot, category_id, page - 1, field_index, show_list, emoji="◀️", row=1))
-            self.add_item(PageBtn(bot, category_id, page + 1, field_index, show_list, emoji="▶️", row=1))
-            self.add_item(BackToLifeDashboardBtn(bot, row=1))
+                self.add_item(PageBtn(bot, category_id, page - 1, field_index, show_list, emoji="◀️", row=3))
+            
+            if page + 1 < total_pages:
+                self.add_item(PageBtn(bot, category_id, page + 1, field_index, show_list, emoji="▶️", row=3))
+                
+            self.add_item(BackToLifeDashboardBtn(bot, row=3))
 
     @staticmethod
     async def create_ui(bot, category_id: int, page: int = 0, field_index: int = 0, 
                         show_list: bool = False, range_days: int = None):
         try:
             cat_info, subcats_info = LifeTracker_Manager.get_category_details(category_id)
-            
+            total_pages = 0
             if range_days is not None:
                 current_days = range_days
             else:
@@ -73,7 +75,7 @@ class CategoryDetailView(LockableView):
                 embed.description += "\n🔄 切換圖表 - 切換到不同數值分類的圖表查看統計數據。"
                 embed.description += "\n⚙️ 管理時間區間 - 新增或刪除時間區間。"
                 embed.description += f"\n⌛ **目前統計區間：過去 {current_days} 天**"
-                # AI 部分
+
                 ai_suggestion = cat_info.get('last_ai_analysis')
                 update_time = cat_info.get('analysis_updated_at')
 
@@ -91,11 +93,15 @@ class CategoryDetailView(LockableView):
                 else:
                     embed.add_field(name="目前暫無數據", value=f"在過去 {current_days} 天內沒有紀錄。", inline=False)
             else:
-                # 清單模式
                 embed.description += "\n📊 顯示圖表 - 查看詳細紀錄圓餅圖。"
-                records = LifeTracker_Manager.get_recent_records(category_id, page=page, limit=10)
+                embed.description += f"\n⌛ **目前顯示區間：過去 {current_days} 天的紀錄**"
+                
+                records, total_pages = LifeTracker_Manager.get_recent_records(
+                    category_id, page=page, limit=10, range_days=current_days
+                )
+                
                 if not records:
-                    embed.add_field(name="近期紀錄", value="這頁目前還沒有任何紀錄！", inline=False)
+                    embed.add_field(name="近期紀錄", value="目前還沒有任何紀錄喔！", inline=False)
                 else:
                     for r in records:
                         val_str = " | ".join([f"{k}: {v}" for k, v in r['values'].items()])
@@ -104,10 +110,8 @@ class CategoryDetailView(LockableView):
                             value=f"**{val_str}**",
                             inline=False
                         )
-            #print(f"🔍 DEBUG: 正在查詢 {cat_info['name']} 的數據，區間：{current_days} 天")
-            #print(f"📊 DEBUG: 抓取到的統計結果：{stats_data}")
-
-            view = CategoryDetailView(bot, category_id, page, field_index, fields_count, show_list, current_days, options_list)
+            
+            view = CategoryDetailView(bot, category_id, page, field_index, fields_count, show_list, current_days, options_list, total_pages)
             return embed, view, chart_file
 
         except Exception as e:

@@ -14,38 +14,31 @@ class SetRangeModal(ValidatedModal):
         self.category_id = category_id
 
         self.days_input = ui.TextInput(
-            label="請輸入天數", 
-            placeholder="例如：10 (天)、90 (天)...", 
-            min_length=len(str(MIN_DAY_RANGE)), 
-            max_length=len(str(MAX_DAY_RANGE)),
+            label=f"請輸入天數 ({MIN_DAY_RANGE}~{MAX_DAY_RANGE})", 
+            placeholder="例如：10、90...", 
+            min_length=1, 
+            max_length=4 
         )
         self.add_item(self.days_input)
 
-    async def validate_logic(self, interaction: discord.Interaction) -> str:
-        """💡 執行天數格式與範圍校驗"""
+    async def execute_logic(self, interaction: discord.Interaction) -> str:
+        """💡 呼叫 Manager 執行業務邏輯校驗與資料寫入"""
         val = self.days_input.value.strip()
         
-        error = self.check_range(val, min_val=MIN_DAY_RANGE, max_val=MAX_DAY_RANGE, field_name="天數")
-        if error:
-            return error
+        success, error_msg = LifeTracker_Manager.add_range_option(self.category_id, val)
+        
+        if not success:
+            return error_msg
             
         return None
 
-    async def do_action(self, interaction: discord.Interaction):
-        """💡 校驗通過後，更新資料庫並刷新圖表看板"""
+    async def on_success(self, interaction: discord.Interaction):
+        """💡 執行 UI 刷新與圖表生成"""
         try:
             days = int(self.days_input.value.strip())
             
-            # 先 Defer，因為繪圖 (Matplotlib) 需要時間，避免 Interaction Expired
-            # 這裡不使用 interaction.response.defer，因為 ValidatedModal 的 on_submit 
-            # 已經處理了 response。但由於我們前面是 return None，response 尚未發出。
             await interaction.response.defer(ephemeral=False, thinking=False)
 
-            # 2. 更新資料庫
-            LifeTracker_Manager.add_range_option(self.category_id, days)
-            LifeTracker_Manager.update_current_range(self.category_id, days)
-            
-            # 3. 重新生成看板介面
             from cogs.LifeTracker.ui.View.CategoryDetailView import CategoryDetailView
             embed, view, chart_file = await CategoryDetailView.create_ui(
                 bot=self.bot, 
@@ -53,20 +46,13 @@ class SetRangeModal(ValidatedModal):
                 range_days=days
             )
             
-            # 4. 更新原訊息（刷新看板與圖表）
-            if chart_file:
-                await interaction.edit_original_response(
-                    embed=embed, 
-                    view=view, 
-                    attachments=[chart_file]
-                )
-            else:
-                await interaction.edit_original_response(
-                    embed=embed, 
-                    view=view, 
-                    attachments=[]
-                )
+            attachments = [chart_file] if chart_file else []
+            await interaction.edit_original_response(
+                embed=embed, 
+                view=view, 
+                attachments=attachments
+            )
 
         except Exception as e:
-            print(f"❌ SetRangeModal 執行錯誤: {e}")
-            await interaction.followup.send(f"❌ 設定失敗：{e}", ephemeral=True)
+            print(f"❌ SetRangeModal UI 刷新失敗: {e}")
+            await interaction.followup.send(f"❌ 畫面更新失敗：{e}", ephemeral=True)

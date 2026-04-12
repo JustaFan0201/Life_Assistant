@@ -1,16 +1,65 @@
 from database.db import DatabaseSession
-from database.models import User, TrackerCategory, TrackerSubCategory
+from database.models import User, TrackerCategory, TrackerSubCategory, LifeRecord
 from datetime import datetime, timedelta
 from config import TW_TZ
-
+import math
+from cogs.LifeTracker.LifeTracker_config import (
+    MAX_FIELDS,
+    MAX_SUBCATS,
+    MAX_FIELDS_LENGTH,
+    MAX_SUBCAT_LENGTH,
+    MAX_MAINCAT_LENGTH,
+    MAX_DAY_RANGE,
+    MIN_DAY_RANGE,
+    MAX_TEXT_LENGTH,
+    MAX_INPUT_VALUE
+)
 class LifeTracker_Manager:
     
     @staticmethod
     def create_category(user_id: int, username: str, cat_name: str, fields_list: list[str], subcats_list: list[str]):
         """
-        建立「主分類」時同時寫入 range_options
+        建立分類的中心邏輯，包含所有合法性檢查
+        回傳: (bool, str_or_none) -> (是否成功, 錯誤訊息)
         """
+        cat_name = cat_name.strip()
+        if not cat_name:
+            return False, "分類名稱不能為空。"
+        
+        if len(cat_name) > MAX_MAINCAT_LENGTH:
+            return False, f"分類名稱「{cat_name}」過長，請限制在 {MAX_MAINCAT_LENGTH} 字內。"
+
+        if not fields_list:
+            return False, "請至少輸入一個需要紀錄的數值項目（例如：金額）。"
+        
+        if len(fields_list) > MAX_FIELDS:
+            return False, f"數值欄位過多，最多只能設定 {MAX_FIELDS} 個。"
+            
+        if len(subcats_list) > MAX_SUBCATS:
+            return False, f"標籤數量過多，最多只能設定 {MAX_SUBCATS} 個。"
+
+        if len(fields_list) != len(set(fields_list)):
+            return False, "數值欄位名稱不能重複。"
+
+        if len(subcats_list) != len(set(subcats_list)):
+            return False, "標籤名稱不能重複。"
+
+        for field in fields_list:
+            if len(field) > MAX_FIELDS_LENGTH:
+                return False, f"數值欄位「{field}」過長，請限制在 {MAX_FIELDS_LENGTH} 字內。"
+
+        for sub in subcats_list:
+            if len(sub) > MAX_SUBCAT_LENGTH:
+                return False, f"標籤「{sub}」過長，請限制在 {MAX_SUBCAT_LENGTH} 字內。"
+
         with DatabaseSession() as db:
+            existing = db.query(TrackerCategory).filter(
+                TrackerCategory.user_id == user_id,
+                TrackerCategory.name == cat_name
+            ).first()
+            if existing:
+                return False, f"主分類「{cat_name}」已經存在了。"
+
             user = db.query(User).filter(User.discord_id == user_id).first()
             if not user:
                 user = User(discord_id=user_id, username=username)
@@ -34,13 +83,12 @@ class LifeTracker_Manager:
                 db.add(new_sub)
 
             db.commit()
-            return True
-
+            return True, None
+    
     @staticmethod
     def delete_category(category_id: int):
         """刪除整個主分類及其所有子分類與紀錄"""
         with DatabaseSession() as db:
-            from database.models import TrackerCategory
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if cat:
                 db.delete(cat)
@@ -64,8 +112,7 @@ class LifeTracker_Manager:
             category = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not category:
                 return None
-            
-            # 將資料轉為 Dictionary
+
             cat_data = {
                 "id": category.id,
                 "name": category.name,
@@ -80,64 +127,90 @@ class LifeTracker_Manager:
             return cat_data, subcats_data
 
     @staticmethod
-    def get_recent_records(category_id: int, page: int = 0, limit: int = 10):
-        """取得該分類近期的紀錄 (支援分頁)"""
+    def get_recent_records(category_id: int, page: int = 0, limit: int = 10, range_days: int = None):
+        """取得紀錄與總頁數 (支援時間區間過濾)"""
         with DatabaseSession() as db:
             from database.models import LifeRecord
+            from datetime import datetime, timedelta
+            from config import TW_TZ
             
-            # 計算 offset (跳過幾筆資料)
+            query = db.query(LifeRecord).filter(LifeRecord.category_id == category_id)
+            
+            if range_days:
+                start_date = datetime.now(TW_TZ) - timedelta(days=int(range_days))
+                query = query.filter(LifeRecord.created_at >= start_date)
+            
+            total_count = query.count()
+            
+            total_pages = math.ceil(total_count / limit) if total_count > 0 else 0
+            
             offset = page * limit
+            records = query.order_by(LifeRecord.created_at.desc())\
+                           .offset(offset).limit(limit).all()
             
-            # 撈取紀錄，依照時間遞減排序 (最新的在最上面)
-            records = db.query(LifeRecord).filter(LifeRecord.category_id == category_id)\
-                        .order_by(LifeRecord.created_at.desc())\
-                        .offset(offset).limit(limit).all()
-            
-            # 將紀錄轉為乾淨的 List[dict]
             record_list = []
             for r in records:
-                # 💡 [修改] 這裡再也不用去比對 subcategory_id 了，直接讀取快照名稱！
-                display_name = r.subcat_name if r.subcat_name else "其他"
-                
                 record_list.append({
                     "id": r.id,
-                    "sub_name": display_name,
+                    "sub_name": r.subcat_name or "其他",
                     "values": r.values,
                     "note": r.note,
                     "created_at": r.created_at.strftime("%Y/%m/%d")
                 })
-                
-            return record_list
+            
+            return record_list, total_pages
         
     @staticmethod
-    def add_life_record(user_id: int, category_id: int, subcat_id: int, values_dict: dict, note: str, record_time_str: str = None):
-        """新增一筆生活紀錄"""
-        with DatabaseSession() as db:
-            from database.models import LifeRecord, TrackerSubCategory
-            
-            # 取得目前的精確時間 (包含時分秒)
-            now = datetime.now(TW_TZ)
-            
-            if record_time_str:
-                try:
-                    # 解析使用者輸入的日期 (YYYY/MM/DD)
-                    parsed_date = datetime.strptime(record_time_str, "%Y/%m/%d")
-                    # 結合：使用者的日期 + 系統當下的時分秒
-                    final_time = parsed_date.replace(
-                        hour=now.hour, 
-                        minute=now.minute, 
-                        second=now.second, 
-                        tzinfo=TW_TZ
-                    )
-                except ValueError:
-                    final_time = now # 解析失敗則用當下時間
-            else:
-                final_time = now
+    def validate_record_data(category_id: int, values_dict: dict, note: str, record_time_str: str):
+        """
+        專門校驗紀錄數據的合法性 (不涉及寫入)
+        回傳: (bool, str_or_none)
+        """
+        try:
+            datetime.strptime(record_time_str, "%Y/%m/%d")
+        except (ValueError, TypeError):
+            return False, "日期格式錯誤 (應為 YYYY/MM/DD)。"
 
-            snapshot_name = None
+        if note and len(note) > MAX_TEXT_LENGTH:
+            return False, f"備註太長了，請限制在 {MAX_TEXT_LENGTH} 字內。"
+
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if not cat:
+                return False, "找不到對應的分類。"
+
+            for f_name in cat.fields:
+                val = values_dict.get(f_name)
+                if val is None or str(val).strip() == "":
+                    return False, f"欄位「{f_name}」尚未填寫。"
+                
+                try:
+                    num = float(str(val).strip())
+                    if num < 0:
+                        return False, f"欄位「{f_name}」不能為負數。"
+                    if num > MAX_INPUT_VALUE:
+                        return False, f"欄位「{f_name}」數值過大，最高限制 {MAX_INPUT_VALUE:,}。"
+                except ValueError:
+                    return False, f"欄位「{f_name}」必須是有效的數字。"
+
+        return True, None
+
+    @staticmethod
+    def add_life_record(user_id: int, category_id: int, subcat_id: int, values_dict: dict, note: str, record_time_str: str = None):
+        """新增一筆生活紀錄 (包含最終校驗)"""
+        is_valid, error = LifeTracker_Manager.validate_record_data(category_id, values_dict, note, record_time_str)
+        if not is_valid:
+            return False, error
+
+        with DatabaseSession() as db:
+            now = datetime.now(TW_TZ)
+            parsed_date = datetime.strptime(record_time_str, "%Y/%m/%d")
+            final_time = parsed_date.replace(hour=now.hour, minute=now.minute, second=now.second, tzinfo=TW_TZ)
+
+            snapshot_name = "其他"
             if subcat_id:
                 subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
-                snapshot_name = subcat.name if subcat else None
+                if subcat: snapshot_name = subcat.name
 
             new_record = LifeRecord(
                 user_id=user_id,
@@ -150,16 +223,77 @@ class LifeTracker_Manager:
             )
             db.add(new_record)
             db.commit()
-            return True
+            return True, None
 
     @staticmethod
-    def add_subcategory(category_id: int, subcat_name: str):
-        """為指定的分類新增一個子分類"""
+    def add_subcategory(category_id: int, subcat_names_list: list[str]):
+        """
+        新增標籤的中心邏輯
+        回傳: (bool, str_or_none)
+        """
+        if not subcat_names_list:
+            return False, "請至少輸入一個標籤名稱。"
+
+        if len(subcat_names_list) != len(set(subcat_names_list)):
+            return False, "輸入的標籤名稱中有重複項。"
+
+        for name in subcat_names_list:
+            if len(name) > MAX_SUBCAT_LENGTH:
+                return False, f"標籤「{name}」過長，請限制在 {MAX_SUBCAT_LENGTH} 字內。"
+
         with DatabaseSession() as db:
-            new_sub = TrackerSubCategory(category_id=category_id, name=subcat_name)
-            db.add(new_sub)
+            existing_subcats = db.query(TrackerSubCategory).filter(
+                TrackerSubCategory.category_id == category_id
+            ).all()
+            existing_names = [s.name for s in existing_subcats]
+
+            for name in subcat_names_list:
+                if name in existing_names:
+                    return False, f"標籤「{name}」已經存在於此分類中。"
+
+            if len(existing_names) + len(subcat_names_list) > MAX_SUBCATS:
+                return False, f"標籤數量超過上限 {MAX_SUBCATS} 個。"
+
+            for name in subcat_names_list:
+                new_sub = TrackerSubCategory(category_id=category_id, name=name)
+                db.add(new_sub)
+            
             db.commit()
-            return True
+            return True, None
+
+    @staticmethod
+    def update_subcategory_name(category_id: int, subcat_id: int, new_name: str):
+        """
+        修改標籤名稱的中心邏輯
+        回傳: (bool, str_or_none)
+        """
+        new_name = new_name.strip()
+        if not new_name:
+            return False, "名稱不能為空。"
+
+        if len(new_name) > MAX_SUBCAT_LENGTH:
+            return False, f"標籤名稱過長，請限制在 {MAX_SUBCAT_LENGTH} 字內。"
+
+        with DatabaseSession() as db:
+            conflict = db.query(TrackerSubCategory).filter(
+                TrackerSubCategory.category_id == category_id,
+                TrackerSubCategory.name == new_name,
+                TrackerSubCategory.id != subcat_id
+            ).first()
+            
+            if conflict:
+                return False, f"標籤「{new_name}」已存在，請換一個名字。"
+
+            subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
+            if subcat:
+                db.query(LifeRecord).filter(LifeRecord.subcategory_id == subcat_id).update({
+                    "subcat_name": new_name
+                })
+                subcat.name = new_name
+                db.commit()
+                return True, None
+            
+            return False, "找不到該標籤。"
 
     @staticmethod
     def delete_subcategory(subcat_id: int):
@@ -167,21 +301,16 @@ class LifeTracker_Manager:
         刪除指定的子分類 (標籤)
         核心邏輯：在刪除標籤前，將所有關聯紀錄的 ID 設為 None，並將快照名稱更新為「其他」
         """
-        with DatabaseSession() as db:
-            from database.models import TrackerSubCategory, LifeRecord
-            
-            # 1. 找到要刪除的標籤
+        with DatabaseSession() as db: 
             subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
             
             if subcat:
                 try:
-                    # 2. 💡 [關鍵更新] 找到所有關聯紀錄，將 subcategory_id 歸零，名稱改為「其他」
                     db.query(LifeRecord).filter(LifeRecord.subcategory_id == subcat_id).update({
-                        "subcategory_id": None,      # 解除外鍵關聯
-                        "subcat_name": "其他"        # 更新顯示名稱
-                    }, synchronize_session=False)    # 提升批次更新效率
+                        "subcategory_id": None,
+                        "subcat_name": "其他"
+                    }, synchronize_session=False)
                     
-                    # 3. 刪除標籤本體
                     db.delete(subcat)
                     db.commit()
                     return True
@@ -198,7 +327,6 @@ class LifeTracker_Manager:
         如果傳入 target_field，就只加總該欄位的數值。
         """
         with DatabaseSession() as db:
-            from database.models import LifeRecord
             now = datetime.now(TW_TZ)
             start_date = now - timedelta(days=int(range_days)) 
 
@@ -213,13 +341,11 @@ class LifeTracker_Manager:
                 amount = 0
                 
                 if isinstance(r.values, dict):
-                    # 如果有指定目標欄位，且該紀錄有這個欄位
                     if target_field and target_field in r.values:
                         try:
                             amount = float(r.values[target_field])
                         except (ValueError, TypeError):
                             pass 
-                    # 舊邏輯防呆：如果沒有指定，就抓第一個數字
                     elif not target_field:
                         for val in r.values.values():
                             try:
@@ -238,23 +364,6 @@ class LifeTracker_Manager:
                     final_stats[k] = int(v) if v.is_integer() else round(v, 2)
                     
             return final_stats
-        
-    @staticmethod
-    def update_subcategory_name(subcat_id: int, new_name: str):
-        """修改子分類名稱，並同步更新歷史紀錄的快照名稱"""
-        with DatabaseSession() as db:
-            from database.models import TrackerSubCategory, LifeRecord
-            subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
-            if subcat:
-                # 1. 更新紀錄中的快照名稱
-                db.query(LifeRecord).filter(LifeRecord.subcategory_id == subcat_id).update({
-                    "subcat_name": new_name
-                })
-                # 2. 更新標籤本體名稱
-                subcat.name = new_name
-                db.commit()
-                return True
-            return False
 
     @staticmethod
     def get_records_for_analysis(category_id: int, range_type: str = "week"):
@@ -262,9 +371,7 @@ class LifeTracker_Manager:
         根據指定的範圍撈取紀錄：'week' (7天), 'month' (30天), 'half_year' (180天)
         """
         with DatabaseSession() as db:
-            from database.models import LifeRecord
             
-            # 1. 計算起始時間
             now = datetime.now(TW_TZ)
             if range_type == "week":
                 start_date = now - timedelta(days=7)
@@ -273,19 +380,16 @@ class LifeTracker_Manager:
             elif range_type == "half_year":
                 start_date = now - timedelta(days=180)
             else:
-                start_date = now - timedelta(days=7) # 預設一週
+                start_date = now - timedelta(days=7)
 
-            # 2. 查詢資料庫
-            # 條件：分類 ID 符合 且 建立時間大於等於起始時間
             records = db.query(LifeRecord).filter(
                 LifeRecord.category_id == category_id,
                 LifeRecord.created_at >= start_date
-            ).order_by(LifeRecord.created_at.asc()).all() # 分析建議用升序(舊到新)，讓 AI 看出時序變化
+            ).order_by(LifeRecord.created_at.asc()).all()
             
             if not records:
                 return None
 
-            # 3. 格式化為文字串
             data_str = f"--- 紀錄範圍：自 {start_date.strftime('%Y/%m/%d')} 起 ---\n"
             for r in records:
                 val_text = ", ".join([f"{k}:{v}" for k, v in r.values.items()])
@@ -293,7 +397,6 @@ class LifeTracker_Manager:
             
             return data_str
         
-
     @staticmethod
     def delete_range_option(category_id: int, days: int):
         """刪除一個時間區間選項 (保留至少一個)"""
@@ -323,29 +426,34 @@ class LifeTracker_Manager:
                 db.commit()
 
     @staticmethod
-    def add_range_option(category_id: int, days: int):
-        """新增一個時間區間選項"""
+    def add_range_option(category_id: int, days_input):
+        """
+        新增時間區間的中心邏輯
+        回傳: (bool, str_or_none)
+        """
+        try:
+            days = int(str(days_input).strip())
+        except (ValueError, TypeError):
+            return False, "天數必須是有效的整數數字。"
+        
+        if days < MIN_DAY_RANGE or days > MAX_DAY_RANGE:
+            return False, f"天數不在範圍中！請設定在 {MIN_DAY_RANGE} ~ {MAX_DAY_RANGE} 之間。"
+
         with DatabaseSession() as db:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
-            if cat:
-                # 💡 [關鍵修正]：增加型別檢查，確保 options 絕對是 list
-                if isinstance(cat.range_options, list):
-                    options = list(cat.range_options)
-                elif isinstance(cat.range_options, int):
-                    # 如果原本不小心存成 int (如 7)，就把它變成 list [7]
-                    options = [cat.range_options]
-                else:
-                    # 如果是 None 或其他奇怪的東西，給予初始預設清單
-                    options = [7, 30, 180, 365]
+            if not cat:
+                return False, "找不到該分類資料。"
 
-                # 執行新增邏輯
-                if days not in options:
-                    options.append(days)
-                    options.sort() # 排序讓選單整齊
-                    cat.range_options = options # 寫回資料庫
-                    db.commit()
-                return True
-            return False
+            options = list(cat.range_options) if isinstance(cat.range_options, list) else [7, 30, 180, 365]
+
+            if days not in options:
+                options.append(days)
+                options.sort()
+                cat.range_options = options
+            
+            cat.current_range = days
+            db.commit()
+            return True, None
         
     @staticmethod
     def add_voice_record(user_id: int, ai_result: dict):
@@ -358,7 +466,6 @@ class LifeTracker_Manager:
         note = ai_result.get("note", "")
 
         with DatabaseSession() as db:
-            from database.models import TrackerSubCategory
             
             # 1. 根據 AI 給的分類 ID 與 標籤名稱，找尋資料庫中對應的 subcat_id
             subcat = db.query(TrackerSubCategory).filter(
@@ -369,8 +476,6 @@ class LifeTracker_Manager:
             # 2. 如果找到了就拿 ID，沒找到（例如 AI 歸類為「其他」）就給 None
             subcat_id = subcat.id if subcat else None
 
-        # 3. 💡 直接利用你現有的 add_life_record 方法完成寫入
-        # 這樣可以確保「時間處理」、「快照名稱生成」等邏輯保持一致，不用寫兩次
         return LifeTracker_Manager.add_life_record(
             user_id=user_id,
             category_id=category_id,
