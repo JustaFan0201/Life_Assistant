@@ -14,15 +14,15 @@ class BackToDetailBtn(SafeButton):
         try:
             embed, view, chart_file = await CategoryDetailView.create_ui(
                 self.bot, 
-                self.category_id
+                self.category_id,
+                page=0,
+                show_list=False
             )
-            
-            attachments = [chart_file] if chart_file else []
-            await interaction.edit_original_response(
-                embed=embed, 
-                view=view, 
-                attachments=attachments
-            )
+                
+            if chart_file:
+                await interaction.edit_original_response(embed=embed, view=view, attachments=[chart_file])
+            else:
+                await interaction.edit_original_response(embed=embed, view=view, attachments=[])
         except Exception as e:
             if self.view:
                 await self.view.unlock_all()
