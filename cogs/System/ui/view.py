@@ -6,7 +6,8 @@ from .buttons import (
     GoToItineraryButton, 
     GoToGmailButton,
     OpenDashboardButton,
-    GoToLifeTrackerButton
+    GoToLifeTrackerButton,
+    GoToStockButton
 )
 
 class SystemStartView(ui.View):
@@ -38,6 +39,7 @@ class MainControlView(ui.View):
         self.add_item(GoToItineraryButton(bot))
         self.add_item(GoToGmailButton(bot))
         #self.add_item(GoToGPTButton(bot))
+        self.add_item(GoToStockButton(bot))
 
     @staticmethod
     def create_dashboard_ui(bot):
@@ -58,6 +60,7 @@ class MainControlView(ui.View):
         embed.add_field(name="📔 生活日記", value="紀錄與分析您的日常生活紀錄", inline=False)
         embed.add_field(name="📅 行程管理", value="規劃與查詢您的個人行程", inline=False)
         embed.add_field(name="📧 郵件管理", value="包含：新信即時通知、快速撰寫與寄送 Gmail", inline=False)
+        embed.add_field(name="📈 股票監控", value="包含：即時巡邏預警、個人損益清單與收盤戰報", inline=False)
 
         embed.set_footer(
             text="Life Assistant v0.1", 

@@ -2,7 +2,13 @@ import discord
 from discord import ui
 from .utils.fugle_api import get_stock_snapshot
 
-# 🟢 [C] 新增股票的彈窗表單 (Modal)
+try:
+    from cogs.System.ui.buttons import BackToMainButton
+except ImportError:
+    print("⚠️ 警告：找不到 BackToMainButton，請檢查路徑是否正確")
+    BackToMainButton = None
+
+
 class StockAddModal(ui.Modal, title='新增台股監控'):
     symbol = ui.TextInput(label='股票代號', placeholder='例如: 2330', min_length=4, max_length=6)
     buy_price = ui.TextInput(label='買入成本 (選填)', placeholder='不填則不計損益', required=False)
@@ -50,7 +56,6 @@ class StockAddModal(ui.Modal, title='新增台股監控'):
 
         await interaction.followup.send(f"✅ 已成功監控 **{info['name']} ({sym})**", ephemeral=True)
 
-# 🔴 [B] 刪除股票的下拉選單 (Select)
 class StockRemoveSelect(ui.Select):
     def __init__(self, stocks, db_manager):
         options = [
@@ -73,8 +78,6 @@ class StockRemoveSelect(ui.Select):
             else:
                 await interaction.response.send_message("❌ 找不到該紀錄", ephemeral=True)
 
-# 🔵 [A] 列表下方的按鈕列 (View)
-# 在 stock_ui.py 中
 class StockListView(ui.View):
     def __init__(self, cog, interaction_user_id):
         super().__init__(timeout=60)
@@ -87,5 +90,37 @@ class StockListView(ui.View):
         if interaction.user.id != self.user_id:
             return await interaction.response.send_message("這不是你的選單！", ephemeral=True)
         
-        # 💡 直接交給 cog 處理，cog 裡面會負責 defer
         await self.cog.update_list_message(interaction, is_first=False)
+
+class StockDashboardView(ui.View):
+    def __init__(self, bot, cog):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.cog = cog
+
+        if BackToMainButton:
+            self.add_item(BackToMainButton(self.bot))
+
+
+    @ui.button(label="查看監控清單", style=discord.ButtonStyle.success, emoji="📋")
+    async def view_list(self, interaction: discord.Interaction, button: ui.Button):
+        await self.cog.update_list_message(interaction, is_first=True)
+
+    @ui.button(label="新增股票監控", style=discord.ButtonStyle.primary, emoji="➕")
+    async def add_stock_btn(self, interaction: discord.Interaction, button: ui.Button):
+        # Modal 須用 send_modal
+        await interaction.response.send_modal(StockAddModal(self.cog.db_manager, self.cog.api_token, self.cog.api_lock))
+
+    @ui.button(label="移除股票監控", style=discord.ButtonStyle.danger, emoji="🗑️")
+    async def delete_stock_btn(self, interaction: discord.Interaction, button: ui.Button):
+        # 呼叫刪除選單
+        await interaction.response.defer(ephemeral=True)
+        with self.cog.db_manager() as session:
+            from database.models import User, UserStockWatch
+            user = session.query(User).filter_by(discord_id=interaction.user.id).first()
+            if not user or not user.stocks:
+                return await interaction.followup.send("⚠️ 你的清單目前是空的。", ephemeral=True)
+            
+            view = ui.View()
+            view.add_item(StockRemoveSelect(user.stocks, self.cog.db_manager))
+            await interaction.followup.send("請選擇要移除的標的：", view=view, ephemeral=True)
