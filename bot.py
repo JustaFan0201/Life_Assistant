@@ -100,6 +100,9 @@ async def load_extensions():
 async def main():
     print("script start.")
     async with bot:
+        bot.db_manager = DatabaseSession # 或是你的資料庫管理工具
+        bot.SessionLocal = SessionLocal
+        
         await load_extensions()
         keep_alive(local_test=not RENDER)
         

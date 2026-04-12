@@ -1,7 +1,8 @@
 # database/models.py
-from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean, Text, JSON
+from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean, Text, JSON, Float
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
+
 
 Base = declarative_base()
 
@@ -32,6 +33,8 @@ class User(Base):
     email_contacts = relationship("EmailContact", back_populates="user", cascade="all, delete-orphan")
 
     calendar_events = relationship("CalendarEvent", back_populates="user", cascade="all, delete-orphan")
+
+    stocks = relationship("UserStockWatch", back_populates="user", cascade="all, delete-orphan")
 
 class EmailConfig(Base):
     __tablename__ = 'email_configs'
@@ -118,3 +121,29 @@ class LifeRecord(Base):
 
     category = relationship("TrackerCategory", back_populates="records")
     subcategory = relationship("TrackerSubCategory", back_populates="records")
+
+class UserStockWatch(Base):
+    __tablename__ = 'user_stock_watch'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
+
+    stock_symbol = Column(String(10), nullable=False) # 股票代碼
+    stock_name = Column(String(50), nullable=True)   # 股票名稱
+    
+    # 投資數據
+    buy_price = Column(Float, nullable=True)          # 買入價格 
+    quantity = Column(Integer, default=0)             # 持有股數
+    
+    # 預警設定
+    target_up = Column(Float, default=0.05)           # 漲幅預警
+    target_down = Column(Float, default=-0.05)        # 跌幅預警
+    
+    # 狀態紀錄
+    last_notified_price = Column(Float, nullable=True) # 上次通知時的價格
+    last_close_price = Column(Float, nullable=True)    # 昨收價
+    
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    user = relationship("User", back_populates="stocks")
