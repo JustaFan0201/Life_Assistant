@@ -1,34 +1,31 @@
 from database.db import DatabaseSession
 from database.models import User, TrackerCategory, TrackerSubCategory
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
+from config import TW_TZ
 
-TW_TZ = timezone(timedelta(hours=8))
-
-class LifeTrackerDatabaseManager:
+class LifeTracker_Manager:
     
     @staticmethod
     def create_category(user_id: int, username: str, cat_name: str, fields_list: list[str], subcats_list: list[str]):
         """
-        處理建立「主分類」與「子分類」的邏輯，並確保使用者存在。
+        建立「主分類」時同時寫入 range_options
         """
         with DatabaseSession() as db:
-            # 確保使用者存在
             user = db.query(User).filter(User.discord_id == user_id).first()
             if not user:
                 user = User(discord_id=user_id, username=username)
                 db.add(user)
                 db.flush()
 
-            # 建立主分類
             new_category = TrackerCategory(
                 user_id=user_id,
                 name=cat_name,
-                fields=fields_list
+                fields=fields_list,
+                range_options=[7, 30, 180, 365],
             )
             db.add(new_category)
-            db.flush() # 取得 new_category.id
+            db.flush()
 
-            # 建立對應的子分類
             for sub_name in subcats_list:
                 new_sub = TrackerSubCategory(
                     category_id=new_category.id,
@@ -62,17 +59,21 @@ class LifeTrackerDatabaseManager:
 
     @staticmethod
     def get_category_details(category_id: int):
-        """取得單一分類的詳細資訊與它的子分類"""
+        """取得單一分類詳情，包含區間選項與目前預設區間"""
         with DatabaseSession() as db:
             category = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not category:
                 return None
             
-            # 將資料轉為 Dictionary 避免 Session 關閉後無法讀取
+            # 將資料轉為 Dictionary
             cat_data = {
                 "id": category.id,
                 "name": category.name,
-                "fields": category.fields
+                "fields": category.fields,
+                "range_options": category.range_options,
+                "current_range": category.current_range,
+                "last_ai_analysis": category.last_ai_analysis,
+                "analysis_updated_at": category.analysis_updated_at
             }
             subcats_data = [{"id": s.id, "name": s.name} for s in category.subcategories]
             
@@ -191,14 +192,20 @@ class LifeTrackerDatabaseManager:
             return False
         
     @staticmethod
-    def get_subcat_stats(category_id: int, target_field: str = None) -> dict:
+    def get_subcat_stats(category_id: int, target_field: str, range_days: int = 7) -> dict:
         """
         取得該分類下各子分類的「數值總和」。
         如果傳入 target_field，就只加總該欄位的數值。
         """
         with DatabaseSession() as db:
             from database.models import LifeRecord
-            records = db.query(LifeRecord).filter(LifeRecord.category_id == category_id).all()
+            now = datetime.now(TW_TZ)
+            start_date = now - timedelta(days=int(range_days)) 
+
+            records = db.query(LifeRecord).filter(
+                LifeRecord.category_id == category_id,
+                LifeRecord.created_at >= start_date
+            ).all()
 
             result_dict = {}
             for r in records:
@@ -248,4 +255,126 @@ class LifeTrackerDatabaseManager:
                 db.commit()
                 return True
             return False
+
+    @staticmethod
+    def get_records_for_analysis(category_id: int, range_type: str = "week"):
+        """
+        根據指定的範圍撈取紀錄：'week' (7天), 'month' (30天), 'half_year' (180天)
+        """
+        with DatabaseSession() as db:
+            from database.models import LifeRecord
+            
+            # 1. 計算起始時間
+            now = datetime.now(TW_TZ)
+            if range_type == "week":
+                start_date = now - timedelta(days=7)
+            elif range_type == "month":
+                start_date = now - timedelta(days=30)
+            elif range_type == "half_year":
+                start_date = now - timedelta(days=180)
+            else:
+                start_date = now - timedelta(days=7) # 預設一週
+
+            # 2. 查詢資料庫
+            # 條件：分類 ID 符合 且 建立時間大於等於起始時間
+            records = db.query(LifeRecord).filter(
+                LifeRecord.category_id == category_id,
+                LifeRecord.created_at >= start_date
+            ).order_by(LifeRecord.created_at.asc()).all() # 分析建議用升序(舊到新)，讓 AI 看出時序變化
+            
+            if not records:
+                return None
+
+            # 3. 格式化為文字串
+            data_str = f"--- 紀錄範圍：自 {start_date.strftime('%Y/%m/%d')} 起 ---\n"
+            for r in records:
+                val_text = ", ".join([f"{k}:{v}" for k, v in r.values.items()])
+                data_str += f"- {r.created_at.strftime('%m/%d')} | {r.subcat_name or '其他'} | {val_text} | {r.note or '無'}\n"
+            
+            return data_str
         
+
+    @staticmethod
+    def delete_range_option(category_id: int, days: int):
+        """刪除一個時間區間選項 (保留至少一個)"""
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat and cat.range_options:
+                options = list(cat.range_options)
+                if days in options and len(options) > 1:
+                    options.remove(days)
+                    cat.range_options = options
+                    
+                    if hasattr(cat, 'current_range'):
+                        if cat.current_range == days:
+                            cat.current_range = options[0]
+                    
+                    db.commit()
+                    return True
+            return False
+
+    @staticmethod
+    def update_current_range(category_id: int, days: int):
+        """更新目前正在檢視的區間 (持久化)"""
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat:
+                cat.current_range = days
+                db.commit()
+
+    @staticmethod
+    def add_range_option(category_id: int, days: int):
+        """新增一個時間區間選項"""
+        with DatabaseSession() as db:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
+            if cat:
+                # 💡 [關鍵修正]：增加型別檢查，確保 options 絕對是 list
+                if isinstance(cat.range_options, list):
+                    options = list(cat.range_options)
+                elif isinstance(cat.range_options, int):
+                    # 如果原本不小心存成 int (如 7)，就把它變成 list [7]
+                    options = [cat.range_options]
+                else:
+                    # 如果是 None 或其他奇怪的東西，給予初始預設清單
+                    options = [7, 30, 180, 365]
+
+                # 執行新增邏輯
+                if days not in options:
+                    options.append(days)
+                    options.sort() # 排序讓選單整齊
+                    cat.range_options = options # 寫回資料庫
+                    db.commit()
+                return True
+            return False
+        
+    @staticmethod
+    def add_voice_record(user_id: int, ai_result: dict):
+        """
+        處理來自語音/AI 解析的紀錄結果
+        """
+        category_id = ai_result.get("category_id")
+        subcat_name_from_ai = ai_result.get("subcat_name")
+        values = ai_result.get("values", {})
+        note = ai_result.get("note", "")
+
+        with DatabaseSession() as db:
+            from database.models import TrackerSubCategory
+            
+            # 1. 根據 AI 給的分類 ID 與 標籤名稱，找尋資料庫中對應的 subcat_id
+            subcat = db.query(TrackerSubCategory).filter(
+                TrackerSubCategory.category_id == category_id,
+                TrackerSubCategory.name == subcat_name_from_ai
+            ).first()
+
+            # 2. 如果找到了就拿 ID，沒找到（例如 AI 歸類為「其他」）就給 None
+            subcat_id = subcat.id if subcat else None
+
+        # 3. 💡 直接利用你現有的 add_life_record 方法完成寫入
+        # 這樣可以確保「時間處理」、「快照名稱生成」等邏輯保持一致，不用寫兩次
+        return LifeTracker_Manager.add_life_record(
+            user_id=user_id,
+            category_id=category_id,
+            subcat_id=subcat_id,
+            values_dict=values,
+            note=note
+        )

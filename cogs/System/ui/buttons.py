@@ -55,7 +55,7 @@ class BackToMainButton(ui.Button):
         embed, view = MainControlView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
         
-# 前往 GPT UI按鈕
+'''# 前往 GPT UI按鈕
 class GoToGPTButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
@@ -78,7 +78,7 @@ class GoToGPTButton(ui.Button):
         
         view = GPTDashboardView(self.bot)
         
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view)'''
 
 '''class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
@@ -159,8 +159,11 @@ class GoToLifeTrackerButton(ui.Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
-        
-        embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
-        await interaction.response.edit_message(embed=embed, view=view)
+        try:
+            from cogs.LifeTracker.ui.View import LifeDashboardView
+            
+            embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)
 

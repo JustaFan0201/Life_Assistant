@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from cogs.LifeTracker.utils import LifeTrackerDatabaseManager
+from cogs.LifeTracker.utils import LifeTracker_Manager
 
 class DeleteCategorySelect(ui.Select):
     def __init__(self, bot, categories):
@@ -10,7 +10,7 @@ class DeleteCategorySelect(ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         cat_id = int(self.values[0])
-        LifeTrackerDatabaseManager.delete_category(cat_id)
+        LifeTracker_Manager.delete_category(cat_id)
         
         # 刪除後跳回 Dashboard
         from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView

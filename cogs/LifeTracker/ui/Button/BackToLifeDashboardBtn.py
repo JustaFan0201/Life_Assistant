@@ -1,12 +1,13 @@
 import discord
-from discord import ui
+from cogs.BasicDiscordObject import SafeButton
 
-class BackToLifeDashboardBtn(ui.Button):
+class BackToLifeDashboardBtn(SafeButton):
     def __init__(self, bot, label="", emoji="🔙", row=4):
         super().__init__(label=label, style=discord.ButtonStyle.danger, emoji=emoji, row=row)
         self.bot = bot
         
-    async def callback(self, interaction: discord.Interaction):
-        from cogs.LifeTracker.ui.View import LifeDashboardView
+    async def do_action(self, interaction: discord.Interaction):
+        from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
+
         embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
-        await interaction.response.edit_message(embed=embed, view=view, attachments=[])
+        await interaction.edit_original_response(embed=embed, view=view, attachments=[])

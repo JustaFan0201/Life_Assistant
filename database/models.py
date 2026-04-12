@@ -8,15 +8,11 @@ Base = declarative_base()
 
 class BotSettings(Base):
     __tablename__ = 'bot_settings'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=False) 
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    
-    # 這裡定義你要存的所有頻道 ID
-    dashboard_channel_id = Column(BigInteger, nullable=True)      # 主控台頻道
-    login_notify_channel_id = Column(BigInteger, nullable=True)   # 登入通知頻道
-    
-    # 未來如果要加其他設定，直接在這裡加欄位即可
-    # example_role_id = Column(BigInteger, nullable=True)
+    dashboard_channel_id = Column(BigInteger, nullable=True)
+    login_notify_channel_id = Column(BigInteger, nullable=True)
     calendar_notify_channel_id = Column(BigInteger, nullable=True)
     gpt_channel_id = Column(BigInteger, nullable=True)
     
@@ -82,11 +78,13 @@ class TrackerCategory(Base):
     user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
     
     name = Column(String, nullable=False)
-    
-    # 這裡存儲該分類需要輸入哪些「數值欄位」 (使用 JSON 陣列)
-    # 例如：["花費金額"] 或 ["運動時間(分)", "消耗卡路里"]
+    range_options = Column(JSON, default=lambda: [7, 30, 180, 365])
+    current_range = Column(Integer, default=7)
     fields = Column(JSON, nullable=False) 
     
+    last_ai_analysis = Column(Text, nullable=True)
+    analysis_updated_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.now)
 
     subcategories = relationship("TrackerSubCategory", back_populates="category", cascade="all, delete-orphan")
