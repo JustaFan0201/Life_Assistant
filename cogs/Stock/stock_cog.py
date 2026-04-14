@@ -101,14 +101,12 @@ class Stock(commands.Cog):
     async def update_list_message(self, interaction: discord.Interaction, is_first=False):
         try:
             if is_first:
-                # 斜線指令第一次呼叫
                 await interaction.response.defer(thinking=True, ephemeral=True)
             else:
-                # 按鈕觸發
                 await interaction.response.defer(ephemeral=True)
 
             embed = discord.Embed(
-                title=f"📊 {interaction.user.name} 的監控清單", 
+                title=f"📊 {interaction.user.name} 的投資帳戶", 
                 color=discord.Color.blue(),
                 timestamp=datetime.now(TW_TIME)
             )
@@ -117,7 +115,6 @@ class Stock(commands.Cog):
                 user = session.query(User).filter_by(discord_id=interaction.user.id).first()
                 if not user or not user.stocks:
                     msg = "⚠️ 清單目前是空的。"
-
                     if is_first:
                         return await interaction.followup.send(msg, ephemeral=True)
                     else:
@@ -133,16 +130,45 @@ class Stock(commands.Cog):
                     emoji = "🔺" if change_pct > 0 else "🟢" if change_pct < 0 else "⚪"
                     
                     roi_str = ""
-                    if info and s.buy_price:
-                        roi = ((price - s.buy_price) / s.buy_price) * 100
-                        roi_str = f"\n總損益: {'📈' if roi>=0 else '📉'} `{roi:.2f}%`"
+                    # --- [核心修改] 精確損益計算邏輯 ---
+                    if info and s.shares and s.shares > 0 and s.total_cost and s.total_cost > 0:
+                        # 1. 計算現值
+                        current_value = price * s.shares
+                        # 2. 計算原始損益
+                        raw_profit = current_value - s.total_cost
+                        
+                        # 3. 估算賣出成本 (手續費 0.1425% + 證交稅 0.3% = 0.4425%)
+                        # 💡 如果你有手續費折扣（如 6 折），可將 0.001425 改為 0.001425 * 0.6
+                        est_sell_cost = current_value * 0.004425
+                        
+                        # 4. 實質入袋損益
+                        net_profit = raw_profit - est_sell_cost
+                        net_roi = (net_profit / s.total_cost) * 100
+                        
+                        roi_emoji = "📈" if net_profit >= 0 else "📉"
+                        avg_price = s.total_cost / s.shares
+                        
+                        roi_str = (
+                            f"\n均價: `{avg_price:.2f}` | 持股: `{s.shares}`"
+                            f"\n預估盈虧: {roi_emoji} `NT$ {int(net_profit):,}`"
+                            f"\n實質投報: `{net_roi:.2f}%` (含稅費)"
+                        )
                     
+                    elif info and s.buy_price:
+                        # 舊版相容模式：僅有買入價
+                        roi = ((price - s.buy_price) / s.buy_price) * 100
+                        roi_str = (
+                            f"\n成本: `{s.buy_price}`"
+                            f"\n帳面損益: {'📈' if roi>=0 else '📉'} `{roi:.2f}%`"
+                        )
+                    # -----------------------------------
+
                     embed.add_field(
                         name=f"{s.stock_name} ({s.stock_symbol})", 
-                        value=f"現價: `{price}` ({emoji}{change_pct:.2f}%)\n成本: `{s.buy_price or 'N/A'}`{roi_str}", 
+                        value=f"現價: `{price}` ({emoji}{change_pct:.2f}%){roi_str}", 
                         inline=False
                     )
-                    # 查詢完休息，避免 Fugle API 報錯
+                    
                     await asyncio.sleep(0.5) 
 
             # 統一更新訊息

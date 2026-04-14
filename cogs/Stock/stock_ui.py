@@ -9,10 +9,16 @@ except ImportError:
     BackToMainButton = None
 
 
-class StockAddModal(ui.Modal, title='新增台股監控'):
+class StockAddModal(ui.Modal, title='新增/更新精確監控'):
+    # 股票代號
     symbol = ui.TextInput(label='股票代號', placeholder='例如: 2330', min_length=4, max_length=6)
-    buy_price = ui.TextInput(label='買入成本 (選填)', placeholder='不填則不計損益', required=False)
+    # 持有股數 (整數)
+    shares = ui.TextInput(label='持有股數 (選填)', placeholder='例如: 1000', required=False)
+    # 總付出成本 (含手續費)
+    total_cost = ui.TextInput(label='總付出成本 (選填, 含手續費)', placeholder='例如: 500285', required=False)
+    # 漲幅預警
     up_percent = ui.TextInput(label='漲幅報警 % (選填)', placeholder='例如填 3 代表 3%', required=False)
+    # 跌幅報警
     down_percent = ui.TextInput(label='跌幅報警 % (選填)', placeholder='例如填 -2 代表 -2%', required=False)
 
     def __init__(self, db_manager, api_token, api_lock):
@@ -22,39 +28,67 @@ class StockAddModal(ui.Modal, title='新增台股監控'):
         self.api_lock = api_lock
 
     async def on_submit(self, interaction: discord.Interaction):
-        from database.models import UserStockWatch, User # 避免循環匯入
+        from database.models import UserStockWatch, User
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        sym = self.symbol.value.strip()
-        # 轉換數值
-        price = float(self.buy_price.value) if self.buy_price.value else None
-        up = float(self.up_percent.value) / 100 if self.up_percent.value else None
-        down = float(self.down_percent.value) / 100 if self.down_percent.value else None
+        try:
+            sym = self.symbol.value.strip()
+            
+            num_shares = int(self.shares.value) if self.shares.value and self.shares.value.isdigit() else 0
+            cost_val = float(self.total_cost.value) if self.total_cost.value else 0.0
+            
+            # 自動推算單價 (用於顯示或舊邏輯相容)
+            avg_buy_price = cost_val / num_shares if num_shares > 0 else None
+            
+            up = float(self.up_percent.value) / 100 if self.up_percent.value else None
+            down = float(self.down_percent.value) / 100 if self.down_percent.value else None
 
-        async with self.api_lock:
-            info = get_stock_snapshot(sym, self.api_token)
+            # 串接 API 確認股票存在
+            async with self.api_lock:
+                info = get_stock_snapshot(sym, self.api_token)
 
-        if not info:
-            return await interaction.followup.send(f"❌ 找不到股票 `{sym}`")
+            if not info:
+                return await interaction.followup.send(f"❌ 找不到股票 `{sym}`", ephemeral=True)
 
-        with self.db_manager() as session:
-            user = session.query(User).filter_by(discord_id=interaction.user.id).first()
-            if not user:
-                user = User(discord_id=interaction.user.id, username=interaction.user.name)
-                session.add(user)
-                session.flush()
+            with self.db_manager() as session:
+                user = session.query(User).filter_by(discord_id=interaction.user.id).first()
+                if not user:
+                    user = User(discord_id=interaction.user.id, username=interaction.user.name)
+                    session.add(user)
+                    session.flush()
 
-            # 檢查是否重複，重複則更新
-            watch = session.query(UserStockWatch).filter_by(user_id=interaction.user.id, stock_symbol=sym).first()
-            if watch:
-                watch.buy_price, watch.target_up, watch.target_down = price, up, down
-            else:
-                session.add(UserStockWatch(user_id=interaction.user.id, stock_symbol=sym, 
-                                          stock_name=info['name'], buy_price=price, 
-                                          target_up=up, target_down=down))
-            session.commit()
+                # 檢查是否重複，重複則更新，不重複則新增 (Upsert 邏輯)
+                watch = session.query(UserStockWatch).filter_by(user_id=interaction.user.id, stock_symbol=sym).first()
+                
+                if watch:
+                    watch.shares = num_shares
+                    watch.total_cost = cost_val
+                    watch.buy_price = avg_buy_price # 同步更新單價
+                    watch.target_up = up
+                    watch.target_down = down
+                    status_msg = "更新"
+                else:
+                    session.add(UserStockWatch(
+                        user_id=interaction.user.id, 
+                        stock_symbol=sym, 
+                        stock_name=info['name'], 
+                        shares=num_shares, 
+                        total_cost=cost_val,
+                        buy_price=avg_buy_price,
+                        target_up=up, 
+                        target_down=down
+                    ))
+                    status_msg = "新增"
+                
+                session.commit()
 
-        await interaction.followup.send(f"✅ 已成功監控 **{info['name']} ({sym})**", ephemeral=True)
+            await interaction.followup.send(f"✅ 已成功{status_msg} **{info['name']} ({sym})** 的精確監控", ephemeral=True)
+
+        except ValueError:
+            await interaction.followup.send("❌ 輸入格式錯誤，請確保股數為整數、成本與比例為數字。", ephemeral=True)
+        except Exception as e:
+            print(f"Modal Submit Error: {e}")
+            await interaction.followup.send(f"❌ 發生未知錯誤: {e}", ephemeral=True)
 
 class StockRemoveSelect(ui.Select):
     def __init__(self, stocks, db_manager):

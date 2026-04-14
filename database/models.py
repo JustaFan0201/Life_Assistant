@@ -129,17 +129,19 @@ class UserStockWatch(Base):
     stock_symbol = Column(String(10), nullable=False) # 股票代碼
     stock_name = Column(String(50), nullable=True)   # 股票名稱
     
-    # 投資數據
-    buy_price = Column(Float, nullable=True)          # 買入價格 
-    quantity = Column(Integer, default=0)             # 持有股數
+    # --- 投資數據核心（精確損益用） ---
+    # shares 用來算現值，total_cost 用來算損益基準
+    shares = Column(Integer, default=0)               # 持有股數 (取代 quantity)
+    total_cost = Column(Float, default=0)             # 總付出成本 (含手續費)
+    buy_price = Column(Float, nullable=True)          # 參考買入單價 (選填)
     
-    # 預警設定
-    target_up = Column(Float, default=0.05)           # 漲幅預警
-    target_down = Column(Float, default=-0.05)        # 跌幅預警
+    # --- 預警設定 ---
+    target_up = Column(Float, nullable=True)          # 漲幅預警 (例如 0.05 代表 5%)
+    target_down = Column(Float, nullable=True)        # 跌幅預警 (例如 -0.05 代表 -5%)
     
-    # 狀態紀錄
+    # --- 狀態紀錄 ---
     last_notified_price = Column(Float, nullable=True) # 上次通知時的價格
-    last_close_price = Column(Float, nullable=True)    # 昨收價
+    last_close_price = Column(Float, nullable=True)    # 昨收價 (計算今日漲跌幅用)
     
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
