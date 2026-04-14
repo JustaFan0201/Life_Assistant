@@ -42,7 +42,7 @@ class LifeTrackerTasks(commands.Cog):
         except Exception as e:
             print(f"❌ [Task] 每週總結任務出錯: {e}")
 
-    @commands.Cog.listener()
+'''    @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot: return
         
@@ -120,4 +120,4 @@ class LifeTrackerTasks(commands.Cog):
             except Exception as e:
                 import traceback
                 traceback.print_exc()
-                await processing_msg.edit(content=f"❌ 語音指令執行失敗：{e}")
+                await processing_msg.edit(content=f"❌ 語音指令執行失敗：{e}")'''
