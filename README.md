@@ -7,12 +7,12 @@
 
 ## 📖 專案簡介 (Introduction)
 
-本專案採用 **進階模組化架構 (Package-based Cogs)**，徹底解決了傳統單一檔案開發的雜亂問題。透過將功能拆分為獨立的「專案包」，我們實現了以下設計目標：
+本專案採用 **進階模組化架構 (Package-based Cogs)**，解決了傳統單一檔案開發的雜亂問題。透過將功能拆分為獨立的「專案包」，我們實現了以下設計目標：
 
-* ✅ **邏輯分離 (Logic Separation)**：每個功能 (如 GPT, Ticketing) 擁有獨立的命名空間。
-* ✅ **介面分離 (UI Separation)**：採用 **MVC 風格**，將 View (按鈕)、Modal (視窗) 與 Controller (邏輯) 分層管理。
-* ✅ **依賴隔離 (Dependency Isolation)**：各模組可獨立管理其工具函式 (Utils)。
-* ✅ **易於擴充 (Extensibility)**：採用 `__init__.py` 入口設計，功能隨插即用。
+**邏輯分離 (Logic Separation)**：每個功能 (如 GPT, Ticketing) 擁有獨立的命名空間。
+**介面分離 (UI Separation)**：採用 **MVC 風格**，將 View (按鈕)、Modal (視窗) 與 Controller (邏輯) 分層管理。
+**依賴隔離 (Dependency Isolation)**：各模組可獨立管理其工具函式 (Utils)。
+**易於擴充 (Extensibility)**：採用 `__init__.py` 入口設計，功能隨插即用。
 
 ---
 ## 環境建置與使用
@@ -37,9 +37,15 @@ python -m .\bot.py
 請在discord中 使用/set_dashboard_channel, /set_login_notify_channel等指令
 設定使用機器人功能頻道
 ```
----
-
-
+### 資料庫遷移功能
+生成檔案
+```bash
+alembic revision --autogenerate -m "想要打的留言"
+```
+更新資料庫
+```bash
+alembic upgrade head
+```
 ## 🚀 功能模組 (Features)。
 
 所有的功能模組皆獨立存放於 `cogs/` 資料夾中，並由 `System` 模組進行統一調度。
@@ -49,11 +55,13 @@ python -m .\bot.py
 * **視覺化操作**：使用 Embeds 與 Buttons 取代繁瑣的文字指令。
 * **跨模組調度**：控制台可直接呼叫其他模組的共用邏輯。
 
-### 2. 🎫 高鐵服務系統 (THSR System)
-* **線上訂票**：依照使用者的車次條件查詢高鐵班次，完成線上訂票並將其添加進車票庫中。
-* **定時訂票**：設定好下定車次與預定時間，機器人持續訂票，並將其添加進車票庫中。
-* **車票記錄**：查看過去車票紀錄與定時訂票紀錄。
-* **設定個資**：設定身分證、信箱、手機號碼、TGO帳號，在購票時自動輸入。
+### 2. 📊 生活日記 (Life Tracker)
+* **自定義數據追蹤**：使用者可自由建立「主分類」（如：開銷、健身、學習）並定義專屬的「數值欄位」。
+* **動態圖表生成**：整合 Matplotlib，根據紀錄自動產生「甜甜圈統計圖」，視覺化各項佔比。
+* **智慧區間切換**：提供週、月、半年、一年等快速切換按鈕，並支援「自訂時間區間」功能。
+* **數據持久化儲存**：採用 SQLAlchemy 進行資料庫管理，確保數萬筆紀錄也能高效讀取與遷移。
+* **AI 智慧分析建議**：整合 Gemini AI，每週一自動根據上週數據產生個人化的生活建議與趨勢分析。
+* **標籤化管理**：支援子分類（標籤）功能，並在刪除標籤時自動進行歷史紀錄重分組，確保資料完整性。
 
 ### 3. 📅 行程管理 (Itinerary Management)
 * **視覺化日程表**：透過控制台一鍵查看當前安排，支援分頁顯示與過期行程自動標記。
@@ -85,7 +93,7 @@ Life_Assistant/
 │── keep_alive.py           # 後端 Web Server (防止休眠)
 │
 └─ cogs/                    # 功能模組存放區 (Plugins)
-    │
+    ├─ Base.py              # Discord物件父類 可添加共用函式
     ├─ Gmail/                   # Gmail 郵件管理模組
     │   ├─ __init__.py          # 模組入口：包含 setup(bot) 函式
     │   ├─ gmail.py             # 核心 Cog：處理定時輪詢 (Polling) 與產生儀表板 UI
@@ -97,20 +105,6 @@ Life_Assistant/
     │   └─ views/               # 介面層：負責 Discord UI 互動
     │       ├─ __init__.py      
     │       └─ gmail_view.py    # 處理寄信 Modal (EmailSendView) 與新信通知介面(NewEmailNotificationView)
-    │
-    ├─ THSR/           # 高鐵服務系統
-    │   ├─ __init__.py 
-    │   ├─ dashboard.py 
-    │   │ 
-    │   ├─ ui/              # 介面層 (THSR子選單)
-    │   │   ├─ view.py      # THSR Dashboard View
-    │   │   └─ buttons.py   # THSR 功能按鈕
-    │   ├─ utils/           # 工具層 
-    │   │   └─ 
-    │   └─ src/                 # 核心邏輯層
-    │       ├─__init__.py
-    │       ├─ AutoBooking.py   # 訂票功能
-    │       └─ GetTimeStamp.py  # 查詢車次時間功能
     │
     ├─ System/              # UI  
     │   ├─ __init__.py      # 模組入口 (Setup)
@@ -133,6 +127,57 @@ Life_Assistant/
     │       ├─ __init__.py      # 使其成為子套件
     │       ├─ itinerary_view.py # 處理 Modal 彈窗輸入、下拉選單選取
     │       └─ view.py          # 通用的分頁或基礎介面元件
+    │
+    ├─ LifeTracker/              # 生活日記模組
+    │   ├─ __init__.py           # 模組入口：載入 Cog 並初始化資料庫
+    │   ├─ LifeTrackerTasks.py   # 核心 Cog：處理每週 AI 總結任務與指令分發
+    │   │
+    │   ├─ utils/                # 工具層：後端邏輯與數據處理
+    │   │   ├─ __init__.py      
+    │   │   ├─ LifeTracker_Manager.py # 資料庫管理器：處理 CRUD、統計邏輯與 JSON 快照
+    │   │   ├─ chart_generator.py     # 圖表引擎：動態繪製 Matplotlib 統計圖
+    │   │   └─ gemini_analyzer.py      # AI 分析器：對接 Gemini API 進行數據分析
+    │   │
+    │   └─ ui/                   # 介面層：遵循 MVC 模式
+    │       ├─ __init__.py      
+    │       ├─ View/             # 視圖層：各級控制面板 (Layouts)
+    │       │   ├─ LifeDashboardView.py       # 模組主入口：分類選擇與概覽
+    │       │   ├─ CategoryDetailView.py      # 分類看板：統計圖表與歷史清單
+    │       │   ├─ RangeEditView.py           # [新] 區間編輯模式：管理時間快捷選項
+    │       │   ├─ LogRecordView.py           # 紀錄數據專用導覽視圖
+    │       │   ├─ ManageSubcatView.py        # 子分類 (標籤) 管理主視圖
+    │       │   └─ DeleteCategorySelectView.py # 刪除分類確認安全視圖
+    │       │
+    │       ├─ Select/           # 選擇組件：下拉選單邏輯 (Controllers)
+    │       │   ├─ CategoryDashboardSelect.py # 主介面分類切換
+    │       │   ├─ RangeSelect.py             # [升級] 支援「切換顯示」與「刪除區間」雙模式
+    │       │   ├─ SubcatSelect.py            # 紀錄時選擇標籤
+    │       │   ├─ EditSubcatSelect.py        # 選擇欲編輯的標籤
+    │       │   ├─ DeleteSubcatSelect.py      # 選擇欲刪除的標籤
+    │       │   └─ DeleteCategorySelect.py    # 選擇欲刪除的主分類
+    │       │
+    │       ├─ Button/           # 按鈕組件：封裝互動行為 (Actions)
+    │       │   ├─ SetupBtn.py             # 初始化設定
+    │       │   ├─ LogRecordBtn.py         # 開啟紀錄視窗
+    │       │   ├─ FillRecordBtn.py        # 進入數據填充流程
+    │       │   ├─ SubmitRecordBtn.py      # 提交數據至資料庫
+    │       │   ├─ ManageSubcatBtn.py      # 管理標籤介面切換
+    │       │   ├─ AddSubCategoryBtn.py    # 新增子分類標籤
+    │       │   ├─ ToggleRangeEditBtn.py    # [新] 進入時間區間編輯模式
+    │       │   ├─ ToggleChartBtn.py       # 切換圖表統計維度
+    │       │   ├─ ToggleListModeBtn.py    # 切換清單/圖表模式
+    │       │   ├─ EditModeBtn.py          # 進入編輯模式
+    │       │   ├─ PageBtn.py              # 歷史紀錄分頁控制
+    │       │   ├─ BackToDetailBtn.py      # 返回分類詳情面板
+    │       │   └─ BackToLifeDashboardBtn.py # 返回生活日記主分頁
+    │       │
+    │       └─ Modal/            # 視窗層：表單輸入介面 (Forms)
+    │           ├─ SetupCategoryModal.py    # 初始建立分類 (定義欄位)
+    │           ├─ AddSubCategoryModal.py   # 新增子分類標籤
+    │           ├─ DynamicLogModal.py       # 根據分類欄位動態生成的紀錄表單
+    │           ├─ InputValueModal.py       # 數值修正輸入
+    │           ├─ EditSubcatNameModal.py   # 修改標籤名稱
+    │           └─ SetRangeModal.py         # [升級] 自定義天數輸入 (支援年/月/週/天換算)
     ├─ if more.../
     
 

@@ -9,8 +9,7 @@ class OpenDashboardButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
             label="開啟生活助手", 
-            style=discord.ButtonStyle.primary, 
-            emoji="🚀", 
+            style=discord.ButtonStyle.primary,
             custom_id="sys_open_dashboard"
         )
         self.bot = bot
@@ -42,11 +41,12 @@ class OpenDashboardButton(ui.Button):
 
 # 返回主選單按鈕
 class BackToMainButton(ui.Button):
-    def __init__(self, bot):
+    def __init__(self, bot, label="返回主選單", emoji=None, row=4):
         super().__init__(
-            label="返回主選單",
-            style=discord.ButtonStyle.secondary,
-            row=4
+            label=label,
+            emoji=emoji,
+            style=discord.ButtonStyle.danger,
+            row=row
         )
         self.bot = bot
 
@@ -55,7 +55,7 @@ class BackToMainButton(ui.Button):
         embed, view = MainControlView.create_dashboard_ui(self.bot)
         await interaction.response.edit_message(embed=embed, view=view)
         
-# 前往 GPT UI按鈕
+'''# 前往 GPT UI按鈕
 class GoToGPTButton(ui.Button):
     def __init__(self, bot):
         super().__init__(
@@ -78,7 +78,7 @@ class GoToGPTButton(ui.Button):
         
         view = GPTDashboardView(self.bot)
         
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view)'''
 
 '''class GoToTHSRButton(ui.Button):
     def __init__(self, bot):
@@ -148,3 +148,59 @@ class GoToGmailButton(ui.Button):
         else:
             await interaction.response.send_message("❌ 錯誤：找不到 Gmail 模組。", ephemeral=True)
 
+class GoToLifeTrackerButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="生活日記", 
+            style=discord.ButtonStyle.primary, 
+            emoji="📔",
+            row=0
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            from cogs.LifeTracker.ui.View import LifeDashboardView
+            
+            embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)
+
+class GoToStockButton(ui.Button):
+    def __init__(self, bot):
+        super().__init__(
+            label="股票監控", 
+            style=discord.ButtonStyle.primary, 
+            emoji="📈",
+            row=0 # 你可以根據排版需求調整 row
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        # 1. 獲取 Stock Cog 實例
+        stock_cog = self.bot.get_cog("Stock") 
+
+        if not stock_cog:
+            return await interaction.response.send_message("❌ 錯誤：找不到 Stock 模組。", ephemeral=True)
+
+        try:
+            # 2. 從你剛才建立的 stock_ui 匯入 View
+            # 注意：路徑請根據你的資料夾結構微調，假設是 cogs.Stock.stock_ui
+            from cogs.Stock.stock_ui import StockDashboardView
+            
+            sub_view = StockDashboardView(self.bot, stock_cog) 
+            
+            # 3. 建立股票儀表板的 Embed
+            sub_embed = discord.Embed(
+                title="📈 台股即時監控系統",
+                description="歡迎使用股票助手！您可以查看清單、新增監控或移除標的。",
+                color=0x2ecc71 # 綠色系，符合台股（漲）或專業感
+            )
+            sub_embed.add_field(name="目前狀態", value="✅ 自動監控任務執行中", inline=False)
+            
+            # 4. 切換介面
+            await interaction.response.edit_message(embed=sub_embed, view=sub_view)
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)

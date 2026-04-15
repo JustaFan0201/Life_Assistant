@@ -1,14 +1,10 @@
 discord.py
 python-dotenv
-openai
 flask
 
 SQLAlchemy
 psycopg2-binary
-
-selenium
-webdriver-manager
-ddddocr==1.0.6
+alembic
 
 aiosmtplib
 aioimaplib
@@ -20,3 +16,6 @@ torch
 transformers
 faiss-cpu
 #faiss-gpu
+matplotlib
+openai
+faster-whisper

@@ -14,12 +14,14 @@ class SettingsCog(commands.Cog):
 
     async def _update_setting(self, interaction: discord.Interaction, column, value: int, success_msg: str):
         """
-        更新 BotSettings 表中 ID=1 的特定欄位
+        根據當前伺服器 ID (Guild ID) 更新 BotSettings
         """
-        
-        print("開始更新BotSettings")
+        guild_id = interaction.guild_id
+        if not guild_id:
+            return await interaction.response.send_message("❌ 請在伺服器內使用此指令。", ephemeral=True)
+
         await interaction.response.defer(ephemeral=True)
-        if set_botsettings(column, value):
+        if set_botsettings(column, value, guild_id):
             await interaction.followup.send(success_msg)
             print(f"⚙️ (User: {interaction.user})")
         else:
@@ -27,7 +29,7 @@ class SettingsCog(commands.Cog):
 
     
     @app_commands.command(name="set_dashboard_channel", description="設定 Dashboard 主控台顯示的頻道")
-    @app_commands.default_permissions(administrator=True) # 只有管理員能用
+    @app_commands.default_permissions(administrator=True)
     async def set_dashboard_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
         await self._update_setting(
             interaction, 
