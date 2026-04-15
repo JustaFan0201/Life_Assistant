@@ -3,7 +3,7 @@ from datetime import time, datetime
 from database.db import DatabaseSession
 from database.models import TrackerCategory
 from cogs.LifeTracker.utils import LifeTracker_Manager, AI_Analyzer
-from cogs.LifeTracker.src import stt_whisper
+#from cogs.LifeTracker.src import stt_whisper
 from config import TW_TZ
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 
