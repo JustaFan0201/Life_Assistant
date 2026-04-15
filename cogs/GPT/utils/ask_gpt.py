@@ -2,7 +2,7 @@ import openai
 from config import GPT_API
 
 # 建立一個共用的函數來呼叫 GPT
-def ask_gpt(messages, max_tokens=300):
+def ask_gpt(messages, max_tokens=512):
     try:
         client = openai.OpenAI(
             api_key=GPT_API,

@@ -1,9 +1,9 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
-from ..utils.ask_gpt import ask_gpt
+from cogs.GPT.utils.ask_gpt import ask_gpt
 
-TARGET_CHANNEL_ID = 1476178479329312858
+from database.models import BotSettings
+from cogs.System.settings import get_botsettings
 
 class ReplyCog(commands.Cog):
     def __init__(self, bot):
@@ -36,7 +36,12 @@ class ReplyCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if self.active and message.channel.id == TARGET_CHANNEL_ID and message.author != self.bot.user:
+        if message.author == self.bot.user or message.author.bot: return
+
+        if self.active and message.channel.id == get_botsettings(BotSettings.gpt_channel_id):
+            # can talk
+            query = "query: " + message.content
+            
             messages = []
             for q, a in self.history[-5:]:
                 messages.append({"role": "user", "content": q})
@@ -51,3 +56,5 @@ class ReplyCog(commands.Cog):
                     self.history.append((message.content, result))
                 except Exception as e:
                     print(f"GPT Error: {e}")
+        else:
+            # just listen

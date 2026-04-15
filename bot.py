@@ -4,8 +4,9 @@ import discord
 from discord.ext import commands
 from keep_alive import keep_alive
 import datetime
-from database.db import init_db, DatabaseSession, SessionLocal
+from database.db import init_db, SessionLocal
 from database.models import BotSettings
+from cogs.System.settings import get_botsettings
 
 from config import COGS_DIR, DISCORD_BOT_TOKEN, RENDER
 
@@ -26,16 +27,9 @@ async def on_ready():
 
     notify_channel_id = None
     
-    try:
-        with DatabaseSession() as db:
-            settings = db.query(BotSettings).filter(BotSettings.id == 1).first()
-            if settings and settings.login_notify_channel_id:
-                notify_channel_id = settings.login_notify_channel_id
-                print(f"🔍 從資料庫讀取到通知頻道 ID: {notify_channel_id}")
-    except Exception as e:
-        print(f"❌ 讀取資料庫設定失敗: {e}")
-
-    if notify_channel_id:
+    notify_channel_id = get_botsettings(BotSettings.login_notify_channel_id)
+    if notify_channel_id: 
+        print(f"🔍 從資料庫讀取到通知頻道 ID: {notify_channel_id}")
         try:
             target_id = int(notify_channel_id)
             channel = await bot.fetch_channel(target_id)

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from ...System.ui.buttons import BackToMainButton
 
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import User,THSRProfile,Ticket,BookingSchedule
 
 from .buttons import (
@@ -165,7 +165,7 @@ class THSRProfileModal(ui.Modal, title="設定高鐵個人檔案"):
         }
 
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 # 1. 確保 User 存在
                 user = db.query(User).filter(User.discord_id == discord_id).first()
                 if not user:
@@ -599,7 +599,7 @@ class THSRTrainSelect(ui.Select):
         
         # 1. 直接撈取個資 (不需再做防擋，因為前面按鈕已擋過)
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 profile = db.query(THSRProfile).filter(THSRProfile.user_id == interaction.user.id).first()
                 if profile:
                     user_data = {
@@ -825,7 +825,7 @@ class THSRScheduleModal(ui.Modal, title="⏰ 設定定時搶票"):
 
         # 寫入資料庫
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 user = db.query(User).filter(User.discord_id == interaction.user.id).first()
                 if not user:
                     user = User(discord_id=interaction.user.id, username=interaction.user.name)

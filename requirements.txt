@@ -15,3 +15,8 @@ aioimaplib
 cryptography
 
 alembic
+
+torch
+transformers
+faiss-cpu
+#faiss-gpu

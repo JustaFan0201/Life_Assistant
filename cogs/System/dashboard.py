@@ -5,7 +5,7 @@ import asyncio
 
 from .ui.view import MainControlView, SystemStartView
 
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import User, BotSettings
 
 async def deploy_dashboard_message(bot, channel_id: int):
@@ -17,7 +17,10 @@ async def deploy_dashboard_message(bot, channel_id: int):
             print(f"⚠️ [Dashboard] 找不到頻道 ID: {channel_id}")
             return
         try:
-            await channel.purge(limit=10) 
+            await channel.purge(
+                limit=10,
+                check=lambda m: m.author == bot.user
+            ) 
         except Exception as e:
             print(f"⚠️ [Dashboard] 清除舊訊息失敗 (可能無權限): {e}")
 
@@ -35,7 +38,7 @@ class SystemCog(commands.Cog):
 
     def _register_user(self, discord_id: int, username: str):
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 user = db.query(User).filter(User.discord_id == discord_id).first()
                 
                 if not user:
@@ -73,7 +76,7 @@ class SystemCog(commands.Cog):
         
         channel_id = None
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 settings = db.query(BotSettings).filter(BotSettings.id == 1).first()
                 if settings and settings.dashboard_channel_id:
                     channel_id = settings.dashboard_channel_id

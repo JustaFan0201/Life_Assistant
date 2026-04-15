@@ -3,7 +3,7 @@ import discord
 from discord import ui
 import asyncio
 
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import User, THSRProfile, Ticket,BookingSchedule
 
 from ..src.GetTimeStamp import get_thsr_schedule, load_more_schedule
@@ -12,7 +12,7 @@ from ..src.AutoBooking import search_trains, select_train, submit_passenger_info
 def check_user_profile(user_id):
     """檢查使用者是否已設定身分證"""
     try:
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             profile = db.query(THSRProfile).filter(THSRProfile.user_id == user_id).first()
             if profile and profile.personal_id:
                 return True
@@ -147,7 +147,7 @@ async def run_booking_flow(interaction: discord.Interaction, bot, driver, train_
             if final_result["status"] == "success":
                 # 寫入資料庫
                 try:
-                    with DatabaseSession() as db:
+                    with SessionLocal() as db:
                         ticket = Ticket(
                             user_id=interaction.user.id,
                             pnr=final_result['pnr'],
@@ -256,7 +256,7 @@ class OpenTHSRProfileButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         user_data = {}
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 profile = db.query(THSRProfile).filter(THSRProfile.user_id == interaction.user.id).first()
                 if profile:
                     user_data = {'pid': profile.personal_id, 'phone': profile.phone, 'email': profile.email, 'tgo': profile.tgo_id}
@@ -273,7 +273,7 @@ class OpenTHSRTicketsButton(ui.Button):
         await interaction.response.defer()
         tickets = []
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 tickets = db.query(Ticket).filter(Ticket.user_id == interaction.user.id).order_by(Ticket.created_at.desc()).limit(10).all()
         except:
             await interaction.followup.send("❌ 資料庫讀取失敗", ephemeral=True)
@@ -291,7 +291,7 @@ class ToggleScheduleButton(ui.Button):
         await interaction.response.defer()
         schedules = []
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 # 撈取該使用者的定時任務，依照建立時間倒序排列
                 schedules = db.query(BookingSchedule).filter(
                     BookingSchedule.user_id == interaction.user.id
@@ -314,7 +314,7 @@ class ToggleTicketsButton(ui.Button):
         await interaction.response.defer()
         tickets = []
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 # 撈取該使用者的實體車票
                 tickets = db.query(Ticket).filter(
                     Ticket.user_id == interaction.user.id

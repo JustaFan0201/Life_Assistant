@@ -1,7 +1,6 @@
 # database/db.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .models import Base
 from config import DATABASE_URL
 
 _engine = create_engine(
@@ -28,12 +27,3 @@ def init_db() -> bool:
         return False
     # print("✅ 資料庫資料表已建立/更新")
     return True
-
-# Context Manager 用法，確保 Session 會被關閉
-class DatabaseSession:
-    def __enter__(self):
-        self.db = SessionLocal()
-        return self.db
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.db.close()

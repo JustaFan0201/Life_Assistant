@@ -4,7 +4,7 @@ from discord.ext import commands, tasks
 from datetime import datetime, timezone, timedelta
 import asyncio
 
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import BookingSchedule, THSRProfile, Ticket
 from .src.AutoBooking import search_trains, select_train, submit_passenger_info, get_booking_result
 
@@ -21,7 +21,7 @@ class THSRTask(commands.Cog):
     @tasks.loop(seconds=5)
     async def check_schedules(self):
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 tw_now = datetime.now(TW_TZ)
                 now_naive = tw_now.replace(tzinfo=None)
 
@@ -57,7 +57,7 @@ class THSRTask(commands.Cog):
         user_profile = {}
         
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 task = db.query(BookingSchedule).get(schedule_id)
                 if not task: return
 
@@ -148,7 +148,7 @@ class THSRTask(commands.Cog):
         RETRY_INTERVAL = timedelta(seconds=30)      
 
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 task = db.query(BookingSchedule).get(schedule_id)
                 if not task: return
 
@@ -173,7 +173,7 @@ class THSRTask(commands.Cog):
             print(f"處理重試邏輯時發生錯誤: {e}")
 
     def update_status(self, schedule_id, status):
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             task = db.query(BookingSchedule).get(schedule_id)
             if task:
                 task.status = status
@@ -181,7 +181,7 @@ class THSRTask(commands.Cog):
 
     def save_ticket(self, user_id, res, start, end):
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 ticket = Ticket(
                     user_id=user_id,
                     pnr=res['pnr'],

@@ -1,7 +1,7 @@
 import discord
 from discord import ui
 
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import User
 import asyncio
 
@@ -28,7 +28,7 @@ class OpenDashboardButton(ui.Button):
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     def _register_user_db(self, discord_id, username):
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             user = db.query(User).filter(User.discord_id == discord_id).first()
             if not user:
                 new_user = User(discord_id=discord_id, username=username)
