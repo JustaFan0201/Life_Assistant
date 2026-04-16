@@ -1,6 +1,8 @@
 discord.py
 python-dotenv
 flask
+requests
+aiohttp
 
 SQLAlchemy
 psycopg2-binary
@@ -19,3 +21,4 @@ faiss-cpu
 matplotlib
 openai
 faster-whisper
+pandas
