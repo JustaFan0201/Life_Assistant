@@ -19,7 +19,7 @@ class GmailSetupModal(discord.ui.Modal, title="設置個人 Gmail 服務"):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         clean_address = EmailTools()._extract_pure_email(self.address.value)
-        report = self.cog.db_manager.save_user_config(interaction.user.id, clean_address, self.password.value)
+        report = self.cog.SessionLocal.save_user_config(interaction.user.id, clean_address, self.password.value)
         await interaction.followup.send(report, ephemeral=True)
 
 class EmailSendView(discord.ui.Modal, title='寄件設定'):
@@ -35,7 +35,7 @@ class EmailSendView(discord.ui.Modal, title='寄件設定'):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         try:
-            user_config = self.cog.db_manager.get_user_config(self.user_id)
+            user_config = self.cog.SessionLocal.get_user_config(self.user_id)
             if not user_config:
                 return await interaction.followup.send("❌ 您尚未設置個人信箱。", ephemeral=True)
 
@@ -59,7 +59,7 @@ class EmailReplyModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        user_config = self.cog.db_manager.get_user_config(self.user_id)
+        user_config = self.cog.SessionLocal.get_user_config(self.user_id)
         if not user_config:
             return await interaction.followup.send("❌ 找不到您的信箱設定。", ephemeral=True)
         
@@ -79,7 +79,7 @@ class AddEmailListView(discord.ui.Modal, title="新增常用聯絡人"):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         clean_address = EmailTools()._extract_pure_email(self.address_input.value)
-        report = self.cog.db_manager.add_and_save(self.name_input.value, clean_address, self.user_id)
+        report = self.cog.SessionLocal.add_and_save(self.name_input.value, clean_address, self.user_id)
         await interaction.followup.send(report, ephemeral=True)
 
 class EditEmailModal(discord.ui.Modal, title="修改聯絡人資料"):
@@ -90,7 +90,7 @@ class EditEmailModal(discord.ui.Modal, title="修改聯絡人資料"):
 
     async def on_submit(self, interaction: discord.Interaction):
         clean_address = EmailTools()._extract_pure_email(self.email_input.value)
-        result = self.cog.db_manager.update_contact(self.user_id, self.nickname, clean_address)
+        result = self.cog.SessionLocal.update_contact(self.user_id, self.nickname, clean_address)
         await interaction.response.send_message(result, ephemeral=True)
 
 class NewEmailNotificationView(discord.ui.View):
@@ -130,7 +130,7 @@ class GmailDashboardView(ui.View):
         await interaction.response.send_modal(AddEmailListView(self.gmail_cog, self.user_id))
 
     async def manage_callback(self, interaction: discord.Interaction):
-        contacts = self.gmail_cog.db_manager.get_all_contacts(self.user_id)
+        contacts = self.gmail_cog.SessionLocal.get_all_contacts(self.user_id)
         if not contacts:
             return await interaction.response.send_message("您的聯絡人清單是空的。", ephemeral=True)
         await interaction.response.send_message("選擇要管理的聯絡人：", view=ContactManageView(self.gmail_cog, self.user_id), ephemeral=True)
@@ -148,7 +148,7 @@ class GmailDashboardView(ui.View):
 class RecipientSelectView(discord.ui.View):
     def __init__(self, cog, user_id):
         super().__init__(timeout=60); self.cog = cog; self.user_id = user_id
-        user_contacts = self.cog.db_manager.get_all_contacts(user_id)
+        user_contacts = self.cog.SessionLocal.get_all_contacts(user_id)
         if user_contacts:
             options = [discord.SelectOption(label=name, description=mail, value=mail) for name, mail in user_contacts.items()]
             select = discord.ui.Select(placeholder="選擇常用聯絡人...", options=options)
@@ -164,7 +164,7 @@ class RecipientSelectView(discord.ui.View):
 class ContactManageView(discord.ui.View):
     def __init__(self, cog, user_id):
         super().__init__(timeout=60); self.cog = cog; self.user_id = user_id
-        user_contacts = self.cog.db_manager.get_all_contacts(user_id)
+        user_contacts = self.cog.SessionLocal.get_all_contacts(user_id)
         options = [discord.SelectOption(label=name, description=mail, value=name) for name, mail in user_contacts.items()]
         select = discord.ui.Select(placeholder="選擇聯絡人進行操作...", options=options); select.callback = self.manage_callback; self.add_item(select)
 
@@ -182,5 +182,5 @@ class ContactActionView(discord.ui.View):
 
     @discord.ui.button(label="刪除聯絡人", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def delete_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        result = self.cog.db_manager.delete_contact(self.user_id, self.nickname)
+        result = self.cog.SessionLocal.delete_contact(self.user_id, self.nickname)
         await interaction.response.edit_message(content=result, view=None)

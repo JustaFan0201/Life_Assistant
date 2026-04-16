@@ -1,15 +1,17 @@
 import discord
 from discord.ext import commands
 from cogs.GPT.utils.ask_gpt import ask_gpt
-
+from cogs.GPT.src.memory_manager import MemoryManager
 from database.models import BotSettings
 from cogs.System.settings import get_botsettings
+from collections import deque
 
 class ReplyCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active = False
-        self.history = [] # 存公開頻道的對話紀錄
+        self.memory_manager = MemoryManager()
+        self.history = deque(maxlen=10) # 存公開頻道的對話紀錄
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -37,13 +39,26 @@ class ReplyCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author == self.bot.user or message.author.bot: return
-
-        if self.active and message.channel.id == get_botsettings(BotSettings.gpt_channel_id):
+        user_id = message.author_id
+        msg_text = message.content
+        metadata = {"guild_name": message.guild.name,
+                    "channel_name": message.channel.name}
+        
+        if self.active and (message.guild is None or message.channel.id == get_botsettings(BotSettings.gpt_channel_id, message.guild.id)):
             # can talk
-            query = "query: " + message.content
-            
             messages = []
-            for q, a in self.history[-5:]:
+
+            mems = self.memory_manager.search_memory(user_id, msg_text, k=3)
+            mems_text = "\n".join(m["text"] for m in mems)
+            for m in mems:
+                self.m
+            if mems_text:
+                messages.append({
+                    "role": "system",
+                    "content": f"以下是與使用者相關的記憶：\n{mems_text}"
+                })
+            
+            for q, a in self.history:
                 messages.append({"role": "user", "content": q})
                 messages.append({"role": "assistant", "content": a})
             
@@ -54,7 +69,9 @@ class ReplyCog(commands.Cog):
                     result = ask_gpt(messages, max_tokens=500)
                     await message.channel.send(result)
                     self.history.append((message.content, result))
+                    self.memory_manager.add_memory(user_id, msg_text, metadata)
                 except Exception as e:
                     print(f"GPT Error: {e}")
         else:
-            # just listen
+            self.memory_manager.add_memory(user_id, msg_text, metadata)
+            

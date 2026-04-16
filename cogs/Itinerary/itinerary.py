@@ -9,7 +9,7 @@ class Itinerary(commands.Cog):
     def __init__(self, bot, db_session):
         self.bot = bot
         self.db_session = db_session 
-        self.db_manager = CalendarDatabaseManager(db_session)
+        self.SessionLocal = CalendarDatabaseManager(db_session)
         self.last_check_minute = -1
         self.check_reminders.start()
 
@@ -17,7 +17,7 @@ class Itinerary(commands.Cog):
         
         clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
         
-        success, report = self.db_manager.add_event(
+        success, report = self.SessionLocal.add_event(
             user_id=interaction.user.id,
             event_time=clean_time,
             description=description,

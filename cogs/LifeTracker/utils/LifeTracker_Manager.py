@@ -1,4 +1,4 @@
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import User, TrackerCategory, TrackerSubCategory, LifeRecord
 from datetime import datetime, timedelta
 from config import TW_TZ
@@ -52,7 +52,7 @@ class LifeTracker_Manager:
             if len(sub) > MAX_SUBCAT_LENGTH:
                 return False, f"標籤「{sub}」過長，請限制在 {MAX_SUBCAT_LENGTH} 字內。"
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             existing = db.query(TrackerCategory).filter(
                 TrackerCategory.user_id == user_id,
                 TrackerCategory.name == cat_name
@@ -88,7 +88,7 @@ class LifeTracker_Manager:
     @staticmethod
     def delete_category(category_id: int):
         """刪除整個主分類及其所有子分類與紀錄"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if cat:
                 db.delete(cat)
@@ -101,14 +101,14 @@ class LifeTracker_Manager:
         """
         取得特定使用者的所有主分類 (未來給下拉選單使用)
         """
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             categories = db.query(TrackerCategory).filter(TrackerCategory.user_id == user_id).all()
             return categories
 
     @staticmethod
     def get_category_details(category_id: int):
         """取得單一分類詳情，包含區間選項與目前預設區間"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             category = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not category:
                 return None
@@ -129,7 +129,7 @@ class LifeTracker_Manager:
     @staticmethod
     def get_recent_records(category_id: int, page: int = 0, limit: int = 10, range_days: int = None):
         """取得紀錄與總頁數 (支援時間區間過濾)"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             from database.models import LifeRecord
             from datetime import datetime, timedelta
             from config import TW_TZ
@@ -174,7 +174,7 @@ class LifeTracker_Manager:
         if note and len(note) > MAX_TEXT_LENGTH:
             return False, f"備註太長了，請限制在 {MAX_TEXT_LENGTH} 字內。"
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not cat:
                 return False, "找不到對應的分類。"
@@ -202,7 +202,7 @@ class LifeTracker_Manager:
         if not is_valid:
             return False, error
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             now = datetime.now(TW_TZ)
             parsed_date = datetime.strptime(record_time_str, "%Y/%m/%d")
             final_time = parsed_date.replace(hour=now.hour, minute=now.minute, second=now.second, tzinfo=TW_TZ)
@@ -241,7 +241,7 @@ class LifeTracker_Manager:
             if len(name) > MAX_SUBCAT_LENGTH:
                 return False, f"標籤「{name}」過長，請限制在 {MAX_SUBCAT_LENGTH} 字內。"
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             existing_subcats = db.query(TrackerSubCategory).filter(
                 TrackerSubCategory.category_id == category_id
             ).all()
@@ -274,7 +274,7 @@ class LifeTracker_Manager:
         if len(new_name) > MAX_SUBCAT_LENGTH:
             return False, f"標籤名稱過長，請限制在 {MAX_SUBCAT_LENGTH} 字內。"
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             conflict = db.query(TrackerSubCategory).filter(
                 TrackerSubCategory.category_id == category_id,
                 TrackerSubCategory.name == new_name,
@@ -301,7 +301,7 @@ class LifeTracker_Manager:
         刪除指定的子分類 (標籤)
         核心邏輯：在刪除標籤前，將所有關聯紀錄的 ID 設為 None，並將快照名稱更新為「其他」
         """
-        with DatabaseSession() as db: 
+        with SessionLocal() as db: 
             subcat = db.query(TrackerSubCategory).filter(TrackerSubCategory.id == subcat_id).first()
             
             if subcat:
@@ -326,7 +326,7 @@ class LifeTracker_Manager:
         取得該分類下各子分類的「數值總和」。
         如果傳入 target_field，就只加總該欄位的數值。
         """
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             now = datetime.now(TW_TZ)
             start_date = now - timedelta(days=int(range_days)) 
 
@@ -370,7 +370,7 @@ class LifeTracker_Manager:
         """
         根據指定的範圍撈取紀錄：'week' (7天), 'month' (30天), 'half_year' (180天)
         """
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             
             now = datetime.now(TW_TZ)
             if range_type == "week":
@@ -400,7 +400,7 @@ class LifeTracker_Manager:
     @staticmethod
     def delete_range_option(category_id: int, days: int):
         """刪除一個時間區間選項 (保留至少一個)"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if cat and cat.range_options:
                 options = list(cat.range_options)
@@ -419,7 +419,7 @@ class LifeTracker_Manager:
     @staticmethod
     def update_current_range(category_id: int, days: int):
         """更新目前正在檢視的區間 (持久化)"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if cat:
                 cat.current_range = days
@@ -439,7 +439,7 @@ class LifeTracker_Manager:
         if days < MIN_DAY_RANGE or days > MAX_DAY_RANGE:
             return False, f"天數不在範圍中！請設定在 {MIN_DAY_RANGE} ~ {MAX_DAY_RANGE} 之間。"
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
             if not cat:
                 return False, "找不到該分類資料。"
@@ -465,7 +465,7 @@ class LifeTracker_Manager:
         values = ai_result.get("values", {})
         note = ai_result.get("note", "")
 
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             
             # 1. 根據 AI 給的分類 ID 與 標籤名稱，找尋資料庫中對應的 subcat_id
             subcat = db.query(TrackerSubCategory).filter(

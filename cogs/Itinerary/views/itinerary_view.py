@@ -86,7 +86,7 @@ class ViewPageSelect(discord.ui.View):
         self.user_id = user_id
         self.page = page
 
-        self.data_list = self.cog.db_manager.get_user_events(user_id)
+        self.data_list = self.cog.SessionLocal.get_user_events(user_id)
         count = len(self.data_list)
         start, end = page * 10, (page + 1) * 10
         current_items = self.data_list[start:end]
@@ -134,7 +134,7 @@ class ItineraryDeleteView(discord.ui.View):
         self.user_id = user_id
         self.page = page
         
-        formatted = self.cog.db_manager.get_formatted_list(user_id)
+        formatted = self.cog.SessionLocal.get_formatted_list(user_id)
         start, end = page * 10, (page + 1) * 10
         current_data = formatted[start:end]
 
@@ -162,7 +162,7 @@ class ConfirmDeleteView(discord.ui.View):
 
     @discord.ui.button(label="確認刪除", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def confirm_btn(self, interaction, button):
-        success, msg = self.cog.db_manager.delete_event_by_id(self.event_id, interaction.user.id)
+        success, msg = self.cog.SessionLocal.delete_event_by_id(self.event_id, interaction.user.id)
         await interaction.response.edit_message(content=msg, view=None)
 
 class ItineraryDashboardView(ui.View):

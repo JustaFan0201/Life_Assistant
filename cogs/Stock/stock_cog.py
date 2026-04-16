@@ -14,9 +14,9 @@ REPORT_TIME = time(hour=13, minute=45, tzinfo=TW_TIME)
 
 
 class Stock(commands.Cog):
-    def __init__(self, bot, db_manager):
+    def __init__(self, bot, SessionLocal):
         self.bot = bot
-        self.db_manager = db_manager 
+        self.SessionLocal = SessionLocal 
         self.api_token = os.getenv("FUGLE_TOKEN")
         self.api_lock = asyncio.Lock()
         
@@ -36,7 +36,7 @@ class Stock(commands.Cog):
         current_time_val = now.hour * 100 + now.minute
         if not (900 <= current_time_val <= 1335): return
 
-        with self.db_manager() as session:
+        with self.SessionLocal() as session:
             watches = session.query(UserStockWatch).all()
             for watch in watches:
                 if watch.target_up is None and watch.target_down is None: continue
@@ -76,7 +76,7 @@ class Stock(commands.Cog):
         # 💡 注意：Modal 必須直接回覆，不能先 defer
         try:
             await interaction.response.send_modal(
-                StockAddModal(self.db_manager, self.api_token, self.api_lock)
+                StockAddModal(self.SessionLocal, self.api_token, self.api_lock)
             )
         except Exception as e:
             print(f"❌ 無法發送 Modal: {e}")
@@ -88,13 +88,13 @@ class Stock(commands.Cog):
     @app_commands.command(name="stock_remove", description="下拉選單刪除股票")
     async def stock_remove(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        with self.db_manager() as session:
+        with self.SessionLocal() as session:
             user = session.query(User).filter_by(discord_id=interaction.user.id).first()
             if not user or not user.stocks:
                 return await interaction.followup.send("⚠️ 你的清單目前是空的。")
             
             view = ui.View()
-            view.add_item(StockRemoveSelect(user.stocks, self.db_manager))
+            view.add_item(StockRemoveSelect(user.stocks, self.SessionLocal))
             await interaction.followup.send("請選擇要移除的標的：", view=view)
 
     # --- 內部邏輯：更新清單訊息 ---
@@ -111,7 +111,7 @@ class Stock(commands.Cog):
                 timestamp=datetime.now(TW_TIME)
             )
             
-            with self.db_manager() as session:
+            with self.SessionLocal() as session:
                 user = session.query(User).filter_by(discord_id=interaction.user.id).first()
                 if not user or not user.stocks:
                     msg = "⚠️ 清單目前是空的。"
@@ -190,5 +190,5 @@ class Stock(commands.Cog):
             print(f"無法發送私訊給 {user_id}: {e}")
 
 async def setup(bot):
-    db_manager = getattr(bot, "db_session", None)
-    await bot.add_cog(Stock(bot, db_manager))
+    SessionLocal = getattr(bot, "db_session", None)
+    await bot.add_cog(Stock(bot, SessionLocal))

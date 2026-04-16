@@ -21,9 +21,9 @@ class StockAddModal(ui.Modal, title='新增/更新精確監控'):
     # 跌幅報警
     down_percent = ui.TextInput(label='跌幅報警 % (選填)', placeholder='例如填 -2 代表 -2%', required=False)
 
-    def __init__(self, db_manager, api_token, api_lock):
+    def __init__(self, SessionLocal, api_token, api_lock):
         super().__init__()
-        self.db_manager = db_manager
+        self.SessionLocal = SessionLocal
         self.api_token = api_token
         self.api_lock = api_lock
 
@@ -50,7 +50,7 @@ class StockAddModal(ui.Modal, title='新增/更新精確監控'):
             if not info:
                 return await interaction.followup.send(f"❌ 找不到股票 `{sym}`", ephemeral=True)
 
-            with self.db_manager() as session:
+            with self.SessionLocal() as session:
                 user = session.query(User).filter_by(discord_id=interaction.user.id).first()
                 if not user:
                     user = User(discord_id=interaction.user.id, username=interaction.user.name)
@@ -91,17 +91,17 @@ class StockAddModal(ui.Modal, title='新增/更新精確監控'):
             await interaction.followup.send(f"❌ 發生未知錯誤: {e}", ephemeral=True)
 
 class StockRemoveSelect(ui.Select):
-    def __init__(self, stocks, db_manager):
+    def __init__(self, stocks, SessionLocal):
         options = [
             discord.SelectOption(label=f"{s.stock_name} ({s.stock_symbol})", value=s.stock_symbol)
             for s in stocks
         ]
         super().__init__(placeholder="請選擇要移除的股票...", options=options)
-        self.db_manager = db_manager
+        self.SessionLocal = SessionLocal
 
     async def callback(self, interaction: discord.Interaction):
         from database.models import UserStockWatch
-        with self.db_manager() as session:
+        with self.SessionLocal() as session:
             watch = session.query(UserStockWatch).filter_by(
                 user_id=interaction.user.id, stock_symbol=self.values[0]).first()
             if watch:
@@ -143,18 +143,18 @@ class StockDashboardView(ui.View):
     @ui.button(label="新增股票監控", style=discord.ButtonStyle.primary, emoji="➕")
     async def add_stock_btn(self, interaction: discord.Interaction, button: ui.Button):
         # Modal 須用 send_modal
-        await interaction.response.send_modal(StockAddModal(self.cog.db_manager, self.cog.api_token, self.cog.api_lock))
+        await interaction.response.send_modal(StockAddModal(self.cog.SessionLocal, self.cog.api_token, self.cog.api_lock))
 
     @ui.button(label="移除股票監控", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def delete_stock_btn(self, interaction: discord.Interaction, button: ui.Button):
         # 呼叫刪除選單
         await interaction.response.defer(ephemeral=True)
-        with self.cog.db_manager() as session:
+        with self.cog.SessionLocal() as session:
             from database.models import User, UserStockWatch
             user = session.query(User).filter_by(discord_id=interaction.user.id).first()
             if not user or not user.stocks:
                 return await interaction.followup.send("⚠️ 你的清單目前是空的。", ephemeral=True)
             
             view = ui.View()
-            view.add_item(StockRemoveSelect(user.stocks, self.cog.db_manager))
+            view.add_item(StockRemoveSelect(user.stocks, self.cog.SessionLocal))
             await interaction.followup.send("請選擇要移除的標的：", view=view, ephemeral=True)

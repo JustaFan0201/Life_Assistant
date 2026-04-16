@@ -8,7 +8,7 @@ from .utils.gmail_manager import EmailDatabaseManager, EmailConfig
 class Gmail(commands.Cog):
     def __init__(self, bot, db_session):
         self.bot = bot
-        self.db_manager = EmailDatabaseManager(db_session)
+        self.SessionLocal = EmailDatabaseManager(db_session)
         
         channel_id = os.getenv("DISCORD_NOTIFY_CHANNEL_ID")
         self.notify_channel_id = int(channel_id) if channel_id else None 
@@ -23,7 +23,7 @@ class Gmail(commands.Cog):
         
         configs = []
         try:
-            with self.db_manager.Session() as session:
+            with self.SessionLocal.Session() as session:
                 user_ids = [c.user_id for c in session.query(EmailConfig.user_id).all()]
         except Exception as e:
             print(f"[資料庫輪詢] 查詢設定失敗: {e}")
@@ -34,7 +34,7 @@ class Gmail(commands.Cog):
 
         for user_id in user_ids:
             try:
-                user_config = self.db_manager.get_user_config(user_id)
+                user_config = self.SessionLocal.get_user_config(user_id)
 
                 if not user_config:
                     continue
@@ -54,7 +54,7 @@ class Gmail(commands.Cog):
                         if last_id is not None:
                             await self.send_private_notification(email_info, user_id)
 
-                        self.db_manager.update_last_email_id(user_id, str(email_info['id']))
+                        self.SessionLocal.update_last_email_id(user_id, str(email_info['id']))
                     
             except Exception as e:
                 print(f"[輪詢錯誤] 使用者 {user_id}: {e}")
@@ -92,7 +92,7 @@ class Gmail(commands.Cog):
     def create_gmail_dashboard_ui(self, user_id):
         from .views.gmail_view import GmailDashboardView
         
-        user_config = self.db_manager.get_user_config(user_id)
+        user_config = self.SessionLocal.get_user_config(user_id)
         last_id = user_config.get('last_email_id') if user_config else "尚未設置"
 
         embed = discord.Embed(

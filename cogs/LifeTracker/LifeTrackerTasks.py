@@ -1,6 +1,6 @@
 from discord.ext import commands,tasks
 from datetime import time, datetime
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import TrackerCategory
 from cogs.LifeTracker.utils import LifeTracker_Manager, AI_Analyzer
 #from cogs.LifeTracker.src import stt_whisper
@@ -22,7 +22,7 @@ class LifeTrackerTasks(commands.Cog):
         print(f"🚀 [Task] 開始執行每週 AI 總結 (台灣時間: {now_tw})")
         
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 categories = db.query(TrackerCategory).all()
                 
                 for cat in categories:
