@@ -3,22 +3,20 @@ from discord.ext import commands, tasks
 from discord import app_commands
 import asyncio
 import os
-from datetime import datetime, timedelta, timezone, time
-from .utils.fugle_api import get_stock_snapshot
-from database.models import UserStockWatch, User
-from .stock_ui import StockAddModal, StockRemoveSelect, StockListView, ui
+import traceback
+from datetime import datetime, time
 
-# 定義台灣時區 (UTC+8)
-TW_TIME = timezone(timedelta(hours=8))
-REPORT_TIME = time(hour=13, minute=45, tzinfo=TW_TIME)
-
+# 導入配置與自定義工具
+from .stock_config import TW_TIME, MARKET_OPEN, MARKET_CLOSE, REPORT_TIME
+from .utils.Stock_Manager import Stock_Manager
+from .utils.fugle_api import get_stock_quote
 
 class Stock(commands.Cog):
     def __init__(self, bot, db_manager):
         self.bot = bot
         self.db_manager = db_manager 
         self.api_token = os.getenv("FUGLE_TOKEN")
-        self.api_lock = asyncio.Lock()
+        self.api_lock = asyncio.Lock() # 確保背景監控與手動刷新不衝突
         
         # 啟動背景任務
         self.stock_monitor.start()
@@ -28,166 +26,164 @@ class Stock(commands.Cog):
         self.stock_monitor.cancel()
         self.market_report.cancel()
 
-    # --- 背景監控任務 ---
+    # ==========================================
+    #                指令入口 (UI)
+    # ==========================================
+
+    @app_commands.command(name="stock", description="開啟股票監控儀表板")
+    async def stock_dashboard(self, interaction: discord.Interaction):
+        """進入股票模組的主入口"""
+        try:
+            from .ui.View.StockDashboardView import StockDashboardView
+            # 產生 Embed 與 View
+            embed, view = StockDashboardView.create_dashboard(self.bot, interaction.user.id)
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            print(f"❌ 開啟儀表板失敗: {e}")
+            traceback.print_exc()
+
+    # ==========================================
+    #              背景任務 (Tasks)
+    # ==========================================
+
     @tasks.loop(minutes=1)
     async def stock_monitor(self):
+        """每分鐘檢查一次股價 (免費版序列檢查模式)"""
         now = datetime.now(TW_TIME)
         if now.weekday() >= 5: return 
         current_time_val = now.hour * 100 + now.minute
-        if not (900 <= current_time_val <= 1335): return
+        if not (MARKET_OPEN <= current_time_val <= MARKET_CLOSE): return
 
-        with self.db_manager() as session:
-            watches = session.query(UserStockWatch).all()
-            for watch in watches:
-                if watch.target_up is None and watch.target_down is None: continue
+        try:
+            with self.db_manager() as session:
+                from database.models import UserStockWatch
+                # 只檢查有設定預警的標的
+                watches = session.query(UserStockWatch).filter(
+                    (UserStockWatch.target_up.isnot(None)) | 
+                    (UserStockWatch.target_down.isnot(None))
+                ).all()
+                
+                for watch in watches:
+                    async with self.api_lock:
+                        info = get_stock_quote(watch.stock_symbol, self.api_token)
+                    
+                    if info and info.get('lastPrice'):
+                        curr_price = info['lastPrice']
+                        change_pct = info['changePercent'] / 100
+                        
+                        alert_msg = None
+                        # 漲幅預警
+                        if watch.target_up and change_pct >= watch.target_up:
+                            alert_msg = f"🔺 **{info['name']} ({watch.stock_symbol})** 噴發！\n現價：`{curr_price}` (漲幅：`{change_pct*100:.2f}%`)"
+                        # 跌幅預警
+                        elif watch.target_down and change_pct <= watch.target_down:
+                            alert_msg = f"🟢 **{info['name']} ({watch.stock_symbol})** 下跌！\n現價：`{curr_price}` (跌幅：`{change_pct*100:.2f}%`)"
 
-                async with self.api_lock:
-                    try:
-                        info = get_stock_snapshot(watch.stock_symbol, self.api_token)
-                        if info and info['price'] is not None:
-                            curr_price = info['price']
-                            change_pct = info['change_pct']
-                            real_change = change_pct / 100 if abs(change_pct) > 1 else change_pct
-                            
-                            msg = None
-                            if watch.target_up is not None and real_change >= watch.target_up:
-                                msg = f"🔺 **{info['name']} ({watch.stock_symbol})** 噴發！\n現價：`{curr_price}` (漲：`{real_change*100:.2f}%`)"
-                            elif watch.target_down is not None and real_change <= watch.target_down:
-                                msg = f"🟢 **{info['name']} ({watch.stock_symbol})** 下跌！\n現價：`{curr_price}` (跌：`{real_change*100:.2f}%`)"
+                        # 發送通知並更新最後通知價格
+                        if alert_msg and watch.last_notified_price != curr_price:
+                            await self.send_dm(watch.user_id, alert_msg)
+                            watch.last_notified_price = curr_price
+                            session.commit()
+                    
+                    # 免費版限流：每支股票請求後強制暫停
+                    await asyncio.sleep(1.1) 
+                    
+        except Exception as e:
+            print(f"⚠️ 監控循環錯誤: {e}")
 
-                            if msg and watch.last_notified_price != curr_price:
-                                await self.send_dm(watch.user_id, msg)
-                                watch.last_notified_price = curr_price
-                                session.commit()
-                    except Exception as e:
-                        print(f"監控錯誤: {e}")
-                await asyncio.sleep(1)
-
-    # --- 收盤戰報任務 ---
     @tasks.loop(time=REPORT_TIME)
     async def market_report(self):
-        # ... (保留上一版本的戰報邏輯) ...
+        """收盤總結 (可視需求實作)"""
         pass
 
-    # --- UI 指令集 ---
+    # ==========================================
+    #              內部輔助邏輯
+    # ==========================================
 
-    @app_commands.command(name="stock_add", description="彈窗式新增股票監控")
-    async def stock_add(self, interaction: discord.Interaction):
-        # 💡 注意：Modal 必須直接回覆，不能先 defer
-        try:
-            await interaction.response.send_modal(
-                StockAddModal(self.db_manager, self.api_token, self.api_lock)
-            )
-        except Exception as e:
-            print(f"❌ 無法發送 Modal: {e}")
-
-    @app_commands.command(name="stock_list", description="查看我的股票清單 (帶重新整理按鈕)")
-    async def stock_list(self, interaction: discord.Interaction):
-        await self.update_list_message(interaction, is_first=True)
-
-    @app_commands.command(name="stock_remove", description="下拉選單刪除股票")
-    async def stock_remove(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        with self.db_manager() as session:
-            user = session.query(User).filter_by(discord_id=interaction.user.id).first()
-            if not user or not user.stocks:
-                return await interaction.followup.send("⚠️ 你的清單目前是空的。")
-            
-            view = ui.View()
-            view.add_item(StockRemoveSelect(user.stocks, self.db_manager))
-            await interaction.followup.send("請選擇要移除的標的：", view=view)
-
-    # --- 內部邏輯：更新清單訊息 ---
     async def update_list_message(self, interaction: discord.Interaction, is_first=False):
-        try:
-            if is_first:
-                await interaction.response.defer(thinking=True, ephemeral=True)
-            else:
-                await interaction.response.defer(ephemeral=True)
+        """
+        詳細清單刷新邏輯：
+        因應免費版限制，逐一獲取股價並漸進式更新 UI。
+        """
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
 
+        try:
+            from .ui.View.StockListView import StockListView
+            from .ui.View.StockDashboardView import StockDashboardView
+
+            # 1. 獲取資料庫資料
+            stocks = Stock_Manager.get_user_stocks(self.db_manager, interaction.user.id)
+            
+            if not stocks:
+                embed_msg, view_msg = StockDashboardView.create_dashboard(self.bot, interaction.user.id)
+                return await interaction.edit_original_response(
+                    content="⚠️ 你的監控清單目前是空的。", 
+                    embed=embed_msg, 
+                    view=view_msg
+                )
+
+            # 2. 建立初始 Embed 提示更新中
             embed = discord.Embed(
-                title=f"📊 {interaction.user.name} 的投資帳戶", 
+                title=f"📊 {interaction.user.name} 的投資清單", 
+                description="正在逐一抓取最新行情，請稍候...",
                 color=discord.Color.blue(),
                 timestamp=datetime.now(TW_TIME)
             )
-            
-            with self.db_manager() as session:
-                user = session.query(User).filter_by(discord_id=interaction.user.id).first()
-                if not user or not user.stocks:
-                    msg = "⚠️ 清單目前是空的。"
-                    if is_first:
-                        return await interaction.followup.send(msg, ephemeral=True)
-                    else:
-                        return await interaction.edit_original_response(content=msg, embed=None, view=None)
+            await interaction.edit_original_response(embed=embed)
 
-                # 遍歷股票
-                for s in user.stocks:
-                    async with self.api_lock:
-                        info = get_stock_snapshot(s.stock_symbol, self.api_token)
+            # 3. 序列抓取 (Sequential Fetch)
+            for s in stocks:
+                async with self.api_lock:
+                    info = get_stock_quote(s.stock_symbol, self.api_token)
+                
+                if info and info.get('lastPrice'):
+                    price = info['lastPrice']
+                    pct = info['changePercent']
+                    emoji = "🔺" if pct > 0 else "🟢" if pct < 0 else "⚪"
                     
-                    price = info['price'] if info else "N/A"
-                    change_pct = info['change_pct'] if info else 0
-                    emoji = "🔺" if change_pct > 0 else "🟢" if change_pct < 0 else "⚪"
+                    # 計算損益
+                    profit_data = Stock_Manager.calculate_profit(price, s.shares, s.total_cost)
                     
-                    roi_str = ""
-                    # --- [核心修改] 精確損益計算邏輯 ---
-                    if info and s.shares and s.shares > 0 and s.total_cost and s.total_cost > 0:
-                        # 1. 計算現值
-                        current_value = price * s.shares
-                        # 2. 計算原始損益
-                        raw_profit = current_value - s.total_cost
-                        
-                        # 3. 估算賣出成本 (手續費 0.1425% + 證交稅 0.3% = 0.4425%)
-                        # 💡 如果你有手續費折扣（如 6 折），可將 0.001425 改為 0.001425 * 0.6
-                        est_sell_cost = current_value * 0.004425
-                        
-                        # 4. 實質入袋損益
-                        net_profit = raw_profit - est_sell_cost
-                        net_roi = (net_profit / s.total_cost) * 100
-                        
-                        roi_emoji = "📈" if net_profit >= 0 else "📉"
-                        avg_price = s.total_cost / s.shares
-                        
+                    if profit_data:
                         roi_str = (
-                            f"\n均價: `{avg_price:.2f}` | 持股: `{s.shares}`"
-                            f"\n預估盈虧: {roi_emoji} `NT$ {int(net_profit):,}`"
-                            f"\n實質投報: `{net_roi:.2f}%` (含稅費)"
+                            f"\n均價: `{profit_data['avg_price']:.2f}` | 持股: `{s.shares}`"
+                            f"\n預估盈虧: `NT$ {profit_data['net_profit']:,}`"
+                            f"\n實質投報: `{profit_data['roi']:.2f}%`"
                         )
-                    
-                    elif info and s.buy_price:
-                        # 舊版相容模式：僅有買入價
-                        roi = ((price - s.buy_price) / s.buy_price) * 100
-                        roi_str = (
-                            f"\n成本: `{s.buy_price}`"
-                            f"\n帳面損益: {'📈' if roi>=0 else '📉'} `{roi:.2f}%`"
-                        )
-                    # -----------------------------------
+                    else:
+                        roi_str = f"\n成本: `{s.buy_price or 'N/A'}`"
 
                     embed.add_field(
-                        name=f"{s.stock_name} ({s.stock_symbol})", 
-                        value=f"現價: `{price}` ({emoji}{change_pct:.2f}%){roi_str}", 
+                        name=f"{info['name']} ({s.stock_symbol})", 
+                        value=f"現價: `{price}` ({emoji}{pct:.2f}%){roi_str}", 
                         inline=False
                     )
-                    
-                    await asyncio.sleep(0.5) 
+                
+                # 每一支抓完就更新一次 Embed，讓使用者看到進度
+                await interaction.edit_original_response(embed=embed)
+                
+                await asyncio.sleep(1.1)
 
-            # 統一更新訊息
-            view = StockListView(self, interaction.user.id)
+            # 4. 完成後掛載 ListView
+            view = StockListView(self.bot, interaction.user.id)
             await interaction.edit_original_response(content=None, embed=embed, view=view)
 
         except Exception as e:
-            print(f"❌ 更新列表失敗: {e}")
+            print(f"❌ update_list_message 發生錯誤: {e}")
+            traceback.print_exc()
             try:
-                await interaction.followup.send("更新資料時發生錯誤，請稍後再試。", ephemeral=True)
-            except:
-                pass
+                await interaction.followup.send(f"❌ 更新失敗: {e}", ephemeral=True)
+            except: pass
 
-    async def send_dm(self, user_id, content=None, embed=None):
+    async def send_dm(self, user_id, content):
+        """發送私訊輔助函數"""
         try:
             user = await self.bot.fetch_user(user_id)
-            if user: await user.send(content=content, embed=embed)
+            if user: await user.send(content)
         except Exception as e:
-            print(f"無法發送私訊給 {user_id}: {e}")
+            print(f"❌ 無法發送私訊給 {user_id}: {e}")
+
 
 async def setup(bot):
     db_manager = getattr(bot, "db_session", None)

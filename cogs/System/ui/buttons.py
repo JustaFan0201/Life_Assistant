@@ -173,34 +173,18 @@ class GoToStockButton(ui.Button):
             label="股票監控", 
             style=discord.ButtonStyle.primary, 
             emoji="📈",
-            row=0 # 你可以根據排版需求調整 row
+            row=0
         )
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        # 1. 獲取 Stock Cog 實例
-        stock_cog = self.bot.get_cog("Stock") 
-
-        if not stock_cog:
-            return await interaction.response.send_message("❌ 錯誤：找不到 Stock 模組。", ephemeral=True)
-
         try:
-            # 2. 從你剛才建立的 stock_ui 匯入 View
-            # 注意：路徑請根據你的資料夾結構微調，假設是 cogs.Stock.stock_ui
-            from cogs.Stock.stock_ui import StockDashboardView
+            from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
             
-            sub_view = StockDashboardView(self.bot, stock_cog) 
             
-            # 3. 建立股票儀表板的 Embed
-            sub_embed = discord.Embed(
-                title="📈 台股即時監控系統",
-                description="歡迎使用股票助手！您可以查看清單、新增監控或移除標的。",
-                color=0x2ecc71 # 綠色系，符合台股（漲）或專業感
-            )
-            sub_embed.add_field(name="目前狀態", value="✅ 自動監控任務執行中", inline=False)
+            embed, view = StockDashboardView.create_dashboard(self.bot, interaction.user.id)
             
-            # 4. 切換介面
-            await interaction.response.edit_message(embed=sub_embed, view=sub_view)
+            await interaction.response.edit_message(embed=embed, view=view)
             
         except Exception as e:
-            await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)
+            await interaction.response.send_message(f"❌ 股票模組跳轉失敗，原因：{e}", ephemeral=True)
