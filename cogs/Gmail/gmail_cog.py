@@ -1,8 +1,8 @@
+# cogs/Gmail/gmail_cog.py
 import discord
 import os
 from discord.ext import commands, tasks
 from .utils.gmail_tool import EmailTools 
-
 from .utils.gmail_manager import EmailDatabaseManager, EmailConfig
 
 class Gmail(commands.Cog):
@@ -21,7 +21,6 @@ class Gmail(commands.Cog):
     async def test_check_mail(self):
         await self.bot.wait_until_ready()
         
-        configs = []
         try:
             with self.db_manager.Session() as session:
                 user_ids = [c.user_id for c in session.query(EmailConfig.user_id).all()]
@@ -51,16 +50,20 @@ class Gmail(commands.Cog):
                 
                 if new_emails:
                     for email_info in new_emails:
+                        # 只有在 last_id 已經存在時（非首次初始化）才發送通知
                         if last_id is not None:
                             await self.send_private_notification(email_info, user_id)
 
+                        # 無論如何都會更新最後的 ID
                         self.db_manager.update_last_email_id(user_id, str(email_info['id']))
                     
             except Exception as e:
+                # 保留這個錯誤列印，萬一未來有問題才知道是哪個使用者卡住
                 print(f"[輪詢錯誤] 使用者 {user_id}: {e}")
 
     async def send_private_notification(self, info, user_id):
-        from .views.gmail_view import NewEmailNotificationView
+        from .ui.View.NotificationView import NewEmailNotificationView
+        from .gmail_config import MAX_EMAIL_BODY_LENGTH
         
         try:
             user = await self.bot.fetch_user(user_id)
@@ -74,8 +77,9 @@ class Gmail(commands.Cog):
             embed.add_field(name="👤 寄件者", value=f"`{info['from']}`", inline=False)
             
             content = info['body'] if info['body'] else "（無文字內容）"
-            if len(content) > 500:
-                content = content[:500] + "..."
+            if len(content) > MAX_EMAIL_BODY_LENGTH:
+                content = content[:MAX_EMAIL_BODY_LENGTH] + "..."
+                
             embed.add_field(name="📝 內容摘要", value=f"```\n{content}\n```", inline=False)
             
             if info.get('date'):
@@ -90,7 +94,7 @@ class Gmail(commands.Cog):
             print(f"⚠️ 發送通知錯誤: {e}")
 
     def create_gmail_dashboard_ui(self, user_id):
-        from .views.gmail_view import GmailDashboardView
+        from .ui.View.GmailDashboardView import GmailDashboardView
         
         user_config = self.db_manager.get_user_config(user_id)
         last_id = user_config.get('last_email_id') if user_config else "尚未設置"
@@ -110,11 +114,11 @@ class Gmail(commands.Cog):
         view = GmailDashboardView(self.bot, self, user_id)
         return embed, view
 
-    async def setup(bot):
-        session_factory = getattr(bot, "db_session", None)
-        
-        if session_factory is None:
-            print("⚠️ 警告：機器人尚未初始化 db_session，Gmail 模組可能無法正常運作。")
+async def setup(bot):
+    session_factory = getattr(bot, "db_session", None)
+    
+    if session_factory is None:
+        print("⚠️ 警告：機器人尚未初始化 db_session，Gmail 模組可能無法正常運作。")
 
-        await bot.add_cog(Gmail(bot, session_factory))
-        print("✅ Gmail 模組已成功載入並註冊至 Cog 列表")
+    await bot.add_cog(Gmail(bot, session_factory))
+    print("✅ Gmail 模組已成功載入並註冊至 Cog 列表")

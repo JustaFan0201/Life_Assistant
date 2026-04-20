@@ -126,7 +126,10 @@ class GoToItineraryButton(ui.Button):
         except Exception as e:
             await interaction.response.send_message(f"跳轉失敗，原因：{e}", ephemeral=True)
 
-class GoToGmailButton(ui.Button):
+import discord
+from cogs.BasicDiscordObject import SafeButton  # 記得引入你的核心物件
+
+class GoToGmailButton(SafeButton):  # 1. 改為繼承 SafeButton
     def __init__(self, bot):
         super().__init__(
             label="郵件管理", 
@@ -136,7 +139,8 @@ class GoToGmailButton(ui.Button):
         )
         self.bot = bot
 
-    async def callback(self, interaction: discord.Interaction):
+    # 2. 將 callback 改為 do_action
+    async def do_action(self, interaction: discord.Interaction):
         # 1. 獲取 Gmail Cog
         gmail_cog = self.bot.get_cog("Gmail")
         user_id = interaction.user.id
