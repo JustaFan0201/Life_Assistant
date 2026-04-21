@@ -11,4 +11,5 @@ dist/
 *.egg-info/
 *.egg
 
-fix_db.py
+fix.py
+yahoo_sector.html

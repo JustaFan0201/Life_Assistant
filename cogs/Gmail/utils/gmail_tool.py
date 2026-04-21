@@ -6,6 +6,7 @@ from email.message import EmailMessage
 from email import message_from_bytes
 import email
 import re
+import html
 from email.header import decode_header
 from email.utils import parseaddr
 
@@ -121,22 +122,66 @@ class EmailTools:
                 decoded_parts.append(str(content))
         return "".join(decoded_parts)
 
+    def _clean_html_to_text(self, html_content):
+        """將 HTML 轉換為適合 Discord 閱讀的純文字"""
+        if not html_content:
+            return ""
+        
+        # 1. 將常見的區塊與換行標籤替換成真正的「換行符號 \n」，保持基本排版
+        text = re.sub(r'<(br|p|div|li|tr)[^>]*>', '\n', html_content, flags=re.IGNORECASE)
+        text = re.sub(r'</(p|div|li|tr)>', '\n', text, flags=re.IGNORECASE)
+        
+        # 2. 拔除所有剩餘的 HTML 標籤 (例如 <html>, <body>, <span>, <a>)
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # 3. 解析 HTML 實體符號 (將 &nbsp; 變空白, &gt; 變 >)
+        text = html.unescape(text)
+        
+        # 4. 清理多餘的空白與連續空行 (避免版面被拉太長)
+        text = re.sub(r'^[ \t]+|[ \t]+$', '', text, flags=re.MULTILINE) # 清除行首行尾空白
+        text = re.sub(r'\n{3,}', '\n\n', text) # 最多保留一個空行
+        
+        return text.strip()
+
     def _get_body(self, msg):
         body = ""
+        is_html = False
+        
         if msg.is_multipart():
+            # 優先尋找純文字，如果只有 HTML 就先存起來
             for part in msg.walk():
-                if part.get_content_type() == "text/plain" and "attachment" not in str(part.get("Content-Disposition")):
+                content_type = part.get_content_type()
+                if "attachment" in str(part.get("Content-Disposition")):
+                    continue
+                    
+                if content_type == "text/plain":
                     payload = part.get_payload(decode=True)
                     charset = part.get_content_charset() or "utf-8"
                     body = payload.decode(charset, errors="replace")
-                    break
+                    is_html = False
+                    break  # 找到純文字就直接用，跳出迴圈
+                    
+                elif content_type == "text/html":
+                    payload = part.get_payload(decode=True)
+                    charset = part.get_content_charset() or "utf-8"
+                    body = payload.decode(charset, errors="replace")
+                    is_html = True
+                    # 這裡不 break，因為如果後面有 text/plain 更好
         else:
             payload = msg.get_payload(decode=True)
             charset = msg.get_content_charset() or "utf-8"
             body = payload.decode(charset, errors="replace")
+            if msg.get_content_type() == "text/html":
+                is_html = True
+        
+        # 經過濾水器：如果是 HTML 格式，或者是內文夾帶 HTML 標籤，就進行清洗
+        if is_html or "<html" in body.lower() or "<body" in body.lower():
+            body = self._clean_html_to_text(body)
         
         body = body.strip()
-        return (body[:200] + "...") if len(body) > 200 else body
+        # Discord Embed 欄位限制較嚴，這裡維持你的 200 字截斷邏輯
+        from ..gmail_config import MAX_EMAIL_BODY_LENGTH
+        return (body[:MAX_EMAIL_BODY_LENGTH] + "...") if len(body) > MAX_EMAIL_BODY_LENGTH else body
 
     def _parse_latest_mail(self, raw_email, msg_id):
         msg = message_from_bytes(raw_email)
