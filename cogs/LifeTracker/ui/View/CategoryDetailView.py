@@ -65,17 +65,10 @@ class CategoryDetailView(LockableView):
                 description=f"紀錄數值分類：`{', '.join(fields)}`\n目前檢視：**{target_field}**",
                 color=discord.Color.gold()
             )
-            embed.description += "\n➕ 新增紀錄 - 新增紀錄到此分類。"
-            embed.description += "\n🏷️ 管理標籤 - 新增或刪除標籤。"
 
             chart_file = None
-            
+            embed.description += f"\n⌛ **目前顯示區間：過去 {current_days} 天的紀錄**"
             if not show_list:
-                embed.description += "\n📋 數值明細 - 查看詳細紀錄列表。"
-                embed.description += "\n🔄 切換圖表 - 切換到不同數值分類的圖表查看統計數據。"
-                embed.description += "\n⚙️ 管理時間區間 - 新增或刪除時間區間。"
-                embed.description += f"\n⌛ **目前統計區間：過去 {current_days} 天**"
-
                 ai_suggestion = cat_info.get('last_ai_analysis')
                 update_time = cat_info.get('analysis_updated_at')
 
@@ -93,9 +86,6 @@ class CategoryDetailView(LockableView):
                 else:
                     embed.add_field(name="目前暫無數據", value=f"在過去 {current_days} 天內沒有紀錄。", inline=False)
             else:
-                embed.description += "\n📊 顯示圖表 - 查看詳細紀錄圓餅圖。"
-                embed.description += f"\n⌛ **目前顯示區間：過去 {current_days} 天的紀錄**"
-                
                 records, total_pages = LifeTracker_Manager.get_recent_records(
                     category_id, page=page, limit=10, range_days=current_days
                 )

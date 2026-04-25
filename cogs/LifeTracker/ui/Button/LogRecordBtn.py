@@ -3,7 +3,7 @@ from cogs.BasicDiscordObject import SafeButton
 from cogs.LifeTracker.utils import LifeTracker_Manager
 
 class LogRecordBtn(SafeButton):
-    def __init__(self, bot, category_id, label="", emoji="➕", row=0):
+    def __init__(self, bot, category_id, label="新增紀錄", emoji="➕", row=0):
         super().__init__(label=label, style=discord.ButtonStyle.success, emoji=emoji, row=row)
         self.bot = bot
         self.category_id = category_id

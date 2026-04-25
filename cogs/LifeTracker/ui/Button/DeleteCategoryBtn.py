@@ -1,7 +1,7 @@
 import discord
 from discord import ui
 class DeleteCategoryBtn(ui.Button): 
-    def __init__(self, bot, categories, label="", emoji="➖", row=1):
+    def __init__(self, bot, categories, label="刪除主分類", emoji="➖", row=1):
         super().__init__(label=label, style=discord.ButtonStyle.danger, emoji=emoji, row=row)
         self.bot = bot
         self.categories = categories
