@@ -64,11 +64,11 @@ alembic upgrade head
 * **標籤化管理**：支援子分類（標籤）功能，並在刪除標籤時自動進行歷史紀錄重分組，確保資料完整性。
 
 ### 3. 📅 行程管理 (Itinerary Management)
-* **視覺化日程表**：透過控制台一鍵查看當前安排，支援分頁顯示與過期行程自動標記。
-* **互動式操作**：提供 Modal 視窗功能，讓使用者能快速新增、編輯或刪除行程資料。
-* **主動提醒任務**：具備背景監控任務 (Tasks Loop)，定時掃描 JSON 資料庫。
-* **在行程開始前自動發送 Discord 通知**：確保重要預約不遺漏。
-* **本地資料庫同步**：所有行程資料持久化儲存於 JSON 檔案，確保資料在機器人重啟後依然存在。
+* **視覺化日程表**：整合 Matplotlib 動態生成「月曆圖」，並在同一個畫面上方顯示該月的重點行程。
+* **動態月份選擇**：內建動態月份下拉選單 (MonthSelect)，自動計算最大偏移量，讓使用者能一鍵跳轉至「目前起至明年 12 月」的任何月份，無縫規劃未來行程。
+* **互動式原地操作**：透過 Modal 視窗快速新增行程；刪除行程時採用「下拉選單連動解鎖按鈕」的原地狀態更新設計，大幅減少切換畫面的視覺干擾。
+* **集中化設定管理**：導入 itinerary_config.py，將分頁數量、限制字數與 Emoji 映射集中管理。
+* **關聯式資料庫與主動提醒**：利用關聯式資料庫，支援高效查詢；具備背景監控任務 (Tasks Loop)，定時檢查並在行程開始前自動發送專屬的 Discord 通知。
 
 ### 4. 📧 郵件管理 (Gmail Management)
 * **高效郵件輪詢 (Polling)**：採用高效 IMAP 輪詢機制取代不穩定長連線，確保在任何網路環境下都能穩定抓取新信。
@@ -114,19 +114,37 @@ Life_Assistant/
     │       ├─ view.py      # 顯示的文字介面外觀
     │       └─ buttons.py   # 定義主介面需要或是在其他介面也需要的 Button 類別
     │
-    ├─ Itinerary/               # 行程管理模組
-    │   ├─ __init__.py          # 模組入口：包含 setup(bot) 函式
-    │   ├─ itinerary.py         # 核心 Cog：處理 Discord 指令與任務迴圈 (Tasks)
-    │   ├─ itinerary.json       # 本地資料庫：儲存使用者行程與提醒資訊 (建議列入 .gitignore) <----這個再說
-    │   │
-    │   ├─ utils/               # 工具層：純邏輯運算與檔案讀寫
-    │   │   ├─ __init__.py      # 使其成為子套件
-    │   │   └─ itinerary_tool.py # 處理 JSON 讀寫、排序、時間檢查與過期自檢
-    │   │
-    │   └─ views/               # 介面層：負責 Discord UI 互動
-    │       ├─ __init__.py      # 使其成為子套件
-    │       ├─ itinerary_view.py # 處理 Modal 彈窗輸入、下拉選單選取
-    │       └─ view.py          # 通用的分頁或基礎介面元件
+    ├─ Itinerary/                # 行程管理模組
+    │  ├─ __init__.py            # 模組入口：載入 Cog
+    │  ├─ itinerary_cog.py       # 核心 Cog：處理 Discord 指令轉發與提醒任務迴圈 (Tasks)
+    │  ├─ itinerary_config.py    # 集中設定檔：管理常數、字數限制與 Emoji 映射
+    │  │
+    │  ├─ utils/                 # 工具層：後端邏輯與數據處理
+    │  │  ├─ __init__.py       
+    │  │  ├─ calendar_manager.py # 資料庫管理器
+    │  │  └─ calendar_drawer.py  # 圖表引擎：整合 Matplotlib 動態繪製包含行程熱點的月曆圖片
+    │  │
+    │  └─ ui/                    # 介面層：遵循 MVC 模式與 SPA 設計
+    │      ├─ __init__.py       
+    │      ├─ View/              # 視圖層：控制面板與版面佈局
+    │      │  ├─ ItineraryDashboardView.py # 模組主入口：整合月曆圖片、議程清單與所有操作的 SPA 看板
+    │      │  └─ ItineraryDeleteView.py    # 刪除行程專用視圖
+    │      │
+    │      ├─ Select/            # 選擇組件：下拉選單邏輯
+    │      │  ├─ MonthSelect.py  # 動態月份跳轉選單 (支援跳轉至明年 12 月)
+    │      │  ├─ DeleteSelect.py # 選擇欲刪除的行程 (連動解鎖確認按鈕)
+    │      │  └─ AddSelects.py   # 新增行程時的年份、月份、隱私與優先級設定選單
+    │      │
+    │      ├─ Button/            # 按鈕組件：封裝互動行為
+    │      │  ├─ AddItemBtn.py   # 開啟新增行程流程
+    │      │  ├─ DeleteItemBtn.py # 切換至刪除行程面板
+    │      │  ├─ ConfirmDeleteBtn.py # 執行永久刪除資料庫紀錄
+    │      │  ├─ NextPageBtn.py  # 智慧型下一頁 (自動適配 Dashboard 與 DeleteView)
+    │      │  ├─ PrevPageBtn.py  # 智慧型上一頁
+    │      │  └─ BackToItineraryDashboardBtn.py # 返回主看板
+    │      │
+    │      └─ Modal/             # 視窗層：表單輸入介面
+    │          └─ ItineraryModal.py # 收集具體日期、時間與行程內容的彈窗
     │
     ├─ LifeTracker/              # 生活日記模組
     │   ├─ __init__.py           # 模組入口：載入 Cog 並初始化資料庫
@@ -143,14 +161,14 @@ Life_Assistant/
     │       ├─ View/             # 視圖層：各級控制面板 (Layouts)
     │       │   ├─ LifeDashboardView.py       # 模組主入口：分類選擇與概覽
     │       │   ├─ CategoryDetailView.py      # 分類看板：統計圖表與歷史清單
-    │       │   ├─ RangeEditView.py           # [新] 區間編輯模式：管理時間快捷選項
+    │       │   ├─ RangeEditView.py           # 區間編輯模式：管理時間快捷選項
     │       │   ├─ LogRecordView.py           # 紀錄數據專用導覽視圖
     │       │   ├─ ManageSubcatView.py        # 子分類 (標籤) 管理主視圖
     │       │   └─ DeleteCategorySelectView.py # 刪除分類確認安全視圖
     │       │
     │       ├─ Select/           # 選擇組件：下拉選單邏輯 (Controllers)
     │       │   ├─ CategoryDashboardSelect.py # 主介面分類切換
-    │       │   ├─ RangeSelect.py             # [升級] 支援「切換顯示」與「刪除區間」雙模式
+    │       │   ├─ RangeSelect.py             # 支援「切換顯示」與「刪除區間」雙模式
     │       │   ├─ SubcatSelect.py            # 紀錄時選擇標籤
     │       │   ├─ EditSubcatSelect.py        # 選擇欲編輯的標籤
     │       │   ├─ DeleteSubcatSelect.py      # 選擇欲刪除的標籤
@@ -163,7 +181,7 @@ Life_Assistant/
     │       │   ├─ SubmitRecordBtn.py      # 提交數據至資料庫
     │       │   ├─ ManageSubcatBtn.py      # 管理標籤介面切換
     │       │   ├─ AddSubCategoryBtn.py    # 新增子分類標籤
-    │       │   ├─ ToggleRangeEditBtn.py    # [新] 進入時間區間編輯模式
+    │       │   ├─ ToggleRangeEditBtn.py   # 進入時間區間編輯模式
     │       │   ├─ ToggleChartBtn.py       # 切換圖表統計維度
     │       │   ├─ ToggleListModeBtn.py    # 切換清單/圖表模式
     │       │   ├─ EditModeBtn.py          # 進入編輯模式
@@ -177,7 +195,7 @@ Life_Assistant/
     │           ├─ DynamicLogModal.py       # 根據分類欄位動態生成的紀錄表單
     │           ├─ InputValueModal.py       # 數值修正輸入
     │           ├─ EditSubcatNameModal.py   # 修改標籤名稱
-    │           └─ SetRangeModal.py         # [升級] 自定義天數輸入 (支援年/月/週/天換算)
+    │           └─ SetRangeModal.py         # 自定義天數輸入 (支援年/月/週/天換算)
     ├─ if more.../
     
 
