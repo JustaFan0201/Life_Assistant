@@ -2,7 +2,7 @@ import discord
 from datetime import datetime, timezone, timedelta
 from discord import ui
 from cogs.BasicDiscordObject import ValidatedModal
-
+from cogs.Itinerary import itinerary_config as conf
 class ItineraryModal(ValidatedModal):
     def __init__(self, time_data, cog):
         super().__init__(title="新增我的行程")
@@ -11,20 +11,35 @@ class ItineraryModal(ValidatedModal):
         
         today_day = self.time_data.get('day', '1')
         
-        # 動態設定 Placeholder，提示使用者今天是幾號
+        now = datetime.now(conf.TW_TZ)
+        current_time_str = now.strftime("%H:%M")
+        
         self.date_input = ui.TextInput(
             label="日期 (1-31)", 
             placeholder=f"例如: {today_day} (今天是 {today_day} 號)", 
+            default=today_day,
             min_length=1, 
             max_length=2
         )
-        self.time_input = ui.TextInput(label="時間 (時:分) 24小時至", placeholder="例如: 08:30", min_length=4, max_length=5)
-        self.content_input = ui.TextInput(label="行程內容", style=discord.TextStyle.paragraph, placeholder="請輸入行程細節...")
+        
+        self.time_input = ui.TextInput(
+            label="時間 (時:分) 24小時制",
+            placeholder="例如: 08:30", 
+            default=current_time_str,
+            min_length=4, 
+            max_length=5
+        )
+        
+        self.content_input = ui.TextInput(
+            label="行程內容", 
+            style=discord.TextStyle.paragraph, 
+            placeholder="請輸入行程內容...",
+            max_length=conf.MAX_TEXT_LENGTH
+        )
         
         self.add_item(self.date_input)
         self.add_item(self.time_input)
         self.add_item(self.content_input)
-
     async def execute_logic(self, interaction: discord.Interaction) -> str:
         try:
             year = int(self.time_data.get('year'))
@@ -32,9 +47,7 @@ class ItineraryModal(ValidatedModal):
             day = int(self.date_input.value)
             time_parts = self.time_input.value.replace('：', ':').split(':')
             
-            # 強制標記使用者輸入的時間為台灣時區 (UTC+8)
-            tz_tw = timezone(timedelta(hours=8))
-            event_time = datetime(year, month, day, int(time_parts[0]), int(time_parts[1]), tzinfo=tz_tw)
+            event_time = datetime(year, month, day, int(time_parts[0]), int(time_parts[1]), tzinfo=conf.TW_TZ)
             
             clean_time = event_time.replace(tzinfo=None)
             
@@ -57,4 +70,19 @@ class ItineraryModal(ValidatedModal):
             return f"發生未預期的錯誤：{e}"
 
     async def on_success(self, interaction: discord.Interaction):
-        await interaction.response.send_message(self.report_message, ephemeral=True)
+        """💡 成功後切換回 Dashboard"""
+        try:
+            embed, view, file = self.cog.create_itinerary_dashboard_ui(interaction.user.id)
+            
+            embed.title = "✅ 行程新增成功！"
+            embed.color = discord.Color.green()
+            
+            if hasattr(self, 'report_message'):
+                embed.set_footer(text=f"狀態回報：{self.report_message}")
+
+            await interaction.response.edit_message(embed=embed, view=view, attachments=[file])
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await interaction.followup.send(f"❌ 畫面跳轉失敗：{e}", ephemeral=True)

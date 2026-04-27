@@ -3,12 +3,12 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 from database.models import User, CalendarEvent
-
+from cogs.Itinerary import itinerary_config as conf
 class CalendarDatabaseManager:
     def __init__(self, session_factory):
         self.Session = session_factory
 
-        self.tz = timezone(timedelta(hours=8))
+        self.tz = conf.TW_TZ
 
     def add_event(self, user_id: int, event_time: datetime, description: str, is_private: bool, priority: str):
         now = datetime.now(self.tz)
@@ -62,17 +62,29 @@ class CalendarDatabaseManager:
     def get_formatted_list(self, user_id: int):
         events = self.get_user_events(user_id)
         formatted = []
-        priority_map = {"0": "🔴", "1": "🟡", "2": "🟢"}
         
         for i, ev in enumerate(events, 1):
             time_str = ev.event_time.strftime("%Y-%m-%d %H:%M")
-            privacy_emoji = "🔒" if ev.is_private else "🌍"
-            p_emoji = priority_map.get(str(ev.priority), "🟢")
-            
-            summary = ev.description[:15] + "..." if len(ev.description) > 15 else ev.description
+            privacy_emoji = conf.PRIVACY_MAP.get(ev.is_private, "🌍")
+            p_emoji = conf.PRIORITY_MAP.get(str(ev.priority), "🟢")
+            limit = conf.LIST_DESC_PREVIEW_LEN
+            summary = ev.description[:limit] + "..." if len(ev.description) > limit else ev.description
             
             formatted.append({
                 "display": f"{privacy_emoji}{p_emoji} #{i} | {time_str} | {summary}",
                 "id": ev.id
             })
         return formatted
+    
+    def get_event_days_for_month(self, user_id: int, year: int, month: int) -> list:
+        """回傳指定月份中，有行程的日期清單 (去除重複)"""
+        with self.Session() as session:
+            # 取得該使用者的所有行程 (簡單過濾，詳細交給 Python 處理以避開 SQLite 複雜的時間語法)
+            events = session.query(CalendarEvent).filter_by(user_id=user_id).all()
+            
+            event_days = set()
+            for ev in events:
+                if ev.event_time.year == year and ev.event_time.month == month:
+                    event_days.add(ev.event_time.day)
+            
+            return list(event_days)

@@ -1,15 +1,40 @@
+# cogs\Itinerary\ui\Button\ConfirmDeleteBtn.py
 import discord
 from cogs.BasicDiscordObject import SafeButton
 
 class ConfirmDeleteBtn(SafeButton):
     def __init__(self, parent_view):
-        super().__init__(label="確認刪除", style=discord.ButtonStyle.danger, emoji="🗑️")
+        super().__init__(
+            label="確定刪除", 
+            style=discord.ButtonStyle.danger, 
+            emoji="⚠️", 
+            row=2, 
+            disabled=True
+        )
         self.parent_view = parent_view
 
     async def do_action(self, interaction: discord.Interaction):
-        success, msg = self.parent_view.cog.db_manager.delete_event_by_id(
-            self.parent_view.event_id, 
-            interaction.user.id
+        event_id = getattr(self.parent_view, 'selected_event_id', None)
+        
+        if not event_id:
+            return await interaction.response.defer()
+
+        success, msg = self.parent_view.cog.db_manager.delete_event_by_id(event_id, interaction.user.id)
+
+        embed, view = self.parent_view.__class__.create_ui(
+            self.parent_view.cog, 
+            interaction.user.id, 
+            self.parent_view.page
         )
-        # SafeButton 已經消耗了 response，使用 edit_original_response 刷新畫面
-        await interaction.edit_original_response(content=msg, view=None)
+        
+        if success:
+            embed.color = discord.Color.green()
+            embed.title = "✅ 行程已成功刪除！"
+        else:
+            embed.color = discord.Color.red()
+            embed.title = f"❌ 刪除失敗：{msg}"
+
+        if not interaction.response.is_done():
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.edit_original_response(embed=embed, view=view, attachments=[])
