@@ -12,13 +12,16 @@ class LifeDashboardView(LockableView):
         
         if categories:
             self.add_item(CategoryDashboardSelect(self.bot, categories))
+            
+        deletable_categories = [c for c in categories if c.name != "消費"] if categories else []
         
-        self.add_item(SetupBtn(self.bot,row=1))
-        self.add_item(DeleteCategoryBtn(self.bot, categories, row=1))
-        self.add_item(BackToMainButton(self.bot,row=1))
+        self.add_item(SetupBtn(self.bot, row=1))
+        self.add_item(DeleteCategoryBtn(self.bot, deletable_categories, row=1))
+        self.add_item(BackToMainButton(self.bot, row=1))
 
     @staticmethod
     def create_dashboard(bot, user_id: int):
+        LifeTracker_Manager.ensure_default_consumption_category(user_id)
         categories = LifeTracker_Manager.get_user_categories(user_id)
 
         embed = discord.Embed(

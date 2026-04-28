@@ -1,19 +1,19 @@
-# cogs\LifeTracker\ui\View\CategoryDetailView.py
 import discord
 import traceback
-from cogs.LifeTracker.utils import LifeTracker_Manager
+from cogs.LifeTracker.utils.LifeTracker_Manager import LifeTracker_Manager
 from cogs.LifeTracker.ui.Button import (
     BackToLifeDashboardBtn, LogRecordBtn, PageBtn, 
     ManageSubcatBtn, ToggleChartBtn, ToggleListModeBtn, ToggleRangeEditBtn
 )
+from cogs.LifeTracker.ui.Button.EInvoicePlatformBtn import EInvoicePlatformBtn
 from cogs.LifeTracker.src import generate_donut_chart
-from cogs.LifeTracker.ui.Select import RangeSelect
+from cogs.LifeTracker.ui.Select.RangeSelect import RangeSelect
 from cogs.BasicDiscordObject import LockableView
 
 class CategoryDetailView(LockableView):
     def __init__(self, bot, category_id: int, page: int = 0, field_index: int = 0, 
                  fields_count: int = 1, show_list: bool = False, range_days: int = 7, 
-                 options_list: list = None, total_pages: int = 0):
+                 options_list: list = None, total_pages: int = 0, cat_name: str = ""):
         super().__init__(timeout=None)
         self.bot = bot
         self.category_id = category_id
@@ -22,6 +22,7 @@ class CategoryDetailView(LockableView):
         self.show_list = show_list
         self.range_days = range_days
         self.total_pages = total_pages
+        self.cat_name = cat_name
         
         self.add_item(LogRecordBtn(bot, category_id, row=0))
         self.add_item(ManageSubcatBtn(bot, category_id, row=0))
@@ -33,21 +34,24 @@ class CategoryDetailView(LockableView):
             if fields_count > 1:
                 self.add_item(ToggleChartBtn(bot, category_id, field_index, fields_count, row=2))
             self.add_item(ToggleRangeEditBtn(bot, category_id, row=2))
-            self.add_item(BackToLifeDashboardBtn(bot, row=2))
+            if self.cat_name == "消費":
+                self.add_item(EInvoicePlatformBtn(bot, category_id, row=2))
         else:
             if page > 0:
-                self.add_item(PageBtn(bot, category_id, page - 1, field_index, show_list, emoji="◀️", row=3))
+                self.add_item(PageBtn(bot, category_id, page - 1, field_index, show_list, emoji="◀️", row=2))
             
             if page + 1 < total_pages:
-                self.add_item(PageBtn(bot, category_id, page + 1, field_index, show_list, emoji="▶️", row=3))
-                
-            self.add_item(BackToLifeDashboardBtn(bot, row=3))
+                self.add_item(PageBtn(bot, category_id, page + 1, field_index, show_list, emoji="▶️", row=2))
+
+        self.add_item(BackToLifeDashboardBtn(bot, row=2))
+
 
     @staticmethod
     async def create_ui(bot, category_id: int, page: int = 0, field_index: int = 0, 
                         show_list: bool = False, range_days: int = None):
         try:
             cat_info, subcats_info = LifeTracker_Manager.get_category_details(category_id)
+            cat_name = cat_info['name']
             total_pages = 0
             if range_days is not None:
                 current_days = range_days
@@ -61,7 +65,7 @@ class CategoryDetailView(LockableView):
             target_field = fields[field_index] if fields_count > 0 else None
 
             embed = discord.Embed(
-                title=f"📊 分類看板：{cat_info['name']}",
+                title=f"📊 分類看板：{cat_name}",
                 description=f"紀錄數值分類：`{', '.join(fields)}`\n目前檢視：**{target_field}**",
                 color=discord.Color.gold()
             )
@@ -80,7 +84,7 @@ class CategoryDetailView(LockableView):
 
                 stats_data = LifeTracker_Manager.get_subcat_stats(category_id, target_field, range_days=current_days)
                 if stats_data:
-                    chart_file = generate_donut_chart(cat_info['name'], stats_data, target_field)
+                    chart_file = generate_donut_chart(cat_name, stats_data, target_field)
                     if chart_file:
                         embed.set_image(url=f"attachment://{chart_file.filename}")
                 else:
@@ -97,11 +101,11 @@ class CategoryDetailView(LockableView):
                         val_str = " | ".join([f"{k}: {v}" for k, v in r['values'].items()])
                         embed.add_field(
                             name=f"🏷️ [{r['sub_name']}] - {r['created_at']}",
-                            value=f"**{val_str}**",
+                            value=f"**{val_str} - {r['note']}**",
                             inline=False
                         )
             
-            view = CategoryDetailView(bot, category_id, page, field_index, fields_count, show_list, current_days, options_list, total_pages)
+            view = CategoryDetailView(bot, category_id, page, field_index, fields_count, show_list, current_days, options_list, total_pages, cat_name)
             return embed, view, chart_file
 
         except Exception as e:

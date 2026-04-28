@@ -17,9 +17,8 @@ if not DATABASE_URL:
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
-
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-
 RENDER = os.getenv("RENDER")
 
 FONT_PATH = os.path.join(BASE_DIR, "jf-openhuninn-1.1.ttf")

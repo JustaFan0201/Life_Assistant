@@ -17,6 +17,31 @@ from cogs.LifeTracker.LifeTracker_config import (
 class LifeTracker_Manager:
     
     @staticmethod
+    def ensure_default_consumption_category(user_id: int):
+        """確保使用者擁有預設的『消費』分類與標籤"""
+        with DatabaseSession() as db:
+            exists = db.query(TrackerCategory).filter_by(user_id=user_id, name="消費").first()
+            
+            if not exists:
+                # 1. 建立主分類 (設定時間區間與數值欄位)
+                new_cat = TrackerCategory(
+                    user_id=user_id,
+                    name="消費",
+                    range_options=[7, 30, 180, 365],
+                    fields=["金額"]
+                )
+                db.add(new_cat)
+                db.commit()
+                db.refresh(new_cat) # 取得自動生成的 ID
+
+                # 2. 建立預設的子分類標籤
+                default_subcats = ["飲食", "通勤", "娛樂"]
+                for sub_name in default_subcats:
+                    db.add(TrackerSubCategory(category_id=new_cat.id, name=sub_name))
+                
+                db.commit()
+
+    @staticmethod
     def create_category(user_id: int, username: str, cat_name: str, fields_list: list[str], subcats_list: list[str]):
         """
         建立分類的中心邏輯，包含所有合法性檢查
@@ -455,6 +480,14 @@ class LifeTracker_Manager:
             db.commit()
             return True, None
         
+    @staticmethod
+    def get_consumption_category_id(user_id: int):
+        """根據 user_id 動態尋找『消費』主分類的 ID"""
+        with DatabaseSession() as db:
+            # 尋找該使用者底下名稱叫做「消費」的分類
+            cat = db.query(TrackerCategory).filter_by(user_id=user_id, name="消費").first()
+            return cat.id if cat else None
+
     @staticmethod
     def add_voice_record(user_id: int, ai_result: dict):
         """
