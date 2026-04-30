@@ -32,6 +32,19 @@ class User(Base):
     calendar_events = relationship("CalendarEvent", back_populates="user", cascade="all, delete-orphan")
 
     stocks = relationship("UserStockWatch", back_populates="user", cascade="all, delete-orphan")
+    einvoice_config = relationship("EInvoiceConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    
+class EInvoiceConfig(Base):
+    __tablename__ = 'einvoice_configs'
+
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), primary_key=True)
+    
+    phone_number = Column(String, nullable=True)
+    password = Column(String, nullable=True)
+
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    user = relationship("User", back_populates="einvoice_config")
 
 class EmailConfig(Base):
     __tablename__ = 'email_configs'

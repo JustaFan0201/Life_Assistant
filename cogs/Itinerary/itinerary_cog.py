@@ -91,17 +91,10 @@ class Itinerary(commands.Cog):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    def create_itinerary_dashboard_ui(self):
-        embed = discord.Embed(
-            title="📅 個人行程管理系統",
-            description="您可以在這裡查看、新增或刪除您的行程。\n💡 **提示：** 公開行程將發送到系統設定的通知頻道。",
-            color=discord.Color.blue()
-        )
-        from .ui.View.ItineraryDashboardView import ItineraryDashboardView 
-        view = ItineraryDashboardView(self.bot, self) 
-        return embed, view
+    def create_itinerary_dashboard_ui(self, user_id: int):
+        from .ui.View.ItineraryDashboardView import ItineraryDashboardView
+        
+        embed, view, file = ItineraryDashboardView.create_ui(self, user_id)
 
-async def setup(bot):
-    db_session = getattr(bot, "db_session", None)
-    await bot.add_cog(Itinerary(bot, db_session))
-    print("Itinerary Package loaded with SQL support.")
+        return embed, view, file
+

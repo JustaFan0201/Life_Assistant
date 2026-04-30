@@ -1,6 +1,6 @@
 # database/__init__.py
-from .db import init_db
-from .models import Base, User, EmailConfig, EmailContact, BotSettings, CalendarEvent
+from .db import init_db, DatabaseSession
+from .models import *
 
 # 統一匯出清單
 __all__ = [
@@ -11,5 +11,9 @@ __all__ = [
     "EmailConfig",
     "EmailContact",
     "BotSettings",
-    "CalendarEvent"
+    "CalendarEvent",
+    "TrackerCategory",
+    "TrackerSubCategory",
+    "LifeRecord",
+    "UserStockWatch"
 ]

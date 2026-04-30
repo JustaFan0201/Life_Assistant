@@ -11,8 +11,8 @@ class ToggleListModeBtn(SafeButton):
         
         style = discord.ButtonStyle.primary if not is_showing_list else discord.ButtonStyle.secondary
         emoji = "📊" if is_showing_list else "📋"
-        
-        super().__init__(label="", style=style, emoji=emoji, row=row)
+        label = "顯示圖表" if is_showing_list else "數值明細"
+        super().__init__(label=label, style=style, emoji=emoji, row=row)
 
     async def do_action(self, interaction: discord.Interaction):
         new_show_list = not self.is_showing_list

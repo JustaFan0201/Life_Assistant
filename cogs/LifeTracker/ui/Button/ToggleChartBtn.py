@@ -4,7 +4,7 @@ from cogs.BasicDiscordObject import SafeButton
 
 class ToggleChartBtn(SafeButton):
     def __init__(self, bot, category_id, current_field_index, fields_count, row=0):
-        super().__init__(label="", style=discord.ButtonStyle.primary, emoji="🔄", row=row)
+        super().__init__(label="切換圖表", style=discord.ButtonStyle.primary, emoji="🔄", row=row)
         self.bot = bot
         self.category_id = category_id
         self.current_field_index = current_field_index

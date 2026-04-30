@@ -2,7 +2,7 @@ import discord
 from discord import ui
 
 class SetupBtn(ui.Button):
-    def __init__(self, bot, label="", emoji="➕", row=1):
+    def __init__(self, bot, label="設定主分類", emoji="➕", row=1):
         super().__init__(label=label, style=discord.ButtonStyle.green, emoji=emoji, row=row)
         self.bot = bot
 

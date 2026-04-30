@@ -3,7 +3,7 @@ from discord import ui
 
 class EditModeBtn(ui.Button):
     def __init__(self, bot, category_id):
-        super().__init__(label="", emoji="📝", style=discord.ButtonStyle.primary, row=1)
+        super().__init__(label="修改名稱", emoji="📝", style=discord.ButtonStyle.primary, row=1)
         self.bot = bot
         self.category_id = category_id
 

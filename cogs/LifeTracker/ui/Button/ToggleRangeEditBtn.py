@@ -4,7 +4,7 @@ from cogs.BasicDiscordObject import SafeButton
 
 class ToggleRangeEditBtn(SafeButton):
     def __init__(self, bot, category_id, row=2):
-        super().__init__(label="", emoji="⚙️", style=discord.ButtonStyle.secondary, row=row)
+        super().__init__(label="管理區間", emoji="⚙️", style=discord.ButtonStyle.secondary, row=row)
         self.bot = bot
         self.category_id = category_id
 

@@ -3,7 +3,7 @@ from discord import ui
 class CustomRangeBtn(ui.Button):
     def __init__(self, bot, category_id, row=1):
         super().__init__(
-            label="",
+            label="自訂區間",
             emoji="➕",
             style=discord.ButtonStyle.success,
             row=row

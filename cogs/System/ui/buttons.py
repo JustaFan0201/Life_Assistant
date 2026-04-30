@@ -1,7 +1,12 @@
 import discord
 from discord import ui
+<<<<<<< HEAD
 
 from database.db import SessionLocal
+=======
+from cogs.BasicDiscordObject import SafeButton
+from database.db import DatabaseSession
+>>>>>>> cf7e87d39a1d66fd867e827584aa8bc2aebd9c15
 from database.models import User
 import asyncio
 
@@ -53,7 +58,7 @@ class BackToMainButton(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from .view import MainControlView 
         embed, view = MainControlView.create_dashboard_ui(self.bot)
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(embed=embed, view=view,attachments=[])
         
 '''# 前往 GPT UI按鈕
 class GoToGPTButton(ui.Button):
@@ -113,17 +118,17 @@ class GoToItineraryButton(ui.Button):
             return await interaction.response.send_message("❌ 錯誤：找不到 Itinerary 模組。", ephemeral=True)
 
         try:
-            # 2. 直接呼叫 Cog 裡統一管理的 UI 產生器
-            # 這樣就不需要理會舊的 import 路徑，也不用在這裡手動刻 Embed 了
-            embed, view = itinerary_cog.create_itinerary_dashboard_ui()
-            
-            await interaction.response.edit_message(embed=embed, view=view)
+            # 取得時要傳入 interaction.user.id，並接收 file
+            embed, view, file = itinerary_cog.create_itinerary_dashboard_ui(interaction.user.id)
+
+            # 顯示時要帶上 attachments
+            if not interaction.response.is_done():
+                await interaction.response.edit_message(embed=embed, view=view, attachments=[file])
+            else:
+                await interaction.edit_original_response(embed=embed, view=view, attachments=[file])
             
         except Exception as e:
             await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)
-
-import discord
-from cogs.BasicDiscordObject import SafeButton  # 記得引入你的核心物件
 
 class GoToGmailButton(SafeButton):  # 1. 改為繼承 SafeButton
     def __init__(self, bot):

@@ -22,3 +22,7 @@ matplotlib
 openai
 faster-whisper
 pandas
+
+selenium  
+webdriver-manager  
+ddddocr==1.0.6
