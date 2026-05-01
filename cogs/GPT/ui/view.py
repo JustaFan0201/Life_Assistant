@@ -1,7 +1,7 @@
 # import discord
 from discord import ui
 #從 System 模組引入返回主選單按鈕
-from ...System.ui.buttons import BackToMainButton
+from cogs.System.ui.Button import BackToMainButton
 # 引入定義好的按鈕
 from .buttons import FortuneButton, ChatButton, ToggleReplyButton
 #定義 GPT 模組的主要介面

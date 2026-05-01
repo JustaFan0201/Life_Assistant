@@ -40,7 +40,7 @@ class ItineraryDashboardView(LockableView):
 
         # Row 3: 返回系統
         try:
-            from cogs.System.ui.buttons import BackToMainButton
+            from cogs.System.ui.Button import BackToMainButton
             self.add_item(BackToMainButton(self.cog.bot, row=0))
         except ImportError:
             pass

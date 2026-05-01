@@ -1,8 +1,7 @@
 import discord
 from discord import ui
 
-# 引入按鈕
-from .buttons import ( 
+from cogs.System.ui.Button import ( 
     GoToItineraryButton, 
     GoToGmailButton,
     OpenDashboardButton,
@@ -38,7 +37,6 @@ class MainControlView(ui.View):
         self.add_item(GoToLifeTrackerButton(bot))
         self.add_item(GoToItineraryButton(bot))
         self.add_item(GoToGmailButton(bot))
-        #self.add_item(GoToGPTButton(bot))
         self.add_item(GoToStockButton(bot))
 
     @staticmethod
@@ -56,7 +54,6 @@ class MainControlView(ui.View):
 
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4712/4712035.png")
 
-        #embed.add_field(name="🚄 高鐵工具", value="包含：高鐵時刻表查詢、定時訂票、線上訂票", inline=False)
         embed.add_field(name="📔 生活日記", value="紀錄與分析您的日常生活紀錄", inline=False)
         embed.add_field(name="📅 行程管理", value="規劃與查詢您的個人行程", inline=False)
         embed.add_field(name="📧 郵件管理", value="包含：新信即時通知、快速撰寫與寄送 Gmail", inline=False)

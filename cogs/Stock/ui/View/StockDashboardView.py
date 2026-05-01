@@ -4,7 +4,7 @@ from cogs.BasicDiscordObject import LockableView
 
 # 嘗試導入全域的返回按鈕，若沒有則設為 None
 try:
-    from cogs.System.ui.buttons import BackToMainButton
+    from cogs.System.ui.Button import BackToMainButton
 except ImportError:
     BackToMainButton = None
 

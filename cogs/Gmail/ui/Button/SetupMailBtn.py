@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from ..Modal.SetupModal import GmailSetupModal
+from cogs.Gmail.ui.Modal import GmailSetupModal
 
 class SetupMailBtn(ui.Button): # ❌ 移除 SafeButton, ✅ 改為 ui.Button
     def __init__(self, cog):

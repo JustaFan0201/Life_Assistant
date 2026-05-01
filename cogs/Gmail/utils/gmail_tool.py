@@ -24,37 +24,6 @@ class EmailTools:
         _, addr = parseaddr(text)
         return addr.strip()
 
-    async def send_mail(self, data):
-        if not self.user or not self.password:
-            return False, '尚未設置寄件者帳號或密碼'
-
-        raw_to = data.get('to', '')
-        pure_to = self._extract_pure_email(raw_to)
-        
-        if not pure_to:
-            return False, '收件人地址解析失敗'
-        
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if re.match(pattern, pure_to) is None:
-            return False, f'Email 格式不符 (解析後為: {pure_to})'
-
-        try:
-            msg = EmailMessage()
-            msg["From"] = self.user
-            msg["To"] = pure_to
-            msg["Subject"] = data.get('subject') or "(無主旨)"
-            msg.set_content(data.get('content') or "")
-            
-            async with SMTP(hostname=self.host, port=self.port, use_tls=True, timeout=10) as smtp:
-                await smtp.login(self.user, self.password)
-                await smtp.send_message(msg)
-                return True, f"已發送 email 至 {pure_to}"
-                
-        except asyncio.TimeoutError:
-            return False, '連線超時，Gmail 伺服器無回應'
-        except Exception as e:
-            return False, f'發送失敗: {str(e)}'
-
     async def get_unread_emails(self, last_id):
         if not self.user or not self.password:
             print("[EmailTools] 錯誤: 未提供帳號密碼，跳過檢查")
@@ -185,11 +154,22 @@ class EmailTools:
 
     def _parse_latest_mail(self, raw_email, msg_id):
         msg = message_from_bytes(raw_email)
+        
+        # 💡 [新增] 獲取 Message-ID 來產生 Gmail 直達連結
+        message_id = msg.get("Message-ID", "")
+        gmail_link = ""
+        if message_id:
+            import urllib.parse
+            # 透過 rfc822msgid 搜尋參數，可以直接在網頁版 Gmail 打開該信件
+            safe_id = urllib.parse.quote(message_id)
+            gmail_link = f"https://mail.google.com/mail/u/0/#search/rfc822msgid%3A{safe_id}"
+
         return {
             "id": msg_id,
             "from": self.safe_decode(msg, "From"),
             "subject": self.safe_decode(msg, "Subject"),
             "body": self._get_body(msg),
             "date": msg.get("Date"),
+            "link": gmail_link, # 🌟 將連結存入字典中
             "raw": msg
         }
