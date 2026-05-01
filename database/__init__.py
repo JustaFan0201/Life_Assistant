@@ -1,5 +1,5 @@
 # database/__init__.py
-from .db import init_db, DatabaseSession
+from .db import init_db, SessionLocal
 from .models import *
 
 # 統一匯出清單

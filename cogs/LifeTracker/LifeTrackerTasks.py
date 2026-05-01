@@ -1,7 +1,7 @@
 from discord.ext import commands, tasks
 from datetime import time, datetime
 import asyncio
-from database import DatabaseSession
+from database import SessionLocal
 from database.models import TrackerCategory, EInvoiceConfig
 from cogs.LifeTracker.utils import LifeTracker_Manager,AI_Analyzer
 from cogs.LifeTracker.src import InvoicePipeline
@@ -53,7 +53,7 @@ class LifeTrackerTasks(commands.Cog):
         
         try:
             # 撈取所有有設定發票帳號的使用者
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 configs = db.query(EInvoiceConfig).all()
                 # 為了避免資料庫 session 跨非同步操作過期，先將 ID 取出存成 list
                 user_ids = [c.user_id for c in configs]

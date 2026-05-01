@@ -1,4 +1,4 @@
-from database import DatabaseSession
+from database import SessionLocal
 from database.models import EInvoiceConfig
 from cogs.LifeTracker.utils import Crypto_Helper
 
@@ -9,7 +9,7 @@ class EInvoice_Manager:
         try:
             encrypted_password = Crypto_Helper.encrypt(raw_password)
             
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 config = db.query(EInvoiceConfig).filter_by(user_id=user_id).first()
                 if not config:
                     config = EInvoiceConfig(user_id=user_id)
@@ -26,7 +26,7 @@ class EInvoice_Manager:
     @staticmethod
     def get_config(user_id: int) -> dict:
         """獲取使用者的發票平台設定，回傳包含明文密碼的字典"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             config = db.query(EInvoiceConfig).filter_by(user_id=user_id).first()
             if not config:
                 return None

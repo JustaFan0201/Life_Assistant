@@ -4,7 +4,7 @@ import pandas as pd
 import asyncio
 from datetime import datetime
 from cogs.LifeTracker.utils import LifeTracker_Manager, AI_Analyzer
-from database import DatabaseSession
+from database import SessionLocal
 from database.models import TrackerCategory, TrackerSubCategory
 import time
 class InvoiceProcessor:
@@ -41,7 +41,7 @@ class InvoiceProcessor:
             return
 
         # 2. 取得該分類下所有的子分類標籤
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             subcats = db.query(TrackerSubCategory).filter_by(category_id=self.target_category_id).all()
             subcat_map = {s.name: s.id for s in subcats} 
             subcat_names = list(subcat_map.keys())

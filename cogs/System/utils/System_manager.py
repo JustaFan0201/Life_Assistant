@@ -1,4 +1,4 @@
-from database.db import DatabaseSession
+from database.db import SessionLocal
 from database.models import User, BotSettings
 
 class SystemManager:
@@ -6,7 +6,7 @@ class SystemManager:
     def register_user(discord_id: int, username: str):
         """註冊新使用者或更新使用者名稱"""
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 user = db.query(User).filter(User.discord_id == discord_id).first()
                 
                 if not user:
@@ -30,7 +30,7 @@ class SystemManager:
     def get_all_dashboard_settings() -> list[dict]:
         """獲取所有已設定 Dashboard 的伺服器頻道資訊"""
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 all_settings = db.query(BotSettings).filter(BotSettings.dashboard_channel_id.isnot(None)).all()
                 
                 # 將資料轉換成 dict 列表回傳，避免離開 with 區塊後引發 detached 錯誤
@@ -44,7 +44,7 @@ class SystemManager:
     def update_guild_setting(guild_id: int, column_name: str, value: int) -> tuple[bool, str]:
         """更新伺服器的 BotSettings，成功回傳 (True, "")，失敗回傳 (False, 錯誤訊息)"""
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 settings = db.query(BotSettings).filter(BotSettings.id == guild_id).first()
 
                 # 如果該伺服器還沒有設定檔，就自動建立一個
@@ -67,7 +67,7 @@ class SystemManager:
         成功回傳該欄位的值 (整數)，找不到或發生錯誤則回傳 None
         """
         try:
-            with DatabaseSession() as db:
+            with SessionLocal() as db:
                 settings = db.query(BotSettings).filter(BotSettings.id == guild_id).first()
                 
                 if not settings:

@@ -1,7 +1,7 @@
 # database/models.py
 from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean, Text, JSON, func, Float
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy.dialects.postgresql import VECTOR  # pgvector
+# from sqlalchemy.dialects.postgresql import VECTOR  # pgvector
 from datetime import datetime
 
 
@@ -86,16 +86,16 @@ class CalendarEvent(Base):
     
     user = relationship("User", back_populates="calendar_events")
 
-class Memory(Base):
-    __tablename__ = "memories"
+# class Memory(Base):
+#     __tablename__ = "memories"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
-    message_text = Column(Text, nullable=False)
-    vector = Column(VECTOR(768), nullable=False)  # 768維向量，如果用 e5-large 就改成 1024
-    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-    last_used_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
-    metadata = Column(JSON, default={})
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
+#     message_text = Column(Text, nullable=False)
+#     vector = Column(VECTOR(768), nullable=False)  # 768維向量，如果用 e5-large 就改成 1024
+#     created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+#     last_used_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+#     metadata = Column(JSON, default={})
 
 class TrackerCategory(Base):
     __tablename__ = 'tracker_categories'

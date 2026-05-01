@@ -3,7 +3,7 @@ from discord.ext import commands
 from cogs.GPT.utils.ask_gpt import ask_gpt
 from cogs.GPT.src.memory_manager import MemoryManager
 from database.models import BotSettings
-from cogs.System.settings import get_botsettings
+from database.db_utils import get_botsettings
 from collections import deque
 from database.db import SessionLocal
 
@@ -45,9 +45,9 @@ class ReplyCog(commands.Cog):
         metadata = {"guild_name": message.guild.name,
                     "channel_name": message.channel.name}
         
-        if self.active and (message.guild is None or message.channel.id == get_botsettings(BotSettings.gpt_channel_id, message.guild.id)):
-            # can talk
-            with SessionLocal() as db:
+        with SessionLocal() as db:
+            if self.active and (message.guild or message.channel.id == get_botsettings(BotSettings.gpt_channel_id, db, message.guild.id)):
+                # can talk
                 messages = []
                 
                 mems = self.memory_manager.search_memory(user_id, msg_text, k=3, db=db)
@@ -74,6 +74,6 @@ class ReplyCog(commands.Cog):
                         self.memory_manager.add_memory(user_id, msg_text, metadata)
                     except Exception as e:
                         print(f"GPT Error: {e}")
-        else:
-            self.memory_manager.add_memory(user_id, msg_text, metadata)
+            else:
+                self.memory_manager.add_memory(user_id, msg_text, metadata)
             

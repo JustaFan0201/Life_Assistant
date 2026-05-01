@@ -15,7 +15,7 @@ class Itinerary(commands.Cog):
 
     async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
         clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
-        success, report = self.db_manager.add_event(
+        success, report = self.SessionLocal.add_event(
             user_id=interaction.user.id,
             event_time=clean_time,
             description=description,

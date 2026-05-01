@@ -19,7 +19,7 @@ class LifeTracker_Manager:
     @staticmethod
     def ensure_default_consumption_category(user_id: int):
         """確保使用者擁有預設的『消費』分類與標籤"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             exists = db.query(TrackerCategory).filter_by(user_id=user_id, name="消費").first()
             
             if not exists:
@@ -483,7 +483,7 @@ class LifeTracker_Manager:
     @staticmethod
     def get_consumption_category_id(user_id: int):
         """根據 user_id 動態尋找『消費』主分類的 ID"""
-        with DatabaseSession() as db:
+        with SessionLocal() as db:
             # 尋找該使用者底下名稱叫做「消費」的分類
             cat = db.query(TrackerCategory).filter_by(user_id=user_id, name="消費").first()
             return cat.id if cat else None

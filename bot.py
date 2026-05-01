@@ -6,7 +6,7 @@ from keep_alive import keep_alive
 import datetime
 from database.db import init_db, SessionLocal
 from database.models import BotSettings
-from cogs.System.settings import get_botsettings
+from database.db_utils import get_botsettings
 
 from config import COGS_DIR, DISCORD_BOT_TOKEN, RENDER
 
@@ -25,28 +25,30 @@ async def on_ready():
     except Exception as e:
         print(f"同步斜線指令失敗: {e}")
 
-    for guild in bot.guilds:
-        notify_channel_id = get_botsettings(BotSettings.login_notify_channel_id, guild.id)
-        if notify_channel_id: 
-            print(f"🔍 從資料庫(ID={guild.id})讀取到通知頻道 ID: {notify_channel_id}")
-            try:
-                target_id = int(notify_channel_id)
-                channel = await bot.fetch_channel(target_id)
-                
-                msg = f"🟢 **Bot 已上線！**\n時間：`{now}`"
-                await channel.send(msg)
-                print(f"✅ 上線通知已發送至頻道: {channel.name} (ID: {channel.id})")
-                
-            except ValueError:
-                print(f"❌ 通知失敗：ID '{notify_channel_id}' 不是有效的數字。")
-            except discord.NotFound:
-                print(f"❌ 通知失敗：找不到頻道 ID {notify_channel_id} (請確認 ID 正確且機器人在該伺服器)。")
-            except discord.Forbidden:
-                print(f"❌ 通知失敗：機器人沒有權限在該頻道發言。")
-            except Exception as e:
-                print(f"❌ 通知發送發生未知錯誤: {e}")
-        else:
-            print("⚠️ 尚未設定 Login_Notify_Channel_ID (請使用 /set_login_notify_channel 設定)。")
+    with SessionLocal as db:
+        for guild in bot.guilds:
+            if not guild: continue
+            notify_channel_id = get_botsettings(BotSettings.login_notify_channel_id, db, guild.id)
+            if notify_channel_id: 
+                print(f"🔍 從資料庫(ID={guild.id})讀取到通知頻道 ID: {notify_channel_id}")
+                try:
+                    target_id = int(notify_channel_id)
+                    channel = await bot.fetch_channel(target_id)
+                    
+                    msg = f"🟢 **Bot 已上線！**\n時間：`{now}`"
+                    await channel.send(msg)
+                    print(f"✅ 上線通知已發送至頻道: {channel.name} (ID: {channel.id})")
+                    
+                except ValueError:
+                    print(f"❌ 通知失敗：ID '{notify_channel_id}' 不是有效的數字。")
+                except discord.NotFound:
+                    print(f"❌ 通知失敗：找不到頻道 ID {notify_channel_id} (請確認 ID 正確且機器人在該伺服器)。")
+                except discord.Forbidden:
+                    print(f"❌ 通知失敗：機器人沒有權限在該頻道發言。")
+                except Exception as e:
+                    print(f"❌ 通知發送發生未知錯誤: {e}")
+            else:
+                print("⚠️ 尚未設定 Login_Notify_Channel_ID (請使用 /set_login_notify_channel 設定)。")
 
 # 載入指令程式檔案
 @bot.command()
