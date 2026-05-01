@@ -149,7 +149,7 @@ class EmailTools:
         
         body = body.strip()
         # Discord Embed 欄位限制較嚴，這裡維持你的 200 字截斷邏輯
-        from ..gmail_config import MAX_EMAIL_BODY_LENGTH
+        from ..Gmail_config import MAX_EMAIL_BODY_LENGTH
         return (body[:MAX_EMAIL_BODY_LENGTH] + "...") if len(body) > MAX_EMAIL_BODY_LENGTH else body
 
     def _parse_latest_mail(self, raw_email, msg_id):

@@ -1,9 +1,9 @@
 import discord
 from discord import ui
-from cogs.Gmail.gmail_config import EMBED_COLOR_HELP
+from cogs.Gmail.Gmail_config import EMBED_COLOR_HELP
 class HelpBtn(ui.Button):
-    def __init__(self):
-        super().__init__(label="使用教學", style=discord.ButtonStyle.secondary, emoji="📖")
+    def __init__(self, row=1):
+        super().__init__(label="使用教學", style=discord.ButtonStyle.secondary, emoji="📖",row=row)
 
     async def callback(self, interaction: discord.Interaction):
         embed = discord.Embed(title="📖 Gmail 設置教學", color=EMBED_COLOR_HELP)

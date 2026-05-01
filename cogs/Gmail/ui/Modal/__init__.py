@@ -1,4 +1,6 @@
 from .GmailSetupModal import GmailSetupModal
+from .AddCategoryModal import AddCategoryModal
 __all__ = [
-    'GmailSetupModal'
+    "GmailSetupModal",
+    "AddCategoryModal"
 ]
