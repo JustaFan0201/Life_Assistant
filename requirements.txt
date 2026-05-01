@@ -12,12 +12,6 @@ aiosmtplib
 aioimaplib
 cryptography
 
-alembic
-
-torch
-transformers
-faiss-cpu
-#faiss-gpu
 matplotlib
 openai
 faster-whisper
@@ -26,3 +20,8 @@ pandas
 selenium  
 webdriver-manager  
 ddddocr==1.0.6
+
+#torch
+#transformers
+#faiss-cpu
+#faiss-gpu

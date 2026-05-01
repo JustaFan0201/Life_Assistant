@@ -60,7 +60,7 @@ class ItineraryDeleteView(LockableView):
     @staticmethod
     def create_ui(cog, user_id, page=0):
         """💡 靜態生成入口"""
-        formatted = cog.SessionLocal.get_formatted_list(user_id)
+        formatted = cog.db_manager.get_formatted_list(user_id)
         
         if not formatted[page * 10 : (page + 1) * 10] and page > 0:
             page -= 1

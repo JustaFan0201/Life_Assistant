@@ -10,6 +10,7 @@ class Itinerary(commands.Cog):
         self.bot = bot
         self.db_session = db_session 
         self.SessionLocal = CalendarDatabaseManager(db_session)
+        self.db_manager = self.SessionLocal
         self.last_check_minute = -1
         self.check_reminders.start()
 
