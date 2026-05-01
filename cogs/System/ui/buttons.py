@@ -1,12 +1,7 @@
 import discord
 from discord import ui
-<<<<<<< HEAD
-
-from database.db import SessionLocal
-=======
 from cogs.BasicDiscordObject import SafeButton
 from database.db import DatabaseSession
->>>>>>> cf7e87d39a1d66fd867e827584aa8bc2aebd9c15
 from database.models import User
 import asyncio
 

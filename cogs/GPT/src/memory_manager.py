@@ -8,7 +8,7 @@ class MemoryManager:
         self.embed_model = EmbeddingModel()
 
     @with_db_decorator
-    def add_memory(self, db, user_id: int, text: str, metadata: dict = {}):
+    def add_memory(self, user_id: int, text: str, metadata: dict = {}, db=None):
 
         vector = self.embed_model.embed(
             [f"passage: {text}"]
@@ -27,7 +27,7 @@ class MemoryManager:
         return mem.id
 
     @with_db_decorator
-    def search_memory(self, db, user_id: int, query: str, k: int = 5):
+    def search_memory(self, user_id: int, query: str, k: int = 5, db=None):
 
         query_vec = self.embed_model.embed(
             [f"query: {query}"]
@@ -59,7 +59,7 @@ class MemoryManager:
         )
 
         rows.reverse()
-
+        
         return [
             {"role": r.role, "content": r.content}
             for r in rows

@@ -1,16 +1,10 @@
 from discord.ext import commands, tasks
 from datetime import time, datetime
-<<<<<<< HEAD
-from database.db import SessionLocal
-from database.models import TrackerCategory
-from cogs.LifeTracker.utils import LifeTracker_Manager, AI_Analyzer
-=======
 import asyncio
 from database import DatabaseSession
 from database.models import TrackerCategory, EInvoiceConfig
 from cogs.LifeTracker.utils import LifeTracker_Manager,AI_Analyzer
 from cogs.LifeTracker.src import InvoicePipeline
->>>>>>> cf7e87d39a1d66fd867e827584aa8bc2aebd9c15
 from config import TW_TZ
 
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)

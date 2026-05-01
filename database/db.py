@@ -23,9 +23,6 @@ def init_db() -> bool:
         print("✅ 資料庫連線成功")
         conn.close()
 
-        print("正在檢查並建立資料表結構...")
-        Base.metadata.create_all(bind=_engine) 
-        print("✅ 所有資料表已建立/更新完成 (If not existed)")
         return True
 
     except Exception as e:

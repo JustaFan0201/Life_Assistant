@@ -5,6 +5,7 @@ from cogs.GPT.src.memory_manager import MemoryManager
 from database.models import BotSettings
 from cogs.System.settings import get_botsettings
 from collections import deque
+from database.db import SessionLocal
 
 class ReplyCog(commands.Cog):
     def __init__(self, bot):
@@ -46,32 +47,33 @@ class ReplyCog(commands.Cog):
         
         if self.active and (message.guild is None or message.channel.id == get_botsettings(BotSettings.gpt_channel_id, message.guild.id)):
             # can talk
-            messages = []
+            with SessionLocal() as db:
+                messages = []
+                
+                mems = self.memory_manager.search_memory(user_id, msg_text, k=3, db=db)
+                mems_text = "\n".join(m["text"] for m in mems)
+                for m in mems:
+                    self.m
+                if mems_text:
+                    messages.append({
+                        "role": "system",
+                        "content": f"以下是與對話相關的記憶：\n{mems_text}"
+                    })
+                
+                for q, a in self.history:
+                    messages.append({"role": "user", "content": q})
+                    messages.append({"role": "assistant", "content": a})
+                
+                messages.append({"role": "user", "content": message.content})
 
-            mems = self.memory_manager.search_memory(user_id, msg_text, k=3)
-            mems_text = "\n".join(m["text"] for m in mems)
-            for m in mems:
-                self.m
-            if mems_text:
-                messages.append({
-                    "role": "system",
-                    "content": f"以下是與使用者相關的記憶：\n{mems_text}"
-                })
-            
-            for q, a in self.history:
-                messages.append({"role": "user", "content": q})
-                messages.append({"role": "assistant", "content": a})
-            
-            messages.append({"role": "user", "content": message.content})
-
-            async with message.channel.typing():
-                try:
-                    result = ask_gpt(messages, max_tokens=500)
-                    await message.channel.send(result)
-                    self.history.append((message.content, result))
-                    self.memory_manager.add_memory(user_id, msg_text, metadata)
-                except Exception as e:
-                    print(f"GPT Error: {e}")
+                async with message.channel.typing():
+                    try:
+                        result = ask_gpt(messages, max_tokens=500)
+                        await message.channel.send(result)
+                        self.history.append((message.content, result))
+                        self.memory_manager.add_memory(user_id, msg_text, metadata)
+                    except Exception as e:
+                        print(f"GPT Error: {e}")
         else:
             self.memory_manager.add_memory(user_id, msg_text, metadata)
             
