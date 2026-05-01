@@ -1,4 +1,4 @@
-from .dashboard import SystemCog
+from .System_cog import SystemCog
 from .settings import SettingsCog
 
 async def setup(bot):

@@ -2,7 +2,7 @@ import discord
 from discord import ui
 from datetime import datetime, timedelta, timezone
 
-from ...System.ui.buttons import BackToMainButton
+from cogs.System.ui.Button import BackToMainButton
 
 from database.db import DatabaseSession
 from database.models import User,THSRProfile,Ticket,BookingSchedule

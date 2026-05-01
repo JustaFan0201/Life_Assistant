@@ -26,24 +26,12 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     email_config = relationship("EmailConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    email_contacts = relationship("EmailContact", back_populates="user", cascade="all, delete-orphan")
-
+    email_categories = relationship("EmailCategory", back_populates="user", cascade="all, delete-orphan")
+    
     calendar_events = relationship("CalendarEvent", back_populates="user", cascade="all, delete-orphan")
 
     stocks = relationship("UserStockWatch", back_populates="user", cascade="all, delete-orphan")
     einvoice_config = relationship("EInvoiceConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    
-class EInvoiceConfig(Base):
-    __tablename__ = 'einvoice_configs'
-
-    user_id = Column(BigInteger, ForeignKey('users.discord_id'), primary_key=True)
-    
-    phone_number = Column(String, nullable=True)
-    password = Column(String, nullable=True)
-
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
-    user = relationship("User", back_populates="einvoice_config")
 
 class EmailConfig(Base):
     __tablename__ = 'email_configs'
@@ -58,18 +46,31 @@ class EmailConfig(Base):
     
     user = relationship("User", back_populates="email_config")
 
-class EmailContact(Base):
-    __tablename__ = 'email_contacts'
+class EmailCategory(Base):
+    """使用者自訂的郵件分類"""
+    __tablename__ = 'email_categories'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('users.discord_id'), nullable=False)
-    
-    nickname = Column(String, nullable=False)
-    email_address = Column(String, nullable=False)
-    
-    created_at = Column(DateTime, default=datetime.now)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'))
+    name = Column(String, nullable=False)        # 分類名稱 (例如: 繳費通知)
+    description = Column(String, nullable=False) # 給 AI 判斷用的描述 (例如: 包含水電、瓦斯、電信費的帳單)
 
-    user = relationship("User", back_populates="email_contacts")
+    user = relationship("User", back_populates="email_categories")
+    emails = relationship("CategorizedEmail", back_populates="category", cascade="all, delete-orphan")
+
+class CategorizedEmail(Base):
+    """被 AI 成功分類並摘要的郵件"""
+    __tablename__ = 'categorized_emails'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    category_id = Column(BigInteger, ForeignKey('email_categories.id'))
+    
+    subject = Column(String, nullable=False)
+    ai_summary = Column(String, nullable=False) # AI 整理的 20 字簡介
+    gmail_link = Column(String, nullable=False) # Gmail 直達連結
+    received_at = Column(String, nullable=False) # 收信時間
+
+    category = relationship("EmailCategory", back_populates="emails")
 
 class CalendarEvent(Base):
     __tablename__ = 'calendar_events'
@@ -113,6 +114,18 @@ class TrackerSubCategory(Base):
 
     category = relationship("TrackerCategory", back_populates="subcategories")
     records = relationship("LifeRecord", back_populates="subcategory")
+
+class EInvoiceConfig(Base):
+    __tablename__ = 'einvoice_configs'
+
+    user_id = Column(BigInteger, ForeignKey('users.discord_id'), primary_key=True)
+    
+    phone_number = Column(String, nullable=True)
+    password = Column(String, nullable=True)
+
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    user = relationship("User", back_populates="einvoice_config")
 
 class LifeRecord(Base):
     __tablename__ = 'life_records'

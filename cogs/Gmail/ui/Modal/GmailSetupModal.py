@@ -2,7 +2,7 @@
 import discord
 from discord import ui
 from cogs.BasicDiscordObject import ValidatedModal
-from ...utils.gmail_tool import EmailTools
+from cogs.Gmail.utils import EmailTools
 
 class GmailSetupModal(ValidatedModal):
     def __init__(self, cog):

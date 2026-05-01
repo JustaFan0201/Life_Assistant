@@ -1,15 +1,14 @@
 import re
 from typing import Optional, Dict
-import os 
 from cryptography.fernet import Fernet
 from sqlalchemy.orm import Session
-from database.models import User, EmailConfig, EmailContact
-
+from database.models import User, EmailConfig, EmailCategory, CategorizedEmail
+from config import ENCRYPTION_KEY
 class EmailDatabaseManager:
     def __init__(self, session_factory):
         self.Session = session_factory
 
-        self.key = os.getenv("ENCRYPTION_KEY")
+        self.key = ENCRYPTION_KEY
         if not self.key:
             print("警告: 找不到 ENCRYPTION_KEY，加密功能將無法運作！")
             self.cipher = None
@@ -78,46 +77,79 @@ class EmailDatabaseManager:
             session.query(EmailConfig).filter_by(user_id=user_id).update({"last_email_id": last_id})
             session.commit()
 
-    def get_all_contacts(self, user_id: int) -> Dict[str, str]:
-        with self.Session() as session:
-            contacts = session.query(EmailContact).filter_by(user_id=user_id).all()
-            return {c.nickname: c.email_address for c in contacts}
+    def get_user_categories(self, user_id: int) -> list[dict]:
+        """獲取使用者的所有分類清單"""
+        try:
+            with self.Session() as session:
+                categories = session.query(EmailCategory).filter_by(user_id=user_id).all()
+                # 轉成 dict 列表，方便餵給 AI 分析器
+                return [{"id": c.id, "name": c.name, "desc": c.description} for c in categories]
+        except Exception as e:
+            print(f"❌ 取得分類失敗: {e}")
+            return []
 
-    def add_and_save(self, name: str, email: str, user_id: int) -> str:
-        if not self._is_valid_email(email):
-            return "❌ Email 格式不符"
-
-        with self.Session() as session:
-            try:
-                self._ensure_user_exists(session, user_id)
+    def save_categorized_email(self, category_id: int, email_info: dict, summary: str):
+        """將 AI 處理完的信件存入對應分類"""
+        try:
+            with self.Session() as session:
+                new_email = CategorizedEmail(
+                    category_id=category_id,
+                    subject=email_info.get('subject', '(無主旨)')[:100], # 避免主旨過長
+                    ai_summary=summary,
+                    gmail_link=email_info.get('link', ''), # 這是我們上一步在 gmail_tool 抓到的連結
+                    received_at=email_info.get('date', '未知時間')
+                )
+                session.add(new_email)
+                session.commit()
+                return True
+        except Exception as e:
+            print(f"❌ 儲存分類信件失敗: {e}")
+            return False
+        
+    def add_category(self, user_id: int, name: str, description: str) -> tuple[bool, str]:
+        """新增一個使用者自訂分類"""
+        from database.models import EmailCategory
+        try:
+            with self.Session() as session:
+                # 檢查是否重複
+                if session.query(EmailCategory).filter_by(user_id=user_id, name=name).first():
+                    return False, "⚠️ 已經有相同名稱的分類囉！"
                 
-                if session.query(EmailContact).filter_by(user_id=user_id, nickname=name).first():
-                    return f"⚠️ 暱稱「{name}」已存在。"
-
-                session.add(EmailContact(user_id=user_id, nickname=name, email_address=email))
+                new_cat = EmailCategory(user_id=user_id, name=name, description=description)
+                session.add(new_cat)
                 session.commit()
-                return f"✅ 成功新增聯絡人：{name}"
-            except Exception as e:
-                session.rollback()
-                return f"❌ 寫入失敗: {e}"
+                return True, f"✅ 成功建立分類：{name}"
+        except Exception as e:
+            return False, f"❌ 資料庫錯誤: {e}"
 
-    def update_contact(self, user_id: int, nickname: str, new_email: str) -> str:
-        if not self._is_valid_email(new_email):
-            return "❌ Email 格式不符"
+    def delete_category(self, category_id: int) -> bool:
+        """刪除指定分類 (關聯的信件也會因為 cascade 自動刪除)"""
+        from database.models import EmailCategory
+        try:
+            with self.Session() as session:
+                cat = session.query(EmailCategory).filter_by(id=category_id).first()
+                if cat:
+                    session.delete(cat)
+                    session.commit()
+                    return True
+                return False
+        except Exception:
+            return False
 
-        with self.Session() as session:
-            contact = session.query(EmailContact).filter_by(user_id=user_id, nickname=nickname).first()
-            if contact:
-                contact.email_address = new_email
-                session.commit()
-                return f"✅ 已更新「{nickname}」的地址。"
-            return "❌ 找不到該聯絡人"
-
-    def delete_contact(self, user_id: int, nickname: str) -> str:
-        with self.Session() as session:
-            contact = session.query(EmailContact).filter_by(user_id=user_id, nickname=nickname).first()
-            if contact:
-                session.delete(contact)
-                session.commit()
-                return f"🗑️ 已刪除聯絡人：{nickname}"
-            return "❌ 找不到該聯絡人"
+    def get_category_emails(self, category_id: int) -> list[dict]:
+        """取得該分類下所有的信件 (由新到舊排序)"""
+        from database.models import CategorizedEmail
+        try:
+            with self.Session() as session:
+                emails = session.query(CategorizedEmail).filter_by(category_id=category_id)\
+                                .order_by(CategorizedEmail.id.desc()).all()
+                return [
+                    {
+                        "subject": e.subject, 
+                        "summary": e.ai_summary, 
+                        "link": e.gmail_link, 
+                        "date": e.received_at
+                    } for e in emails
+                ]
+        except Exception:
+            return []
