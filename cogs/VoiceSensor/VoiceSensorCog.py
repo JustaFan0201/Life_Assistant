@@ -1,7 +1,6 @@
-import discord
 from discord.ext import commands
 from datetime import time
-from cogs.LifeTracker.utils import LifeTracker_Manager
+from cogs.VoiceSensor.ActionHandler import ActionHandler
 from cogs.VoiceSensor.utils import AI_Analyzer
 from cogs.VoiceSensor.src import stt_whisper
 from config import TW_TZ
@@ -10,7 +9,7 @@ REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 class VoiceSensorCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
+        self.action_handler = ActionHandler(bot)
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -37,7 +36,7 @@ class VoiceSensorCog(commands.Cog):
                     return await processing_msg.edit(content="❌ 沒聽清楚您說什麼")
 
                 # ✅ 共用流程
-                await self.process_text(message, recognized_text, processing_msg)
+                await self.process_text(recognized_text, message, processing_msg)
 
             except Exception as e:
                 await processing_msg.edit(content=f"❌ 語音失敗：{e}")
@@ -48,7 +47,7 @@ class VoiceSensorCog(commands.Cog):
 
             try:
                 # ✅ 共用流程
-                await self.process_text(message, message.content, processing_msg)
+                await self.process_text(message.content, message, processing_msg)
             except Exception as e:
                 await processing_msg.edit(content=f"❌ 處理失敗：{e}")
 
@@ -56,44 +55,13 @@ class VoiceSensorCog(commands.Cog):
         await self.bot.process_commands(message)
 
 
-    async def process_text(self, message, text: str, processing_msg):
-        # --- 1. 準備上下文 ---
-        raw_cats = LifeTracker_Manager.get_user_categories(message.author.id)
+    async def process_text(self, text: str, message, processing_msg):
+        # 1️⃣ 呼叫 AI
+        result = await AI_Analyzer.parse_ui_action(text)
 
-        all_labels = []
-        full_context_cats = []
+        actions = result.get("actions", [])
 
-        for cat in raw_cats:
-            _, subcats = LifeTracker_Manager.get_category_details(cat.id)
+        if not actions:
+            return await processing_msg.edit(content="❌ 無法解析操作")
 
-            all_labels.append(cat.name)
-            sub_names = [s['name'] for s in subcats]
-
-            all_labels.extend(sub_names)
-
-            full_context_cats.append({
-                "id": cat.id,
-                "name": cat.name,
-                "fields": cat.fields,
-                "subcats": sub_names
-            })
-
-        
-        # --- 2. 意圖判斷 ---
-        intent_data = await AI_Analyzer.classify_intent(text)
-        intent = intent_data.get("intent", "CHAT")
-
-        # --- 3. 分流 ---
-        if intent == "RECORD":
-            await processing_msg.edit(content=f"📌 紀錄：{text}")
-
-        elif intent == "QUERY":
-            await processing_msg.edit(content="📊 這是您的個人看板")
-
-        elif intent == "MANAGE":
-            await processing_msg.edit(content="⚙️ 管理需求")
-
-        else:
-            await processing_msg.edit(
-                content=f"🤖 我聽到了：『{text}』\n但我還不確定怎麼處理"
-            )
+        await self.action_handler.handle_actions(message, processing_msg, actions)
