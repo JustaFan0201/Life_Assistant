@@ -26,6 +26,10 @@
     - subcategories (list[string])
 - DELETE_CATEGORY_MENU
 
+### Other
+- CHAT #有必要資訊不足時使用 如果action有CHAT時 請把其他動作用memory存 CHAT不可和其他action並存
+  - message* (string) #想告訴使用者的話或提示
+  - memory (string) #你自己的記憶 會加入到下次呼叫 任意格式
 ---
 
 ## 輸出格式

@@ -4,6 +4,8 @@ from cogs.VoiceSensor.ActionHandler import ActionHandler
 from cogs.VoiceSensor.utils import AI_Analyzer
 from cogs.VoiceSensor.src import stt_whisper
 from config import TW_TZ
+from database.db_utils import get_mem
+
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 
 class VoiceSensorCog(commands.Cog):
@@ -57,7 +59,7 @@ class VoiceSensorCog(commands.Cog):
 
     async def process_text(self, text: str, message, processing_msg):
         # 1️⃣ 呼叫 AI
-        result = await AI_Analyzer.parse_ui_action(text)
+        result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id))
 
         actions = result.get("actions", [])
 

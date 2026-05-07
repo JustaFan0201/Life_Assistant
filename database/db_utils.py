@@ -7,7 +7,7 @@ Common database utility functions.
 from sqlalchemy import Column
 from database.db import SessionLocal
 from sqlalchemy.orm import Session
-from database.models import BotSettings, User
+from database.models import BotSettings, User, Memory
 from functools import wraps
 import inspect
 
@@ -81,3 +81,22 @@ def get_user(db: Session, discord_id):
         db.add(user)
         db.flush() 
     return user
+
+
+@with_db_decorator
+def get_mem(user_id, db: Session=None):
+    user = get_user(db, user_id)
+    mem = db.query(Memory).filter_by(user_id=user.discord_id).first()
+    return mem
+    
+
+@with_db_decorator
+def upsert_mem(user_id, memory_text, db: Session=None):
+    mem = get_mem(user_id, db)
+    if mem:
+        mem.memory_text = memory_text
+    else:
+        mem = Memory(user_id=user_id, memory_text=memory_text)
+        db.add(mem)
+    db.commit()
+    return mem
