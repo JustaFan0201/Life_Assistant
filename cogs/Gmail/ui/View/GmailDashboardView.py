@@ -1,11 +1,8 @@
 import discord
 from cogs.BasicDiscordObject import LockableView
 
-from cogs.Gmail.ui.Button.SetupMailBtn import SetupMailBtn
-from cogs.Gmail.ui.Button.HelpBtn import HelpBtn
-from cogs.Gmail.ui.Button.AddCategoryBtn import AddCategoryBtn
-from cogs.Gmail.ui.Select.ViewCategorySelect import ViewCategorySelect
-from cogs.Gmail.ui.Button.GoToDeleteCategoryBtn import GoToDeleteCategoryBtn
+from cogs.Gmail.ui.Button import AddCategoryBtn,GoToDeleteCategoryBtn,HelpBtn,SetupMailBtn
+from cogs.Gmail.ui.Select import ViewCategorySelect
 class GmailDashboardView(LockableView):
     def __init__(self, bot, gmail_cog, user_id):
         super().__init__(timeout=None)
@@ -20,7 +17,7 @@ class GmailDashboardView(LockableView):
         self.add_item(AddCategoryBtn(self.gmail_cog, self.user_id))
         self.add_item(GoToDeleteCategoryBtn(self.bot, self.gmail_cog, self.user_id))
         self.add_item(SetupMailBtn(self.gmail_cog))
-        self.add_item(HelpBtn())
+        self.add_item(HelpBtn(self.bot, self.gmail_cog, self.user_id))
 
 
         try:
@@ -43,7 +40,6 @@ class GmailDashboardView(LockableView):
             ),
             color=0xEA4335
         )
-        embed.add_field(name="📡 狀態", value="🟢 運作中", inline=True)
         embed.add_field(name="📧 信箱", value=f"`{user_config.get('email')}`" if user_config else "尚未設置", inline=True)
         
         view = GmailDashboardView(bot, gmail_cog, user_id)

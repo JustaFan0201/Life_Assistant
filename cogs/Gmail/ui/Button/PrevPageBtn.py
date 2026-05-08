@@ -6,7 +6,6 @@ class PrevPageBtn(ui.Button):
         super().__init__(label="◀ 上一頁", style=discord.ButtonStyle.secondary, disabled=disabled, row=0)
 
     async def callback(self, interaction: discord.Interaction):
-        # 透過 self.view 取得父視圖 (CategoryEmailPagerView)
         view = self.view
         view.page -= 1
         

@@ -11,12 +11,16 @@ class Gmail(commands.Cog):
         self.bot = bot
         self.db_manager = EmailDatabaseManager(db_session)
 
+    async def cog_load(self):
+        if not self.test_check_mail.is_running():
+            self.test_check_mail.start()
+            print("[Gmail] 背景收信排程已成功啟動！")
+
     @tasks.loop(seconds=30)
     async def test_check_mail(self):
         await self.bot.wait_until_ready()
-        
         try:
-            with self.SessionLocal.Session() as session:
+            with self.db_manager.Session() as session:
                 user_ids = [c.user_id for c in session.query(EmailConfig.user_id).all()]
         except Exception as e:
             print(f"[資料庫輪詢] 查詢設定失敗: {e}")
@@ -63,6 +67,8 @@ class Gmail(commands.Cog):
                             if target_cat:
                                 self.db_manager.save_categorized_email(target_cat['id'], email_info, summary)
                                 print(f"📁 已將信件歸檔至分類 [{cat_name}]")
+                        else:
+                            print(f"⏩ 信件不符合任何分類，已略過。")
 
                         # 4. 無論如何都會更新最後的 ID (已移除私訊通知)
                         self.db_manager.update_last_email_id(user_id, str(email_info['id']))

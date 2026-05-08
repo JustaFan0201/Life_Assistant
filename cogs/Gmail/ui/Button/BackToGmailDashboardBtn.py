@@ -3,7 +3,7 @@ from discord import ui
 
 class BackToGmailDashboardBtn(ui.Button):
     def __init__(self, bot, gmail_cog, user_id, row=1):
-        super().__init__(label="返回管理中心", style=discord.ButtonStyle.danger, row=row)
+        super().__init__(label="返回", style=discord.ButtonStyle.danger, row=row)
         self.bot = bot
         self.gmail_cog = gmail_cog
         self.user_id = user_id

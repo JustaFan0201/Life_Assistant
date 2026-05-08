@@ -1,9 +1,7 @@
 import discord
+from email.utils import parsedate_to_datetime
 
-# 🌟 引入剛剛寫好的三個獨立按鈕
-from cogs.Gmail.ui.Button.PrevPageBtn import PrevPageBtn
-from cogs.Gmail.ui.Button.NextPageBtn import NextPageBtn
-from cogs.Gmail.ui.Button.BackToGmailDashboardBtn import BackToGmailDashboardBtn
+from cogs.Gmail.ui.Button import PrevPageBtn,NextPageBtn,BackToGmailDashboardBtn
 
 class CategoryEmailPagerView(discord.ui.View):
     def __init__(self, bot, gmail_cog, user_id, category_name, emails, page=0):
@@ -19,10 +17,23 @@ class CategoryEmailPagerView(discord.ui.View):
         self._add_buttons()
 
     def _add_buttons(self):
-        # 🌟 直接將外部引入的按鈕實例化並加入 View
         self.add_item(PrevPageBtn(disabled=(self.page == 0)))
         self.add_item(NextPageBtn(disabled=(self.page >= self.max_page)))
         self.add_item(BackToGmailDashboardBtn(self.bot, self.gmail_cog, self.user_id))
+
+    def _format_date(self, raw_date):
+        """🌟 內部工具：將 Email 原始日期字串轉換為乾淨的格式"""
+        try:
+            if not raw_date or raw_date == "未知時間":
+                return "未知時間"
+            
+            # 將 "Fri, 8 May 2026 16:09:09 +0800" 轉成 datetime 物件
+            dt = parsedate_to_datetime(raw_date)
+            
+            # 格式化為你喜歡的樣子，例如 2026/05/08 16:09
+            return dt.strftime("%Y/%m/%d %H:%M")
+        except Exception:
+            return raw_date
 
     def generate_embed(self):
         embed = discord.Embed(title=f"📂 分類信件：{self.category_name}", color=0xEA4335)
@@ -35,10 +46,13 @@ class CategoryEmailPagerView(discord.ui.View):
         page_emails = self.emails[start_idx:end_idx]
 
         for i, email in enumerate(page_emails, 1):
-            link_text = f" [🔗 直達 Gmail]({email['link']})" if email['link'] else ""
+            link_text = f" [🔗 Gmail連結]({email['link']})" if email['link'] else ""
+            
+            clean_date = self._format_date(email['date'])
+            
             embed.add_field(
                 name=f"{start_idx + i}. {email['subject']}",
-                value=f"✨ **AI摘要:** {email['summary']}\n📅 `{email['date']}`{link_text}",
+                value=f"✨ **AI摘要:** {email['summary']}\n📅 `{clean_date}`{link_text}",
                 inline=False
             )
             
