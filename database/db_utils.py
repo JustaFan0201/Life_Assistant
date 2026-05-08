@@ -74,25 +74,25 @@ def set_botsettings(column: Column, db: Session, value, ID):
 
 # get the user with
 @with_db_decorator
-def get_user(db: Session, discord_id): 
+def get_user(discord_id, user_name, db: Session=None): 
     user =  db.query(User).filter_by(discord_id=discord_id).first()
     if not user:
-        user = User(discord_id=discord_id, username=f"User_{discord_id}")
+        user = User(discord_id=discord_id, username=user_name)
         db.add(user)
         db.flush() 
     return user
 
 
 @with_db_decorator
-def get_mem(user_id, db: Session=None):
-    user = get_user(db, user_id)
+def get_mem(user_id, user_name, db: Session=None):
+    user = get_user(user_id, user_name, db)
     mem = db.query(Memory).filter_by(user_id=user.discord_id).first()
     return mem
     
 
 @with_db_decorator
-def upsert_mem(user_id, memory_text, db: Session=None):
-    mem = get_mem(user_id, db)
+def upsert_mem(user_id, user_name, memory_text, db: Session=None):
+    mem = get_mem(user_id, user_name, db)
     if mem:
         mem.memory_text = memory_text
     else:

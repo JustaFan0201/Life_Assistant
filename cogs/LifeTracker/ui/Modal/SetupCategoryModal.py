@@ -34,6 +34,7 @@ class SetupCategoryModal(ValidatedModal):
         )
         self.add_item(self.subcats_input)
 
+
     async def execute_logic(self, interaction: discord.Interaction) -> str:
         """💡 呼叫 Manager 執行業務邏輯校驗"""
         fields_list = [f.strip() for f in self.fields_input.value.split() if f.strip()]
@@ -55,16 +56,22 @@ class SetupCategoryModal(ValidatedModal):
 
         return None
 
+
     async def on_success(self, interaction: discord.Interaction):
         """ 資料已在 validate_logic 存入，這裡只負責刷新 UI"""
         try:
-            from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
-            embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
-            
-            embed.title = "✅ 分類建立成功！"
-            embed.color = discord.Color.green()
-            
+            embed, view = SetupCategoryModal.create_dashboard(self.bot, interaction.user.id)
             await interaction.response.edit_message(embed=embed, view=view)
 
         except Exception as e:
             await interaction.response.send_message(f"❌ 畫面更新失敗：{e}", ephemeral=True)
+    
+
+    @staticmethod
+    def create_dashboard(bot, user_id):
+        from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
+        embed, view = LifeDashboardView.create_dashboard(bot, user_id)
+        
+        embed.title = "✅ 分類建立成功！"
+        embed.color = discord.Color.green()
+        return embed, view

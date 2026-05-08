@@ -23,9 +23,10 @@ class AI_Analyzer:
         判斷使用者的語音意圖
         """
         print("開始分析文字意圖")
+        content = prompt
         if memory:
-            prompt += "\n\n上次的記憶為:\n" + memory
-        content = prompt + "\n\n使用者文字為:\n" + text
+            content += "\n\n上次的記憶為:\n" + memory
+        content += "\n\n使用者文字為:\n" + text
         
         try:
             response = await client.chat.completions.create(

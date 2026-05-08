@@ -1,5 +1,4 @@
 from database.db_utils import upsert_mem
-from VoiceSensor.ui.modalbtn import ModalButton
 import discord
 
 
@@ -55,20 +54,45 @@ class ActionHandler:
             # - category_name* (string) #主類別名稱
             # - fields* (list[string]) #數值類別 像是["金額", "次數"]
             # - subcategories (list[string])
-            pass
+            property_names = ["category_name", "fields", "subcategories"]
+            category_name, fields, subcategories = (data.get(x) for x in property_names)
+            
+            cat_name = category_name.strip()
+            fields_list = [f.strip() for f in fields if f.strip()]
+            if subcategories:
+                subcats_list = [s.strip() for s in subcategories if s.strip()]
+               
+            from cogs.LifeTracker.utils import LifeTracker_Manager
+            success, error_msg = LifeTracker_Manager.create_category(
+                user_id=message.author.id,
+                username=message.author.name,
+                cat_name=cat_name,
+                fields_list=fields_list,
+                subcats_list=subcats_list
+            )
+            if not success:
+                embed, view, content = None, None, error_msg
+            else:
+                from cogs.LifeTracker.ui.Modal.SetupCategoryModal import SetupCategoryModal
+                embed, view = SetupCategoryModal.create_dashboard(self.bot, message.author.id)
+                content = ""
+
+            await processing_msg.edit(embed=embed, view=view, content=content)
+            
 
         elif action == "DELETE_CATEGORY_MENU":
-            from LifeTracker.ui.Button.DeleteCategoryBtn import DeleteCategoryBtn
-            view, embed = DeleteCategoryBtn.get_Btn_with_user_id(self.bot, message.author.id)
+            from cogs.LifeTracker.ui.Button.DeleteCategoryBtn import DeleteCategoryBtn
+            btn = DeleteCategoryBtn.get_Btn_with_user_id(self.bot, message.author.id)
+            embed, view = btn.create_dashboard()
             await processing_msg.edit(embed=embed, view=view, content="")
-        
+            
         elif action == "CHAT":
             # - message* (string)
             # - memory (string)
             msg = data.get("message")
             mem_text = data.get("memory")
             if mem_text:
-                upsert_mem(message.author.id, mem_text)
+                upsert_mem(message.author.id, message.author.name, mem_text)
             
             await processing_msg.edit(content=msg)
 

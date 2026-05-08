@@ -12,8 +12,9 @@ class LifeDashboardView(LockableView):
         
         if categories:
             self.add_item(CategoryDashboardSelect(self.bot, categories))
-            
-        deletable_categories = [c for c in categories if c.name != "消費"] if categories else []
+        
+
+        deletable_categories = LifeTracker_Manager.get_deletable_categories(categories=categories)
         
         self.add_item(SetupBtn(self.bot, row=1))
         self.add_item(DeleteCategoryBtn(self.bot, deletable_categories, row=1))
@@ -21,9 +22,8 @@ class LifeDashboardView(LockableView):
 
     @staticmethod
     def create_dashboard(bot, user_id: int):
-        LifeTracker_Manager.ensure_default_consumption_category(user_id)
-        categories = LifeTracker_Manager.get_user_categories(user_id)
-
+        
+        categories=LifeTracker_Manager.get_user_categories(user_id=user_id, with_default=True)
         embed = discord.Embed(
             title="📔 生活日記",
             description="歡迎使用生活日記！你可以從下方選單快速切換分類，或是建立新分類。",

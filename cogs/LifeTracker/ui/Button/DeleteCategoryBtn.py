@@ -9,18 +9,25 @@ class DeleteCategoryBtn(ui.Button):
         self.bot = bot
         self.categories = categories
 
+    
     async def callback(self, interaction: discord.Interaction):
-        embed, view = self.get_embed_view()
+        embed, view = self.create_dashboard()
         await interaction.response.edit_message(embed=embed, view=view)
     
-    def get_embed_view(self, interaction: discord.Interaction):
-        if not self.categories:
-            embed = interaction.message.embeds[0]
-            embed.title = "📔 生活日記 - ⚠️ 無法刪除"
-            embed.description = "**❌ 目前沒有其他自訂分類可以刪除喔！(預設的「消費」分類受到系統保護)**\n\n" 
-            embed.color = discord.Color.red() 
-            return embed, self.view
 
+    def create_dashboard(self):
+        if not self.categories:
+            embed = discord.Embed(
+                title = "📔 生活日記 - ⚠️ 無法刪除",
+                description = "**❌ 目前沒有其他自訂分類可以刪除喔！(預設的「消費」分類受到系統保護)**\n\n",
+                color = discord.Color.red()
+            )
+
+            print("test_view: ")
+            print(self.view)
+
+            return embed, self.view
+        
         from cogs.LifeTracker.ui.View.DeleteCategorySelectView import DeleteCategorySelectView
         view = DeleteCategorySelectView(self.bot, self.categories)
         embed = discord.Embed(
@@ -30,8 +37,8 @@ class DeleteCategoryBtn(ui.Button):
         )
         return embed, view
     
+
     @staticmethod
     def get_Btn_with_user_id(bot, user_id):
-        LifeTracker_Manager.ensure_default_consumption_category(user_id)
-        categories = LifeTracker_Manager.get_user_categories(user_id)
-        return DeleteCategoryBtn(bot, categories)
+        deletable_categories = LifeTracker_Manager.get_deletable_categories(user_id=user_id)
+        return DeleteCategoryBtn(bot, deletable_categories)

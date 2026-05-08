@@ -1,5 +1,6 @@
 from database.db import SessionLocal
 from database.models import User, TrackerCategory, TrackerSubCategory, LifeRecord
+from database.db_utils import with_db_decorator
 from datetime import datetime, timedelta
 from config import TW_TZ
 import math
@@ -17,29 +18,27 @@ from cogs.LifeTracker.LifeTracker_config import (
 class LifeTracker_Manager:
     
     @staticmethod
-    def ensure_default_consumption_category(user_id: int):
+    @with_db_decorator
+    def ensure_default_consumption_category(user_id: int, db=None):
         """確保使用者擁有預設的『消費』分類與標籤"""
-        with SessionLocal() as db:
-            exists = db.query(TrackerCategory).filter_by(user_id=user_id, name="消費").first()
-            
-            if not exists:
-                # 1. 建立主分類 (設定時間區間與數值欄位)
-                new_cat = TrackerCategory(
-                    user_id=user_id,
-                    name="消費",
-                    range_options=[7, 30, 180, 365],
-                    fields=["金額"]
-                )
-                db.add(new_cat)
-                db.commit()
-                db.refresh(new_cat) # 取得自動生成的 ID
+        exists = db.query(TrackerCategory).filter_by(user_id=user_id, name="消費").first()
+        
+        if not exists:
+            new_cat = TrackerCategory(
+                user_id=user_id,
+                name="消費",
+                range_options=[7, 30, 180, 365],
+                fields=["金額"],
+                subcategories=[
+                    TrackerSubCategory(name="飲食"),
+                    TrackerSubCategory(name="通勤"),
+                    TrackerSubCategory(name="娛樂"),
+                ]
+            )
 
-                # 2. 建立預設的子分類標籤
-                default_subcats = ["飲食", "通勤", "娛樂"]
-                for sub_name in default_subcats:
-                    db.add(TrackerSubCategory(category_id=new_cat.id, name=sub_name))
-                
-                db.commit()
+            db.add(new_cat)
+            db.commit()
+
 
     @staticmethod
     def create_category(user_id: int, username: str, cat_name: str, fields_list: list[str], subcats_list: list[str]):
@@ -122,13 +121,23 @@ class LifeTracker_Manager:
             return False
 
     @staticmethod
-    def get_user_categories(user_id: int):
+    def get_user_categories(user_id: int, with_default=True):
         """
         取得特定使用者的所有主分類 (未來給下拉選單使用)
         """
-        with SessionLocal() as db:
+        with SessionLocal() as db: 
+            if with_default:
+                LifeTracker_Manager.ensure_default_consumption_category(user_id, db)
             categories = db.query(TrackerCategory).filter(TrackerCategory.user_id == user_id).all()
             return categories
+
+    @staticmethod
+    def get_deletable_categories(*, user_id=None, categories=None):
+        if (user_id is None) == (categories is None):
+            raise ValueError("get_deletable_categories: 必須且只能提供 user_id 或 categories 其中一個")
+        if not categories:
+            categories = LifeTracker_Manager.get_user_categories(user_id=user_id, with_default=True)
+        return [c for c in categories if c.name != "消費"] if categories else []        
 
     @staticmethod
     def get_category_details(category_id: int):
