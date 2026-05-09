@@ -3,18 +3,18 @@ from datetime import time, datetime
 import asyncio
 from database import SessionLocal
 from database.models import TrackerCategory, EInvoiceConfig
-from cogs.LifeTracker.utils import LifeTracker_Manager,AI_Analyzer
-from cogs.LifeTracker.src import InvoicePipeline
+from cogs.LifeTracker.utils import LifeTracker_Manager, AI_Analyzer
+from cogs.LifeTracker.src.invoice_pipeline import InvoicePipeline
 from config import TW_TZ
 
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
-# 🌟 [新增] 設定每日早上 6 點去抓昨日發票
-FETCH_INVOICE_TIME = time(hour=6, minute=0, tzinfo=TW_TZ)
+FETCH_INVOICE_TIME = time(hour=23, minute=30, tzinfo=TW_TZ)
 
 class LifeTrackerTasks(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.weekly_ai_summary.start()
+        self.daily_invoice_fetch.start()
 
     @tasks.loop(time=REPORT_TIME)
     async def weekly_ai_summary(self):

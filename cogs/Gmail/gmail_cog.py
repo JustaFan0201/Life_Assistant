@@ -41,16 +41,21 @@ class Gmail(commands.Cog):
                 if not user_email or not user_password: continue
 
                 tools = EmailTools(user_email, user_password)
-                new_emails = await tools.get_unread_emails(last_id)
                 
+                new_emails, drift_fix_id = await tools.get_unread_emails(last_id)
+                
+                if drift_fix_id:
+                    self.db_manager.update_last_email_id(user_id, drift_fix_id)
+                    print(f"🔧 [自動修復] 已靜默將資料庫 ID 向下校正為: {drift_fix_id} (未呼叫 AI)")
+        
                 if new_emails:
-                    # 1. 收到新信！先撈出這個使用者設定了哪些分類
+                    # 收到新信 先撈出這個使用者設定了哪些分類
                     user_categories = self.db_manager.get_user_categories(user_id)
 
                     for email_info in new_emails:
                         print(f"🔍 正在呼叫 AI 分析信件：{email_info['subject']} ...")
                         
-                        # 2. 呼叫 AI 大腦進行分類與摘要
+                        # 呼叫 AI 大腦進行分類與摘要
                         cat_name, summary = await Gmail_AI_Analyzer.analyze_and_classify_email(
                             subject=email_info['subject'],
                             body=email_info['body'],
@@ -61,7 +66,7 @@ class Gmail(commands.Cog):
                         email_info['ai_summary'] = summary
                         email_info['category'] = cat_name
 
-                        # 3. 如果 AI 有成功配對到分類，寫入資料庫！
+                        # 如果 AI 有成功配對到分類，寫入資料庫！
                         if cat_name:
                             target_cat = next((c for c in user_categories if c['name'] == cat_name), None)
                             if target_cat:
@@ -70,7 +75,7 @@ class Gmail(commands.Cog):
                         else:
                             print(f"⏩ 信件不符合任何分類，已略過。")
 
-                        # 4. 無論如何都會更新最後的 ID (已移除私訊通知)
+                        # 無論如何都會更新最後的 ID
                         self.db_manager.update_last_email_id(user_id, str(email_info['id']))
                     
             except Exception as e:

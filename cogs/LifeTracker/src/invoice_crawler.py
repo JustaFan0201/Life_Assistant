@@ -8,7 +8,6 @@ import PIL.Image
 from PIL import Image
 from datetime import datetime, timedelta
 from config import TW_TZ
-# 處理 ddddocr 的舊版 Pillow 依賴問題
 if not hasattr(PIL.Image, 'ANTIALIAS'):
     PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
 
@@ -21,7 +20,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select 
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
-from cogs.LifeTracker.LifeTracker_config import INVOICE_FETCH_START_DAYS_AGO, INVOICE_FETCH_END_DAYS_AGO
 class InvoiceCrawler:
     def __init__(self):
         self.ocr = ddddocr.DdddOcr()
@@ -29,11 +27,18 @@ class InvoiceCrawler:
 
     def _setup_stealth_driver(self):
         options = Options()
+        # 確保無頭模式開啟
         options.add_argument("--headless=new") 
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
-        options.add_argument("--window-size=1980,1080")
+        options.add_argument("--window-size=1920,1080")
         options.add_argument("--disable-blink-features=AutomationControlled")
+        
+        # 🌟 [新增] 防崩潰終極指令 (解決 GetHandleVerifier 問題)
+        options.add_argument("--disable-dev-shm-usage") 
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-extensions")
+        options.page_load_strategy = 'normal' # 確保網頁完全載入
         
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
         options.add_argument(f"user-agent={user_agent}")
@@ -123,97 +128,105 @@ class InvoiceCrawler:
         self.driver.quit()
         return False
     
-    def download_csv(self):
-        """執行查詢、過濾與下載 CSV 的自動化流程 (選擇昨天日期)"""
+    def download_csv(self, start_id: str, end_id: str):
+        """執行查詢、過濾與下載 CSV 的自動化流程"""
         wait = WebDriverWait(self.driver, 10)
         
         try:
-            # 1. 根據 Config 計算起始與結束的 ID，並模擬真人點擊日曆
-            now_tw = datetime.now(TW_TZ)
-            start_date = now_tw - timedelta(days=INVOICE_FETCH_START_DAYS_AGO)
-            end_date = now_tw - timedelta(days=INVOICE_FETCH_END_DAYS_AGO)
-            
-            start_id = start_date.strftime("%Y-%m-%d")
-            end_id = end_date.strftime("%Y-%m-%d")
             print(f"📅 準備點擊日曆，區間: {start_id} ~ {end_id}")
 
+            # 🌟 [新增] 給網頁多一點時間載入 Vue 框架，防止 JS 點擊時崩潰
+            time.sleep(2) 
+            date_input = wait.until(EC.presence_of_element_located((By.ID, "dp-input-searchInvoiceDate")))
+            wait.until(EC.element_to_be_clickable((By.ID, "dp-input-searchInvoiceDate")))
+            
             # 打開日曆面板
-            date_input = wait.until(EC.element_to_be_clickable((By.ID, "dp-input-searchInvoiceDate")))
             self.driver.execute_script("arguments[0].click();", date_input)
-            time.sleep(1) # 給日曆面板一點時間展開動畫
+            time.sleep(1)
 
             # 找到並點擊起始日
             print(f"🖱️ 點擊設定起始日 ({start_id})...")
             start_element = wait.until(EC.presence_of_element_located((By.ID, start_id)))
             self.driver.execute_script("arguments[0].click();", start_element)
-            time.sleep(0.5) # 稍微停頓，模仿人類節奏並讓 Vue 處理狀態
+            time.sleep(0.5)
             
             # 找到並點擊結束日
             print(f"🖱️ 點擊設定結束日 ({end_id})...")
             end_element = wait.until(EC.presence_of_element_located((By.ID, end_id)))
             self.driver.execute_script("arguments[0].click();", end_element)
-            time.sleep(1) # 等待日曆自動收合，數值更新完成
+            time.sleep(1)
 
             # 2. 點擊「查詢」
             print("🔍 點擊查詢按鈕...")
             search_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@title='查詢']")))
             self.driver.execute_script("arguments[0].click();", search_btn)
-            time.sleep(3) 
+            time.sleep(3) # 等待 API 回傳資料
             
-            # --- 以下保留原本的邏輯 ---
-            
-            # 3. 更改顯示筆數為 100
-            print("📄 設定顯示筆數為 100 筆...")
-            select_element = wait.until(EC.presence_of_element_located((By.ID, "SelectSizes")))
-            select = Select(select_element)
-            select.select_by_value("100")
-            time.sleep(2) 
-            
-            # 4. 點擊第一頁刷新 (確保同步)
-            print("🔄 點擊第一頁刷新...")
-            page_one_btn = wait.until(EC.presence_of_element_located((By.XPATH, "//a[@title='1']")))
-            self.driver.execute_script("arguments[0].click();", page_one_btn)
-            time.sleep(3) 
-            
-            # 5. 全選
-            print("☑️ 勾選全選...")
-            select_all_cb = wait.until(EC.presence_of_element_located((By.ID, "invoiceDetailAll")))
-            self.driver.execute_script("arguments[0].click();", select_all_cb)
-            time.sleep(1)
-            
-            # 6. 下載 CSV
-            print("⬇️ 點擊下載 CSV 檔...")
-            download_btn = wait.until(
-                lambda d: d.find_element(By.XPATH, "//button[@title='下載CSV檔']") 
-                if not d.find_element(By.XPATH, "//button[@title='下載CSV檔']").get_attribute("disabled") 
-                else False
-            )
-            self.driver.execute_script("arguments[0].click();", download_btn)
-            
-            print("🎉 CSV 下載指令已送出！等待檔案下載...")
-            time.sleep(5) # 給瀏覽器 5 秒鐘把檔案抓下來
-            
-            # 🌟 [新增] 7. 安全登出系統
-            print("🚪 任務完成，準備登出系統...")
-            logout_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[@title='登出']")))
-            self.driver.execute_script("arguments[0].click();", logout_btn)
-            time.sleep(2) # 等待網頁跳轉回首頁
-            print("✅ 成功登出，安全下線！")
-            
-            return True
-            
+            # 🌟 [新增] 內層 Try-Except，用來應付「查無發票」的狀況
+            try:
+                # 3. 更改顯示筆數為 100
+                print("📄 確認是否有資料並設定顯示筆數為 100 筆...")
+                # 使用較短的等待時間 (5秒)，因為如果沒發票，這裡會馬上找不到元件
+                short_wait = WebDriverWait(self.driver, 5)
+                select_element = short_wait.until(EC.presence_of_element_located((By.ID, "SelectSizes")))
+                select = Select(select_element)
+                select.select_by_value("100")
+                time.sleep(2) 
+                
+                # 4. 點擊第一頁刷新 (確保同步)
+                print("🔄 點擊第一頁刷新...")
+                page_one_btn = short_wait.until(EC.presence_of_element_located((By.XPATH, "//a[@title='1']")))
+                self.driver.execute_script("arguments[0].click();", page_one_btn)
+                time.sleep(3) 
+                
+                # 5. 全選
+                print("☑️ 勾選全選...")
+                select_all_cb = short_wait.until(EC.presence_of_element_located((By.ID, "invoiceDetailAll")))
+                self.driver.execute_script("arguments[0].click();", select_all_cb)
+                time.sleep(1)
+                
+                # 6. 下載 CSV
+                print("⬇️ 點擊下載 CSV 檔...")
+                download_btn = short_wait.until(
+                    lambda d: d.find_element(By.XPATH, "//button[@title='下載CSV檔']") 
+                    if not d.find_element(By.XPATH, "//button[@title='下載CSV檔']").get_attribute("disabled") 
+                    else False
+                )
+                self.driver.execute_script("arguments[0].click();", download_btn)
+                
+                print("🎉 CSV 下載指令已送出！等待檔案下載...")
+                time.sleep(5) 
+                
+            except Exception:
+                # 找不到 SelectSizes 或下載按鈕，通常代表畫面顯示「查無資料」
+                print("⚠️ 查無資料：該區間沒有發票紀錄，略過下載步驟。")
+
         except Exception as e:
-            print(f"❌ 下載/登出流程發生錯誤: {e}")
+            print(f"❌ 查詢流程發生錯誤: {e}")
             return False
+            
+        finally:
+            # 🌟 [新增] 無論有沒有發票、甚至發生錯誤，都保證執行安全登出系統
+            try:
+                print("🚪 任務完成，準備登出系統...")
+                logout_btn = WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//a[@title='登出']")))
+                self.driver.execute_script("arguments[0].click();", logout_btn)
+                time.sleep(2) 
+                print("✅ 成功登出，安全下線！")
+            except Exception as e:
+                print(f"⚠️ 登出時發生異常，可能已經登出或頁面卡住: {e}")
+                
+        return True
 
 if __name__ == "__main__":
     TEST_PHONE = "" 
     TEST_PWD = ""
     QUERY_PAGE_URL = "https://www.einvoice.nat.gov.tw/portal/btc/mobile/btc502w/detail"
+    
     crawler = InvoiceCrawler()
     if crawler.login(TEST_PHONE, TEST_PWD):
         crawler.driver.get(QUERY_PAGE_URL)
         time.sleep(3)
-        crawler.download_csv()
+        crawler.download_csv("2024-04-01", "2024-04-07") 
     
     crawler.driver.quit()

@@ -30,8 +30,19 @@ class EInvoicePlatformView(LockableView):
             else:
                 masked_pwd = "*" * len(pwd)
 
+            # 處理最後抓取日期的顯示邏輯
+            last_fetch = config_data.get('last_fetch_date')
+            if last_fetch:
+                # 如果有日期，格式化成 YYYY-MM-DD
+                last_fetch_str = last_fetch.strftime("%Y-%m-%d")
+            else:
+                # 如果是剛綁定還沒抓過，給個友善的提示
+                last_fetch_str = "尚未抓取 (請點擊下方更新按鈕或等待系統排程)"
+
             embed.add_field(name="📱 手機號碼", value=f"`{config_data['phone_number']}`", inline=False)
             embed.add_field(name="🔑 驗證碼 (密碼)", value=f"`{masked_pwd}`", inline=False)
+            embed.add_field(name="📅 發票最新抓取至", value=f"`{last_fetch_str}`", inline=False)
+            
         else:
             embed.add_field(name="⚠️ 尚未設定", value="請點擊下方「設定」按鈕綁定你的發票載具帳號。", inline=False)
 

@@ -1,5 +1,5 @@
 # database/models.py
-from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean, Text, JSON, func, Float
+from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean, Text, JSON, func, Float, Date
 from sqlalchemy.orm import declarative_base, relationship
 # from sqlalchemy.dialects.postgresql import VECTOR  # pgvector
 from datetime import datetime
@@ -131,7 +131,7 @@ class EInvoiceConfig(Base):
     
     phone_number = Column(String, nullable=True)
     password = Column(String, nullable=True)
-
+    last_fetch_date = Column(Date, nullable=True)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
     user = relationship("User", back_populates="einvoice_config")

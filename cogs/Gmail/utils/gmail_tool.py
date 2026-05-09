@@ -27,14 +27,16 @@ class EmailTools:
     async def get_unread_emails(self, last_id):
         if not self.user or not self.password:
             print("[EmailTools] 錯誤: 未提供帳號密碼，跳過檢查")
-            return []
+            return [], None
 
         imap_client = None
         results = []
+        drift_fix_id = None
+
         try:
             imap_client = aioimaplib.IMAP4_SSL(self.imap_host)
 
-            timeout = 30
+            timeout = 15
             while imap_client.protocol.state == 'STARTED' and timeout > 0:
                 await asyncio.sleep(0.5)
                 timeout -= 0.5
@@ -45,27 +47,24 @@ class EmailTools:
 
             status, messages = await imap_client.search("ALL")
             if status != "OK" or not messages[0]:
-                return []
+                return [], None
 
             all_ids = [int(m.decode()) for m in messages[0].split()]
             if not all_ids:
-                return []
+                return [], None
             
             new_ids = []
             if last_id and str(last_id).isdigit():
                 last_id_int = int(last_id)
                 max_id = all_ids[-1]
                 
-                # 🌟 [關鍵防護] 如果資料庫 ID > 目前信箱最大 ID，代表使用者刪過信，發生了偏移！
                 if last_id_int > max_id:
-                    print(f"⚠️ [EmailTools] 序列號偏移 (舊:{last_id_int} > 新:{max_id})，啟動自動重置！")
-                    # 強制抓取最新的一封信，讓外層的 gmail_cog 能更新資料庫的 last_id，解除卡死狀態
-                    new_ids = [str(max_id)]
+                    print(f"⚠️ [EmailTools] 序列號偏移 (舊:{last_id_int} > 新:{max_id})，僅發送校正訊號，不重複抓取！")
+                    #  記錄需要校正的 ID，但 new_ids 保持為空，這樣就不會去 fetch 信件內容了
+                    drift_fix_id = str(max_id) 
                 else:
-                    # 正常情況下，抓取大於 last_id 的新信
                     new_ids = [str(i) for i in all_ids if i > last_id_int]
             else:
-                # 第一次啟動，抓取最新的 3 封信建立基準點
                 new_ids = [str(i) for i in all_ids[-3:]]
 
             for m_id in new_ids:
@@ -74,11 +73,11 @@ class EmailTools:
                     email_data = self._parse_latest_mail(data[1], m_id)
                     results.append(email_data)
             
-            return results
+            return results, drift_fix_id
 
         except Exception as e:
             print(f"[EmailTools] 使用者 {self.user} 抓取失敗: {e}")
-            return []
+            return [], None
         finally:
             if imap_client:
                 try: 
