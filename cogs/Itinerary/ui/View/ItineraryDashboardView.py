@@ -2,12 +2,12 @@
 import discord
 from datetime import datetime
 from cogs.BasicDiscordObject import LockableView
-from cogs.Itinerary.utils.calendar_drawer import generate_month_calendar
+from cogs.Itinerary.utils import generate_month_calendar
 from cogs.Itinerary import itinerary_config as conf
 
 class ItineraryDashboardView(LockableView):
     def __init__(self, cog, user_id, month_offset=0, page=0, total_items=0):
-        super().__init__(timeout=conf.TIMEOUT_VIEW_DEFAULT)
+        super().__init__(timeout=None)
         self.cog = cog
         self.user_id = user_id
         self.month_offset = month_offset
@@ -76,11 +76,10 @@ class ItineraryDashboardView(LockableView):
         ]
         
         if not month_events:
-            desc_list.append("\n*📝 這個月份暫時沒有安排行程喔！*")
+            desc_list.append("\n📝 這個月份暫時沒有安排行程喔！")
         else:
             for i, ev in enumerate(current_items, start + 1):
-                time_str = ev.event_time.strftime("%d號 %H:%M")
-                p_emoji = conf.PRIORITY_MAP.get(str(ev.priority), "🟢")
+                time_str = ev.event_time.strftime(f"{target_month:02d}/%d %H:%M")
                 privacy_emoji = conf.PRIVACY_MAP.get(ev.is_private, "🌍")
                 
                 summary = ev.description
@@ -88,9 +87,9 @@ class ItineraryDashboardView(LockableView):
                     summary = summary[:conf.MAX_DESC_PREVIEW_LEN] + "..."
                     
                 if ev.event_time < now_naive:
-                    desc_list.append(f"{privacy_emoji}{p_emoji} **#{i}** | `~~{time_str}~~` - ~~{summary}~~ (已過期)")
+                    desc_list.append(f"{privacy_emoji} **#{i}** | `~~{time_str}~~` - ~~{summary}~~ (已結束)")
                 else:
-                    desc_list.append(f"{privacy_emoji}{p_emoji} **#{i}** | `{time_str}` - {summary}")
+                    desc_list.append(f"{privacy_emoji} **#{i}** | `{time_str}` - {summary}")
 
         embed = discord.Embed(
             title="📔 個人行程看板",

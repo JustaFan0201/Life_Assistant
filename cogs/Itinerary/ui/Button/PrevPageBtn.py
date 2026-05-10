@@ -7,6 +7,9 @@ class PrevPageBtn(SafeButton):
         self.parent_view = parent_view
 
     async def do_action(self, interaction: discord.Interaction):
+        if not interaction.response.is_done():
+            await interaction.response.defer()
+            
         new_page = max(0, self.parent_view.page - 1)
         
         kwargs = {'page': new_page}
@@ -21,12 +24,9 @@ class PrevPageBtn(SafeButton):
         
         if len(result) == 3:
             embed, view, file = result
-            attachments = [file]
+            attachments = [file] if file else []
         else:
             embed, view = result[0], result[1]
             attachments = []
 
-        if not interaction.response.is_done():
-            await interaction.response.edit_message(embed=embed, view=view, attachments=attachments)
-        else:
-            await interaction.edit_original_response(embed=embed, view=view, attachments=attachments)
+        await interaction.edit_original_response(embed=embed, view=view)

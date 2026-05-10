@@ -81,7 +81,6 @@ class CalendarEvent(Base):
     description = Column(Text, nullable=True)
     event_time = Column(DateTime, nullable=False)
     is_private = Column(Boolean, default=True)
-    priority = Column(String(10), default="2")
     created_at = Column(DateTime, default=datetime.now)
     
     user = relationship("User", back_populates="calendar_events")

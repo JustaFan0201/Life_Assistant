@@ -56,18 +56,3 @@ class SelectPrivacy(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         self.parent_view.new_data["privacy"] = self.values[0]
         await interaction.response.defer()
-
-class SelectPriority(discord.ui.Select):
-    def __init__(self, parent_view):
-        self.parent_view = parent_view
-        # 預設為低 (value="2")
-        options = [
-            discord.SelectOption(label="緊急程度：高", value="0", emoji="🔴"),
-            discord.SelectOption(label="緊急程度：中", value="1", emoji="🟡"),
-            discord.SelectOption(label="緊急程度：低", value="2", emoji="🟢", default=True)
-        ]
-        super().__init__(placeholder="緊急程度", row=3, options=options)
-        
-    async def callback(self, interaction: discord.Interaction):
-        self.parent_view.new_data["priority"] = self.values[0]
-        await interaction.response.defer()

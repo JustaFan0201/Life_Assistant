@@ -1,7 +1,6 @@
-# cogs\Itinerary\ui\View\ItineraryDeleteView.py
 import discord
 from cogs.BasicDiscordObject import LockableView
-from cogs.Itinerary.ui.Select.DeleteSelect import DeleteSelect
+from cogs.Itinerary.ui.Select import DeleteSelect
 
 class ItineraryDeleteView(LockableView):
     def __init__(self, cog, user_id, page=0, selected_event_id=None):
@@ -11,23 +10,21 @@ class ItineraryDeleteView(LockableView):
         self.page = page
         
         self.selected_event_id = selected_event_id
-        
-        formatted = self.cog.SessionLocal.get_formatted_list(user_id)
+
+        formatted = self.cog.db_manager.get_formatted_list(user_id)
         start, end = page * 10, (page + 1) * 10
         current_data = formatted[start:end]
 
-        # 1. 產生下拉選單 (Row 0)
         if current_data:
             options = [
                 discord.SelectOption(
                     label=d['display'][:100], 
                     value=str(d['id']),
-                    default=(str(d['id']) == str(self.selected_event_id)) # 確保翻頁或重整時保留狀態
+                    default=(str(d['id']) == str(self.selected_event_id))
                 ) for d in current_data
             ]
             self.add_item(DeleteSelect(self, options))
 
-        # 2. 翻頁按鈕 (Row 1)
         if formatted:
             from cogs.Itinerary.ui.Button.PrevPageBtn import PrevPageBtn
             from cogs.Itinerary.ui.Button.NextPageBtn import NextPageBtn
@@ -42,7 +39,7 @@ class ItineraryDeleteView(LockableView):
             next_btn.disabled = (page >= max_page)
             self.add_item(next_btn)
 
-        # 💡 3. 加入「確定刪除」按鈕 (Row 2)
+        # 3. 加入「確定刪除」按鈕 (Row 2)
         if current_data:
             from cogs.Itinerary.ui.Button.ConfirmDeleteBtn import ConfirmDeleteBtn
             confirm_btn = ConfirmDeleteBtn(self)
@@ -60,6 +57,7 @@ class ItineraryDeleteView(LockableView):
     @staticmethod
     def create_ui(cog, user_id, page=0):
         """💡 靜態生成入口"""
+        # 這裡原本就寫對了，使用的是 cog.db_manager
         formatted = cog.db_manager.get_formatted_list(user_id)
         
         if not formatted[page * 10 : (page + 1) * 10] and page > 0:

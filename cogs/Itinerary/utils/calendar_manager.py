@@ -4,13 +4,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 from database.models import User, CalendarEvent
 from cogs.Itinerary import itinerary_config as conf
+
 class CalendarDatabaseManager:
     def __init__(self, session_factory):
         self.Session = session_factory
-
         self.tz = conf.TW_TZ
 
-    def add_event(self, user_id: int, event_time: datetime, description: str, is_private: bool, priority: str):
+    def add_event(self, user_id: int, event_time: datetime, description: str, is_private: bool):
         now = datetime.now(self.tz)
         
         if event_time.tzinfo is None:
@@ -31,8 +31,7 @@ class CalendarDatabaseManager:
                     user_id=user_id,
                     description=description,
                     event_time=event_time,
-                    is_private=is_private,
-                    priority=priority 
+                    is_private=is_private
                 )
                 session.add(new_event)
                 session.commit()
@@ -66,12 +65,12 @@ class CalendarDatabaseManager:
         for i, ev in enumerate(events, 1):
             time_str = ev.event_time.strftime("%Y-%m-%d %H:%M")
             privacy_emoji = conf.PRIVACY_MAP.get(ev.is_private, "🌍")
-            p_emoji = conf.PRIORITY_MAP.get(str(ev.priority), "🟢")
+            
             limit = conf.LIST_DESC_PREVIEW_LEN
             summary = ev.description[:limit] + "..." if len(ev.description) > limit else ev.description
             
             formatted.append({
-                "display": f"{privacy_emoji}{p_emoji} #{i} | {time_str} | {summary}",
+                "display": f"{privacy_emoji} #{i} | {time_str} | {summary}",
                 "id": ev.id
             })
         return formatted

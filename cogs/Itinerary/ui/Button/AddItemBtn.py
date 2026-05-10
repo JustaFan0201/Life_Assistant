@@ -20,7 +20,7 @@ class AddItemBtn(SafeButton):
             embed, view = ItineraryAddView.create_ui(cog)
             
             if not interaction.response.is_done():
-                await interaction.response.edit_message(embed=embed, view=view)
+                await interaction.response.edit_message(embed=embed, view=view, attachments=[])
             else:
                 await interaction.edit_original_response(embed=embed, view=view, attachments=[])
                 
@@ -29,6 +29,6 @@ class AddItemBtn(SafeButton):
             traceback.print_exc()
             
             if self.view and hasattr(self.view, 'unlock_all'):
-                await self.view.unlock_all(interaction)
+                await self.view.unlock_all()
                 
             await interaction.followup.send(f"⚠️ 無法開啟新增畫面：{e}", ephemeral=True)

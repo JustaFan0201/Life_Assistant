@@ -12,18 +12,17 @@ class GoToItineraryButton(ui.Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        itinerary_cog = self.bot.get_cog("Itinerary") 
+        await interaction.response.defer()
 
-        if not itinerary_cog:
-            return await interaction.response.send_message("❌ 錯誤：找不到 Itinerary 模組。", ephemeral=True)
+        Itinerary_cog = self.bot.get_cog("Itinerary") 
+        user_id = interaction.user.id
+        if not Itinerary_cog:
+            return await interaction.followup.send("❌ 錯誤：找不到 Itinerary 模組。", ephemeral=True)
 
         try:
-            embed, view, file = itinerary_cog.create_itinerary_dashboard_ui(interaction.user.id)
-
-            if not interaction.response.is_done():
-                await interaction.response.edit_message(embed=embed, view=view, attachments=[file])
-            else:
-                await interaction.edit_original_response(embed=embed, view=view, attachments=[file])
+            embed, view, file = Itinerary_cog.create_itinerary_dashboard_ui(user_id)
+            await interaction.edit_original_response(embed=embed, view=view, attachments=[file])
             
         except Exception as e:
-            await interaction.response.send_message(f"❌ 跳轉失敗，原因：{e}", ephemeral=True)
+            error_msg = f"系統發生錯誤，請查看終端機日誌。({e})"
+            await interaction.followup.send(error_msg, ephemeral=True)

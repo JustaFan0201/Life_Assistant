@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 from discord import ui
 from cogs.BasicDiscordObject import ValidatedModal
 from cogs.Itinerary import itinerary_config as conf
+
 class ItineraryModal(ValidatedModal):
     def __init__(self, time_data, cog):
         super().__init__(title="新增我的行程")
@@ -40,6 +41,7 @@ class ItineraryModal(ValidatedModal):
         self.add_item(self.date_input)
         self.add_item(self.time_input)
         self.add_item(self.content_input)
+
     async def execute_logic(self, interaction: discord.Interaction) -> str:
         try:
             year = int(self.time_data.get('year'))
@@ -55,8 +57,7 @@ class ItineraryModal(ValidatedModal):
                 interaction, 
                 time_obj=clean_time, 
                 description=self.content_input.value,
-                is_private=(self.time_data.get('privacy') == "1"),
-                priority=self.time_data.get('priority', "2") 
+                is_private=(self.time_data.get('privacy') == "1")
             )
             
             self.report_message = report

@@ -17,7 +17,9 @@ class ConfirmDeleteBtn(SafeButton):
         event_id = getattr(self.parent_view, 'selected_event_id', None)
         
         if not event_id:
-            return await interaction.response.defer()
+            if not interaction.response.is_done():
+                await interaction.response.defer()
+            return
 
         success, msg = self.parent_view.cog.db_manager.delete_event_by_id(event_id, interaction.user.id)
 
@@ -35,6 +37,6 @@ class ConfirmDeleteBtn(SafeButton):
             embed.title = f"❌ 刪除失敗：{msg}"
 
         if not interaction.response.is_done():
-            await interaction.response.edit_message(embed=embed, view=view)
+            await interaction.response.edit_message(embed=embed, view=view, attachments=[])
         else:
             await interaction.edit_original_response(embed=embed, view=view, attachments=[])

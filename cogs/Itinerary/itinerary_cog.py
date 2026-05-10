@@ -8,20 +8,21 @@ from .utils.calendar_manager import CalendarDatabaseManager
 class Itinerary(commands.Cog):
     def __init__(self, bot, db_session):
         self.bot = bot
-        self.db_session = db_session 
-        self.SessionLocal = CalendarDatabaseManager(db_session)
-        self.db_manager = self.SessionLocal
+        
+        self.db_session_maker = db_session
+        self.db_manager = CalendarDatabaseManager(db_session)
+        
         self.last_check_minute = -1
         self.check_reminders.start()
 
-    async def process_data_sql(self, interaction, time_obj, description, is_private, priority):
+    async def process_data_sql(self, interaction, time_obj, description, is_private):
         clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
-        success, report = self.SessionLocal.add_event(
+        
+        success, report = self.db_manager.add_event(
             user_id=interaction.user.id,
             event_time=clean_time,
             description=description,
-            is_private=is_private,
-            priority=priority
+            is_private=is_private
         )   
         return success, report
 
@@ -37,9 +38,9 @@ class Itinerary(commands.Cog):
             return
         self.last_check_minute = now_tw.minute
 
-        priority_map = {"0": "🔴 緊急", "1": "🟡 重要", "2": "🟢 普通"}
 
-        with self.db_session() as session:
+        # 🌟 改用清理過名稱的 self.db_session_maker
+        with self.db_session_maker() as session:
             try:
                 # 找出符合當前台灣時間的行程
                 events = session.query(CalendarEvent).filter(
@@ -48,18 +49,14 @@ class Itinerary(commands.Cog):
 
                 if not events:
                     return
-
-                # 取得機器人設定
                 settings = session.query(BotSettings).first() 
-
                 for event in events:
                     try:
                         user = await self.bot.fetch_user(event.user_id)
                         if not user: continue
 
-                        p_label = priority_map.get(str(event.priority), "🟢 普通")
                         embed = discord.Embed(
-                            title=f"{p_label} | 行程提醒",
+                            title="📅 | 行程提醒",
                             description=f"**內容：{event.description}**",
                             color=discord.Color.gold()
                         )
@@ -98,4 +95,3 @@ class Itinerary(commands.Cog):
         embed, view, file = ItineraryDashboardView.create_ui(self, user_id)
 
         return embed, view, file
-
