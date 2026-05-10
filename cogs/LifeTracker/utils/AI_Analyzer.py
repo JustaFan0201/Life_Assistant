@@ -8,11 +8,8 @@ client = AsyncOpenAI(
 )
 
 class AI_Analyzer:
-    # 💡 [模型路由設定] 為不同任務指派最適合的模型
-    # 1. 總結專用模型 (負責長文推理，使用較聰明的大模型)
     SUMMARY_MODEL_ID = "nvidia/nemotron-3-super-120b-a12b:free"
     
-    # 2. 分類專用模型 (負責簡單比對，使用速度極快的小模型)
     CLASSIFY_MODEL_ID = "nvidia/nemotron-3-nano-30b-a3b:free"
 
     @staticmethod
@@ -20,6 +17,10 @@ class AI_Analyzer:
         """
         使用大模型進行週總結分析
         """
+        # 防呆機制：如果本週完全沒有紀錄，直接回傳預設字串，不要浪費資源問 AI
+        if not data_content or str(data_content).strip() in ["", "[]", "None"]:
+            return "本週尚無相關紀錄，繼續保持追蹤習慣喔！"
+
         prompt = f"""
         你是一位專業的生活導師。以下是使用者在「{category_name}」分類下的近期紀錄：
         {data_content}
@@ -32,12 +33,21 @@ class AI_Analyzer:
         
         try:
             response = await client.chat.completions.create(
-                model=AI_Analyzer.SUMMARY_MODEL_ID,  # 🌟 這裡呼叫總結模型
+                model=AI_Analyzer.SUMMARY_MODEL_ID,
                 messages=[
                     {"role": "user", "content": prompt}
-                ]
+                ],
+                temperature=0.1,
+                timeout=180.0
             )
-            return response.choices[0].message.content.strip()
+            
+            # 安全取值防護：避免 OpenRouter 伺服器異常回傳 None 導致崩潰
+            if hasattr(response, 'choices') and response.choices:
+                content = response.choices[0].message.content
+                return content.strip() if content else "⚠️ AI 未回傳分析結果。"
+            else:
+                return "⚠️ 分析服務目前忙線中，回傳格式異常。"
+                
         except Exception as e:
             print(f"❌ OpenRouter 分析失敗: {e}")
             return "⚠️ 分析服務暫時不可用。"
@@ -46,10 +56,12 @@ class AI_Analyzer:
     async def classify_consumption(item_name: str, subcat_list: list):
         """
         使用小模型進行快速消費分類
-        item_name: 商品品名 (如: 飲冰室茶集紅奶茶)
-        subcat_list: 目前資料庫中有的子分類名稱清單 (如: ['飲料', '食物', '生活用品'])
         """
         if not subcat_list: return "其他"
+        
+        # 🌟 同樣加上空值防護
+        if not item_name or str(item_name).strip() == "": 
+            return "其他"
 
         prompt = f"""
         你是一位消費紀錄分類專家。
@@ -67,8 +79,15 @@ class AI_Analyzer:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0
             )
-            result = response.choices[0].message.content.strip()
-            return result if result in subcat_list else "其他"
+            
+            # 🌟 分類模型也加上安全取值防護
+            if hasattr(response, 'choices') and response.choices:
+                result = response.choices[0].message.content
+                if result:
+                    result = result.strip()
+                    return result if result in subcat_list else "其他"
+            
+            return "其他"
         except Exception as e:
             print(f"❌ AI 分類失敗: {e}")
             return "其他"
