@@ -1,4 +1,4 @@
-# cogs/Gmail/gmail_cog.py
+# cogs/Gmail/Gmail_cog.py
 import discord
 import os
 from discord.ext import commands, tasks

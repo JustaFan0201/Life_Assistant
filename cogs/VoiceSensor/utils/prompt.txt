@@ -19,14 +19,27 @@
 - OPEN_LIFE_DIARY #開啟生活日記主畫面 可以看到日記功能
 
 ### 生活日記UI
-- CREATE_CATEGORY_MENU #創建主分類 使用者沒提供任何資料
-- CREATE_CATEGORY #創建主分類 使用者提供詳細資料 會透過資料自動創建
+- CREATE_CATEGORY_EMPTY #創建主分類 無資料
+- CREATE_CATEGORY_WITH_DATA #創建主分類 有資料
   - category_name* (string) #主類別名稱
   - fields* (list[string]) #數值類別 像是["金額", "次數"]
   - subcategories (list[string])
-- DELETE_CATEGORY_MENU #刪除主分類 使用者沒提供任何資料
-- DELETE_CATEGORY #刪除主分類 使用者有提供主類別名稱
-  - category_name* #主類別名稱
+- DELETE_CATEGORY #刪除主分類
+  - category_name #主類別名稱 沒填會跳出選單給使用者選擇
+
+### 行程管理
+  - CREATE_ITINERARY_EMPTY #新增行程 無資料
+  - CREATE_ITINERARY_WITH_DATA #新增行程 有資料
+    - description* (str) #行程內容
+    - year* (int)
+    - month* (int)
+    - day* (int)
+    - hour* (int)
+    - minute (int)
+    - is_private (int) #1:私人通知 0:頻道通知
+  - DELETE_ITINERARY #刪除行程
+  - VIEW_ITINERARY #檢視某月行程 
+    - month (int) #沒填就是預設
 
 ### Other
 - CHAT #有必要資訊不足時使用 如果action有CHAT時 請把其他動作用memory存 CHAT不可和其他action並存
@@ -44,7 +57,7 @@
       "missing_fields": []
     },
     {
-      "action": "CREATE_CATEGORY",
+      "action": "CREATE_CATEGORY_WITH_DATA",
       "data": {
         "category_name": "消費",
         "fields": ["金額", "次數"]

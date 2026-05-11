@@ -2,10 +2,10 @@
 import discord
 from cogs.Itinerary import itinerary_config as conf
 class SelectYear(discord.ui.Select):
-    def __init__(self, parent_view):
-        self.parent_view = parent_view
-        current_year = parent_view.new_data["year"]
-        
+    def __init__(self, new_data):
+        self.new_data = new_data
+        current_year = self.new_data["year"]
+
         # 💡 使用設定檔的年份範圍
         year_range = conf.ADD_YEAR_RANGE
         
@@ -20,13 +20,13 @@ class SelectYear(discord.ui.Select):
         super().__init__(placeholder="選擇年份", row=0, options=options)
         
     async def callback(self, interaction: discord.Interaction):
-        self.parent_view.new_data["year"] = self.values[0]
+        self.new_data["year"] = self.values[0]
         await interaction.response.defer()
 
 class SelectMonth(discord.ui.Select):
-    def __init__(self, parent_view):
-        self.parent_view = parent_view
-        current_month = parent_view.new_data["month"]
+    def __init__(self, new_data):
+        self.new_data = new_data
+        current_month = self.new_data["month"]
         
         # 💡 自動根據 new_data 設定預設值
         options = [
@@ -40,12 +40,12 @@ class SelectMonth(discord.ui.Select):
         super().__init__(placeholder="選擇月份", row=1, options=options)
         
     async def callback(self, interaction: discord.Interaction):
-        self.parent_view.new_data["month"] = self.values[0]
+        self.new_data["month"] = self.values[0]
         await interaction.response.defer()
 
 class SelectPrivacy(discord.ui.Select):
-    def __init__(self, parent_view):
-        self.parent_view = parent_view
+    def __init__(self, new_data):
+        self.new_data = new_data
         # 預設為私人 (value="1")
         options = [
             discord.SelectOption(label="私人行程 (私訊提醒)", value="1", emoji="🔒", default=True),
@@ -54,5 +54,5 @@ class SelectPrivacy(discord.ui.Select):
         super().__init__(placeholder="提醒模式", row=2, options=options)
         
     async def callback(self, interaction: discord.Interaction):
-        self.parent_view.new_data["privacy"] = self.values[0]
+        self.new_data["privacy"] = self.values[0]
         await interaction.response.defer()

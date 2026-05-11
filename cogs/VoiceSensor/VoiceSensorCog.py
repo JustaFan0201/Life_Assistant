@@ -64,15 +64,15 @@ class VoiceSensorCog(commands.Cog):
 
     async def process_text(self, text: str, message, processing_msg):
         # 1️⃣ 呼叫 AI
-        result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name))
+        # result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name))
         import json
         result = json.loads('''
         {
             "actions": [
                 {
-                "action": "DELETE_CATEGORY",
+                "action": "CREATE_ITINERARY_EMPTY",
                 "data": {
-                    "category_name": "AAA"
+                    
                 },
                 "missing_fields": []
                 }

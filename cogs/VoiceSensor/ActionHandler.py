@@ -41,11 +41,11 @@ class ActionHandler:
             from cogs.LifeTracker.ui.View import LifeDashboardView
             embed, view = LifeDashboardView.create_dashboard(self.bot, message.author.id)
         
-        elif action == "CREATE_CATEGORY_MENU":
+        elif action == "CREATE_CATEGORY_EMPTY":
             from cogs.LifeTracker.ui.Button.SetupBtn import SetupBtn
             view = self.get_button_view(SetupBtn(self.bot))
             
-        elif action == "CREATE_CATEGORY":
+        elif action == "CREATE_CATEGORY_WITH_DATA":
             # - category_name* (string) #主類別名稱
             # - fields* (list[string]) #數值類別 像是["金額", "次數"]
             # - subcategories (list[string])
@@ -70,21 +70,40 @@ class ActionHandler:
                 from cogs.LifeTracker.ui.Modal.SetupCategoryModal import SetupCategoryModal
                 embed, view = SetupCategoryModal.create_dashboard(self.bot, message.author.id)
             
-        elif action == "DELETE_CATEGORY_MENU":
-            from cogs.LifeTracker.ui.Button.DeleteCategoryBtn import DeleteCategoryBtn
-            btn = DeleteCategoryBtn.get_Btn_with_user_id(self.bot, message.author.id)
-            embed, view = btn.create_dashboard()
-            
         elif action == "DELETE_CATEGORY":
-            # - category_name* #主類別名稱
+            # - category_name #主類別名稱
             name = data.get("category_name").strip()
-            if LifeTracker_Manager.delete_category(category_name=name):
-                from cogs.LifeTracker.ui.Select.DeleteCategorySelect import DeleteCategorySelect
-                embed, view = DeleteCategorySelect.create_dashboard(self.bot, message.author.id)
+            if name:
+                if LifeTracker_Manager.delete_category(category_name=name):
+                    from cogs.LifeTracker.ui.Select.DeleteCategorySelect import DeleteCategorySelect
+                    embed, view = DeleteCategorySelect.create_dashboard(self.bot, message.author.id)
+                else:
+                    cats = LifeTracker_Manager.get_deletable_categories(user_id=message.author.id)
+                    if cats:
+                        content = f"刪除錯誤 {name} 並不存在或不可刪除\n目前可刪除目錄:\n" + "\n".join([f" - {cat.name}" for cat in cats])
+                    else:
+                        content = f"刪除錯誤 {name} 並不存在或不可刪除\n目前無刪除目錄"
             else:
-                cats = LifeTracker_Manager.get_deletable_categories(user_id=message.author.id)
-                content = f"刪除錯誤 {name} 並不存在\n目前目錄:\n" + "\n".join([f" - {cat}" for cat in cats])
+                from cogs.LifeTracker.ui.Button.DeleteCategoryBtn import DeleteCategoryBtn
+                btn = DeleteCategoryBtn.get_Btn_with_user_id(self.bot, message.author.id)
+                embed, view = btn.create_dashboard()
 
+        elif action == "CREATE_ITINERARY_EMPTY":
+            from cogs.Itinerary.ui.View.ItineraryAddView import ItineraryAddView
+            embed, view = ItineraryAddView.create_ui()
+        
+        elif action == "CREATE_ITINERARY_WITH_DATA":
+            # - description* (str) #行程內容
+            # - year* (int)
+            # - month* (int)
+            # - day* (int)
+            # - hour* (int)
+            # - minute (int)
+            # - is_private (int) #1:私人通知 0:頻道通知
+            property_names = ["description", "year", "month", "day", "hour", "minute", "is_private"]
+            description, year, month, day, hour, minute, is_private = (data.get(x) for x in property_names)
+            if not minute: minute=0
+            
         elif action == "CHAT":
             # - message* (string)
             # - memory (string)

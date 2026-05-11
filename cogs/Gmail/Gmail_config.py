@@ -1,4 +1,4 @@
-# cogs/Gmail/gmail_config.py
+# cogs/Gmail/Gmail_config.py
 MAX_EMAIL_BODY_LENGTH = 800
 MAX_CATEGORY_COUNT = 25
 MAX_CATEGORY_NAME_LENGTH = 10

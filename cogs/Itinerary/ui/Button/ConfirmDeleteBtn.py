@@ -21,10 +21,11 @@ class ConfirmDeleteBtn(SafeButton):
                 await interaction.response.defer()
             return
 
-        success, msg = self.parent_view.cog.db_manager.delete_event_by_id(event_id, interaction.user.id)
+        from cogs.Itinerary.utils.calendar_manager import CalendarDatabaseManager
+        success, msg = CalendarDatabaseManager.delete_event_by_id(event_id, interaction.user.id)
 
-        embed, view = self.parent_view.__class__.create_ui(
-            self.parent_view.cog, 
+        from cogs.Itinerary.ui.View.ItineraryDeleteView import ItineraryDeleteView
+        embed, view = ItineraryDeleteView.create_ui(
             interaction.user.id, 
             self.parent_view.page
         )

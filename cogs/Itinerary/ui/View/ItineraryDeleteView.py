@@ -1,17 +1,17 @@
 import discord
 from cogs.BasicDiscordObject import LockableView
 from cogs.Itinerary.ui.Select import DeleteSelect
+from cogs.Itinerary.utils.calendar_manager import CalendarDatabaseManager
 
 class ItineraryDeleteView(LockableView):
-    def __init__(self, cog, user_id, page=0, selected_event_id=None):
+    def __init__(self, user_id, page=0, selected_event_id=None):
         super().__init__(timeout=None)
-        self.cog = cog
         self.user_id = user_id
         self.page = page
         
         self.selected_event_id = selected_event_id
 
-        formatted = self.cog.db_manager.get_formatted_list(user_id)
+        formatted = CalendarDatabaseManager.get_formatted_list(user_id)
         start, end = page * 10, (page + 1) * 10
         current_data = formatted[start:end]
 
@@ -50,16 +50,14 @@ class ItineraryDeleteView(LockableView):
         # 4. 返回按鈕 (Row 2)
         try:
             from cogs.Itinerary.ui.Button.BackToItineraryDashboardBtn import BackToItineraryDashboardBtn
-            self.add_item(BackToItineraryDashboardBtn(self.cog.bot, row=2))
+            self.add_item(BackToItineraryDashboardBtn(row=2))
         except ImportError: 
             pass
 
     @staticmethod
-    def create_ui(cog, user_id, page=0):
+    def create_ui(user_id, page=0):
         """💡 靜態生成入口"""
-        # 這裡原本就寫對了，使用的是 cog.db_manager
-        formatted = cog.db_manager.get_formatted_list(user_id)
-        
+        formatted = CalendarDatabaseManager.get_formatted_list(user_id)
         if not formatted[page * 10 : (page + 1) * 10] and page > 0:
             page -= 1
         
@@ -85,5 +83,5 @@ class ItineraryDeleteView(LockableView):
         if formatted:
             max_page = max(1, ((len(formatted) - 1) // 10) + 1)
             embed.set_footer(text=f"總計 {len(formatted)} 筆行程 | 目前頁數: {page + 1} / {max_page}")
-        view = ItineraryDeleteView(cog, user_id, page)
+        view = ItineraryDeleteView(user_id, page)
         return embed, view

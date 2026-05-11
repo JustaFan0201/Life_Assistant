@@ -3,9 +3,8 @@ from datetime import datetime
 from cogs.BasicDiscordObject import LockableView
 from cogs.Itinerary import itinerary_config as conf
 class ItineraryAddView(LockableView):
-    def __init__(self, cog):
+    def __init__(self):
         super().__init__(timeout=None)
-        self.cog = cog
         
         now = datetime.now(conf.TW_TZ)
 
@@ -19,19 +18,19 @@ class ItineraryAddView(LockableView):
         from cogs.Itinerary.ui.Select import SelectYear, SelectMonth, SelectPrivacy
         from cogs.Itinerary.ui.Button import NextStepBtn
 
-        self.add_item(SelectYear(self))
-        self.add_item(SelectMonth(self))
-        self.add_item(SelectPrivacy(self))
-        self.add_item(NextStepBtn(self))
+        self.add_item(SelectYear(self.new_data))
+        self.add_item(SelectMonth(self.new_data))
+        self.add_item(SelectPrivacy(self.new_data))
+        self.add_item(NextStepBtn(self.new_data))
 
         try:
             from cogs.Itinerary.ui.Button import BackToItineraryDashboardBtn
-            self.add_item(BackToItineraryDashboardBtn(self.cog.bot, row=4))
+            self.add_item(BackToItineraryDashboardBtn(row=4))
         except ImportError: 
             pass
 
     @staticmethod
-    def create_ui(cog):
+    def create_ui():
         """💡 靜態生成入口"""
         embed = discord.Embed(
             title="➕ 建立新行程",
@@ -44,5 +43,5 @@ class ItineraryAddView(LockableView):
             color=discord.Color.blue()
         )
         
-        view = ItineraryAddView(cog)
+        view = ItineraryAddView()
         return embed, view

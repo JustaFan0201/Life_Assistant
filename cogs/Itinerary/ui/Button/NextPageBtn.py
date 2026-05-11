@@ -18,7 +18,6 @@ class NextPageBtn(SafeButton):
             kwargs['month_offset'] = self.parent_view.month_offset
 
         result = self.parent_view.__class__.create_ui(
-            self.parent_view.cog, 
             interaction.user.id, 
             **kwargs
         )

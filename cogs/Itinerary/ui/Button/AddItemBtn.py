@@ -13,11 +13,9 @@ class AddItemBtn(SafeButton):
         self.parent_view = parent_view
 
     async def do_action(self, interaction: discord.Interaction):
-        cog = self.parent_view.cog
-        
         try:
             from cogs.Itinerary.ui.View.ItineraryAddView import ItineraryAddView
-            embed, view = ItineraryAddView.create_ui(cog)
+            embed, view = ItineraryAddView.create_ui()
             
             if not interaction.response.is_done():
                 await interaction.response.edit_message(embed=embed, view=view, attachments=[])

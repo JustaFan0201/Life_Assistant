@@ -15,17 +15,6 @@ class Itinerary(commands.Cog):
         self.last_check_minute = -1
         self.check_reminders.start()
 
-    async def process_data_sql(self, interaction, time_obj, description, is_private):
-        clean_time = time_obj.replace(tzinfo=None, second=0, microsecond=0)
-        
-        success, report = self.db_manager.add_event(
-            user_id=interaction.user.id,
-            event_time=clean_time,
-            description=description,
-            is_private=is_private
-        )   
-        return success, report
-
     @tasks.loop(seconds=10.0)
     async def check_reminders(self):
         await self.bot.wait_until_ready()
@@ -89,9 +78,10 @@ class Itinerary(commands.Cog):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    def create_itinerary_dashboard_ui(self, user_id: int):
+    @staticmethod
+    def create_itinerary_dashboard_ui(user_id: int):
         from .ui.View.ItineraryDashboardView import ItineraryDashboardView
         
-        embed, view, file = ItineraryDashboardView.create_ui(self, user_id)
+        embed, view, file = ItineraryDashboardView.create_ui(user_id)
 
         return embed, view, file

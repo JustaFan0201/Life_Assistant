@@ -2,13 +2,13 @@
 import discord
 from datetime import datetime
 from cogs.BasicDiscordObject import LockableView
-from cogs.Itinerary.utils import generate_month_calendar
+from cogs.Itinerary.utils import generate_month_calendar, CalendarDatabaseManager
 from cogs.Itinerary import itinerary_config as conf
+from bot import bot
 
 class ItineraryDashboardView(LockableView):
-    def __init__(self, cog, user_id, month_offset=0, page=0, total_items=0):
+    def __init__(self, user_id, month_offset=0, page=0, total_items=0):
         super().__init__(timeout=None)
-        self.cog = cog
         self.user_id = user_id
         self.month_offset = month_offset
         self.page = page
@@ -41,12 +41,12 @@ class ItineraryDashboardView(LockableView):
         # Row 3: 返回系統
         try:
             from cogs.System.ui.Button import BackToMainButton
-            self.add_item(BackToMainButton(self.cog.bot, row=0))
+            self.add_item(BackToMainButton(bot, row=0))
         except ImportError:
             pass
 
     @staticmethod
-    def create_ui(cog, user_id, month_offset=0, page=0):
+    def create_ui(user_id, month_offset=0, page=0):
         now = datetime.now(conf.TW_TZ)
         now_naive = now.replace(tzinfo=None)
         
@@ -55,7 +55,7 @@ class ItineraryDashboardView(LockableView):
         target_month = (target_month - 1) % 12 + 1
         
         # 1. 撈出該月份所有行程並切片
-        all_events = cog.db_manager.get_user_events(user_id)
+        all_events = CalendarDatabaseManager.get_user_events(user_id)
         month_events = [ev for ev in all_events if ev.event_time.year == target_year and ev.event_time.month == target_month]
         
         total_items = len(month_events)
@@ -101,5 +101,5 @@ class ItineraryDashboardView(LockableView):
         max_page = max(1, ((total_items - 1) // 10) + 1) if total_items > 0 else 1
         embed.set_footer(text=f"第 {page + 1} / {max_page} 頁 | 當月共 {total_items} 筆行程 | 更新: {now.strftime('%H:%M')}")
         
-        view = ItineraryDashboardView(cog, user_id, month_offset, page, total_items)
+        view = ItineraryDashboardView(user_id, month_offset, page, total_items)
         return embed, view, file

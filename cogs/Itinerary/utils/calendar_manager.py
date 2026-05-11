@@ -1,65 +1,59 @@
-import re
-from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
-from sqlalchemy import select, delete
-from database.models import User, CalendarEvent
+from datetime import datetime
+from database.models import CalendarEvent
+from database.db_utils import with_db_decorator, get_user
 from cogs.Itinerary import itinerary_config as conf
+from config import TW_TZ
+
 
 class CalendarDatabaseManager:
     def __init__(self, session_factory):
         self.Session = session_factory
-        self.tz = conf.TW_TZ
 
-    def add_event(self, user_id: int, event_time: datetime, description: str, is_private: bool):
-        now = datetime.now(self.tz)
+    @staticmethod
+    @with_db_decorator
+    def add_event(user_id: int, user_name: str, event_time: datetime, description: str, is_private: bool, db=None):
+        now = datetime.now(TW_TZ)
         
         if event_time.tzinfo is None:
-            event_time = event_time.replace(tzinfo=self.tz)
+            event_time = event_time.replace(tzinfo=TW_TZ)
 
         if event_time < now:
-            return False, "❌ 設定的時間已過，請檢查後重試。"
+            return False, f'❌ 設定的時間{event_time.strftime("%Y-%m-%d %H:%M")}已過，請檢查後重試。'
 
-        with self.Session() as session:
-            try:
-                user = session.query(User).filter_by(discord_id=user_id).first()
-                if not user:
-                    user = User(discord_id=user_id, username=f"User_{user_id}")
-                    session.add(user)
-                    session.flush()
+        user = get_user(discord_id=user_id, user_name=user_name, db=db)
+        
+        new_event = CalendarEvent(
+            user_id=user.discord_id,
+            description=description,
+            event_time=event_time,
+            is_private=is_private
+        )
+        db.add(new_event)
+        db.commit()
+        return True, "✅ 行程已成功儲存！"
 
-                new_event = CalendarEvent(
-                    user_id=user_id,
-                    description=description,
-                    event_time=event_time,
-                    is_private=is_private
-                )
-                session.add(new_event)
-                session.commit()
-                return True, "✅ 行程已成功儲存！"
-            except Exception as e:
-                session.rollback()
-                print(f"[DB Error] add_event: {e}")
-                return False, f"寫入失敗: {e}"
+    @staticmethod
+    @with_db_decorator
+    def get_user_events(user_id: int, db=None):
+        events = db.query(CalendarEvent)\
+                    .filter_by(user_id=user_id)\
+                    .order_by(CalendarEvent.event_time.asc())\
+                    .all()
+        return events
 
-    def get_user_events(self, user_id: int):
-        with self.Session() as session:
-            events = session.query(CalendarEvent)\
-                            .filter_by(user_id=user_id)\
-                            .order_by(CalendarEvent.event_time.asc())\
-                            .all()
-            return events
+    @staticmethod
+    @with_db_decorator
+    def delete_event_by_id(event_id: int, user_id: int, db=None):
+        event = db.query(CalendarEvent).filter_by(id=event_id, user_id=user_id).first()
+        if event:
+            db.delete(event)
+            db.commit()
+            return True, "🗑️ 行程已成功刪除。"
+        return False, "❌ 找不到該行程或權限不足。"
 
-    def delete_event_by_id(self, event_id: int, user_id: int):
-        with self.Session() as session:
-            event = session.query(CalendarEvent).filter_by(id=event_id, user_id=user_id).first()
-            if event:
-                session.delete(event)
-                session.commit()
-                return True, "🗑️ 行程已成功刪除。"
-            return False, "❌ 找不到該行程或權限不足。"
-
-    def get_formatted_list(self, user_id: int):
-        events = self.get_user_events(user_id)
+    @staticmethod
+    def get_formatted_list(user_id: int):
+        events = CalendarDatabaseManager.get_user_events(user_id)
         formatted = []
         
         for i, ev in enumerate(events, 1):

@@ -1,14 +1,15 @@
 import discord
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from discord import ui
 from cogs.BasicDiscordObject import ValidatedModal
 from cogs.Itinerary import itinerary_config as conf
+from cogs.Itinerary.itinerary_cog import Itinerary
+from cogs.Itinerary.utils.calendar_manager import CalendarDatabaseManager
 
 class ItineraryModal(ValidatedModal):
-    def __init__(self, time_data, cog):
+    def __init__(self, time_data):
         super().__init__(title="新增我的行程")
         self.time_data = time_data
-        self.cog = cog
         
         today_day = self.time_data.get('day', '1')
         
@@ -50,12 +51,12 @@ class ItineraryModal(ValidatedModal):
             time_parts = self.time_input.value.replace('：', ':').split(':')
             
             event_time = datetime(year, month, day, int(time_parts[0]), int(time_parts[1]), tzinfo=conf.TW_TZ)
-            
-            clean_time = event_time.replace(tzinfo=None)
-            
-            success, report = await self.cog.process_data_sql(
-                interaction, 
-                time_obj=clean_time, 
+            clean_time = event_time.replace(tzinfo=None, second=0, microsecond=0)
+        
+            success, report = CalendarDatabaseManager.add_event(
+                user_id=interaction.user.id,
+                user_name=interaction.user.name,
+                event_time=clean_time, 
                 description=self.content_input.value,
                 is_private=(self.time_data.get('privacy') == "1")
             )
@@ -73,7 +74,7 @@ class ItineraryModal(ValidatedModal):
     async def on_success(self, interaction: discord.Interaction):
         """💡 成功後切換回 Dashboard"""
         try:
-            embed, view, file = self.cog.create_itinerary_dashboard_ui(interaction.user.id)
+            embed, view, file = Itinerary.create_itinerary_dashboard_ui(interaction.user.id)
             
             embed.title = "✅ 行程新增成功！"
             embed.color = discord.Color.green()

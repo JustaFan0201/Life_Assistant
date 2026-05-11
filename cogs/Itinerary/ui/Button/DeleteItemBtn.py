@@ -12,12 +12,10 @@ class DeleteItemBtn(SafeButton):
         self.parent_view = parent_view
 
     async def do_action(self, interaction: discord.Interaction):
-        cog = self.parent_view.cog
-        
         try:
             from ..View.ItineraryDeleteView import ItineraryDeleteView
             
-            embed, view = ItineraryDeleteView.create_ui(cog, interaction.user.id)
+            embed, view = ItineraryDeleteView.create_ui(interaction.user.id)
             
             if not interaction.response.is_done():
                 await interaction.response.edit_message(content=None, embed=embed, view=view)

@@ -40,8 +40,8 @@ class MonthSelect(discord.ui.Select):
         new_offset = int(self.values[0])
         
         # 2. 呼叫產生器，並將 page 重置為 0
-        embed, view, file = self.parent_view.__class__.create_ui(
-            self.parent_view.cog, 
+        from cogs.Itinerary.ui.View.ItineraryDashboardView import ItineraryDashboardView
+        embed, view, file = ItineraryDashboardView.create_ui(
             interaction.user.id, 
             month_offset=new_offset, 
             page=0

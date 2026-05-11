@@ -16,8 +16,7 @@ class PrevPageBtn(SafeButton):
         if hasattr(self.parent_view, 'month_offset'):
             kwargs['month_offset'] = self.parent_view.month_offset
 
-        result = self.parent_view.__class__.create_ui(
-            self.parent_view.cog, 
+        result = self.parent_view.__class__.create_ui( 
             interaction.user.id, 
             **kwargs
         )
