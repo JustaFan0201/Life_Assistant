@@ -1,4 +1,5 @@
 from database.db_utils import upsert_mem
+from cogs.LifeTracker.utils import LifeTracker_Manager
 import discord
 
 
@@ -26,29 +27,23 @@ class ActionHandler:
         #     )
 
         # 🟢 2️⃣ 正常執行
+        embed, view, content = None, None, ""
+
         if action == "OPEN_SYSTEM_START":
             from cogs.System.ui.View.SystemStartView import SystemStartView
             embed, view = SystemStartView.create_start_ui(self.bot)
 
-            await processing_msg.edit(embed=embed, view=view, content="")
-        
         elif action == "OPEN_LIFE_ASSISTANT":
             from cogs.System.ui.View.SystemStartView import MainControlView
             embed, view = MainControlView.create_dashboard_ui(self.bot)
-
-            await processing_msg.edit(embed=embed, view=view, content="")
         
         elif action == "OPEN_LIFE_DIARY":
-            print(f"id = {message.author.id}")
             from cogs.LifeTracker.ui.View import LifeDashboardView
             embed, view = LifeDashboardView.create_dashboard(self.bot, message.author.id)
-        
-            await processing_msg.edit(embed=embed, view=view, content="")
         
         elif action == "CREATE_CATEGORY_MENU":
             from cogs.LifeTracker.ui.Button.SetupBtn import SetupBtn
             view = self.get_button_view(SetupBtn(self.bot))
-            await processing_msg.edit(embed=None, view=view, content="")
             
         elif action == "CREATE_CATEGORY":
             # - category_name* (string) #主類別名稱
@@ -62,7 +57,6 @@ class ActionHandler:
             if subcategories:
                 subcats_list = [s.strip() for s in subcategories if s.strip()]
                
-            from cogs.LifeTracker.utils import LifeTracker_Manager
             success, error_msg = LifeTracker_Manager.create_category(
                 user_id=message.author.id,
                 username=message.author.name,
@@ -71,34 +65,41 @@ class ActionHandler:
                 subcats_list=subcats_list
             )
             if not success:
-                embed, view, content = None, None, error_msg
+                content = error_msg
             else:
                 from cogs.LifeTracker.ui.Modal.SetupCategoryModal import SetupCategoryModal
                 embed, view = SetupCategoryModal.create_dashboard(self.bot, message.author.id)
-                content = ""
-
-            await processing_msg.edit(embed=embed, view=view, content=content)
             
-
         elif action == "DELETE_CATEGORY_MENU":
             from cogs.LifeTracker.ui.Button.DeleteCategoryBtn import DeleteCategoryBtn
             btn = DeleteCategoryBtn.get_Btn_with_user_id(self.bot, message.author.id)
             embed, view = btn.create_dashboard()
-            await processing_msg.edit(embed=embed, view=view, content="")
             
+        elif action == "DELETE_CATEGORY":
+            # - category_name* #主類別名稱
+            name = data.get("category_name").strip()
+            if LifeTracker_Manager.delete_category(category_name=name):
+                from cogs.LifeTracker.ui.Select.DeleteCategorySelect import DeleteCategorySelect
+                embed, view = DeleteCategorySelect.create_dashboard(self.bot, message.author.id)
+            else:
+                cats = LifeTracker_Manager.get_deletable_categories(user_id=message.author.id)
+                content = f"刪除錯誤 {name} 並不存在\n目前目錄:\n" + "\n".join([f" - {cat}" for cat in cats])
+
         elif action == "CHAT":
             # - message* (string)
             # - memory (string)
-            msg = data.get("message")
+            content = data.get("message")
             mem_text = data.get("memory")
             if mem_text:
                 upsert_mem(message.author.id, message.author.name, mem_text)
-            
-            await processing_msg.edit(content=msg)
 
         else:
             print(f"action: {action} 尚未設置")
+            return False
+        
+        await processing_msg.edit(embed=embed, view=view, content=content)
         return True
+
 
     def get_button_view(self, button):
         view = discord.ui.View(timeout=60)

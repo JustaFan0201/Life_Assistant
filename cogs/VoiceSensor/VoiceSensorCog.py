@@ -8,6 +8,8 @@ from database.db_utils import get_mem
 
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 
+LISTEN_FLAG = False
+
 class VoiceSensorCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -16,6 +18,9 @@ class VoiceSensorCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
+            return
+        
+        if not LISTEN_FLAG:
             return
 
         # 🎤 === 語音訊息 ===
@@ -60,22 +65,20 @@ class VoiceSensorCog(commands.Cog):
     async def process_text(self, text: str, message, processing_msg):
         # 1️⃣ 呼叫 AI
         result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name))
-        # import json
-        # result = json.loads('''
-        # {
-        #     "actions": [
-        #         {
-        #         "action": "CREATE_CATEGORY",
-        #         "data": {
-        #             "category_name": "AAA",
-        #             "fields": ["fA", "fB"],
-        #             "subcategories": ["subA", "subB"]
-        #         },
-        #         "missing_fields": []
-        #         }
-        #     ]
-        # }
-        # ''')
+        import json
+        result = json.loads('''
+        {
+            "actions": [
+                {
+                "action": "DELETE_CATEGORY",
+                "data": {
+                    "category_name": "AAA"
+                },
+                "missing_fields": []
+                }
+            ]
+        }
+        ''')
         
         actions = result.get("actions", [])
 
