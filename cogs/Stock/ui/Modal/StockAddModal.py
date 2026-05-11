@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from ...utils.fugle_api import get_stock_quote 
+from cogs.Stock.utils import get_stock_quote 
 
 class StockAddModal(ui.Modal, title="新增監控股票"):
     symbol = ui.TextInput(label="股票代號", placeholder="例如: 2330", min_length=4, max_length=10)
@@ -24,9 +24,10 @@ class StockAddModal(ui.Modal, title="新增監控股票"):
         else:
             # 成功後呼叫主畫面的更新邏輯
             stock_cog = self.bot.get_cog("Stock")
-            from ..View.StockDashboardView import StockDashboardView
+            from cogs.Stock.ui.View import StockDashboardView
             embed, view = StockDashboardView.create_dashboard(self.bot, interaction.user.id)
-            await interaction.edit_original_response(content="✅ 新增成功！", embed=embed, view=view)
+            embed.title = "✅ 新增成功！"
+            await interaction.edit_original_response(embed=embed, view=view)
 
     async def execute_logic(self, interaction: discord.Interaction) -> str:
         """執行校驗與存檔"""

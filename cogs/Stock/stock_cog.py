@@ -2,20 +2,18 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 import asyncio
-import os
 import traceback
 from datetime import datetime, time
 
 # 導入配置與自定義工具
-from .stock_config import TW_TIME, MARKET_OPEN, MARKET_CLOSE, REPORT_TIME
-from .utils.Stock_Manager import Stock_Manager
-from .utils.fugle_api import get_stock_quote
-
+from cogs.Stock.stock_config import MARKET_OPEN, MARKET_CLOSE, REPORT_TIME
+from cogs.Stock.utils import Stock_Manager,get_stock_quote
+from config import FUGLE_TOKEN,TW_TZ
 class Stock(commands.Cog):
     def __init__(self, bot, SessionLocal):
         self.bot = bot
-        self.SessionLocal = SessionLocal 
-        self.api_token = os.getenv("FUGLE_TOKEN")
+        self.db_manager = SessionLocal 
+        self.api_token = FUGLE_TOKEN
         self.api_lock = asyncio.Lock() # 確保背景監控與手動刷新不衝突
         
         # 啟動背景任務
@@ -26,10 +24,7 @@ class Stock(commands.Cog):
         self.stock_monitor.cancel()
         self.market_report.cancel()
 
-    # ==========================================
-    #                指令入口 (UI)
-    # ==========================================
-
+    #指令入口 (UI)
     @app_commands.command(name="stock", description="開啟股票監控儀表板")
     async def stock_dashboard(self, interaction: discord.Interaction):
         """進入股票模組的主入口"""
@@ -42,14 +37,12 @@ class Stock(commands.Cog):
             print(f"❌ 開啟儀表板失敗: {e}")
             traceback.print_exc()
 
-    # ==========================================
-    #              背景任務 (Tasks)
-    # ==========================================
+    # 背景任務 (Tasks)
 
     @tasks.loop(minutes=1)
     async def stock_monitor(self):
         """每分鐘檢查一次股價 (免費版序列檢查模式)"""
-        now = datetime.now(TW_TIME)
+        now = datetime.now(TW_TZ)
         if now.weekday() >= 5: return 
         current_time_val = now.hour * 100 + now.minute
         if not (MARKET_OPEN <= current_time_val <= MARKET_CLOSE): return
@@ -95,10 +88,8 @@ class Stock(commands.Cog):
     async def market_report(self):
         """收盤總結 (可視需求實作)"""
         pass
-
-    # ==========================================
-    #              內部輔助邏輯
-    # ==========================================
+    
+    # 內部輔助邏輯
 
     async def update_list_message(self, interaction: discord.Interaction, is_first=False):
         """
@@ -128,7 +119,7 @@ class Stock(commands.Cog):
                 title=f"📊 {interaction.user.name} 的投資清單", 
                 description="正在逐一抓取最新行情，請稍候...",
                 color=discord.Color.blue(),
-                timestamp=datetime.now(TW_TIME)
+                timestamp=datetime.now(TW_TZ)
             )
             await interaction.edit_original_response(embed=embed)
 
@@ -184,7 +175,3 @@ class Stock(commands.Cog):
         except Exception as e:
             print(f"❌ 無法發送私訊給 {user_id}: {e}")
 
-
-async def setup(bot):
-    db_manager = getattr(bot, "db_session", None)
-    await bot.add_cog(Stock(bot, db_manager))

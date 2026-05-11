@@ -2,54 +2,43 @@ import discord
 from discord import ui
 
 class StockDeleteSelect(ui.Select):
-    def __init__(self, bot, stocks, dashboard_interaction: discord.Interaction):
+    # 🌟 改為接收 parent_view
+    def __init__(self, bot, stocks, parent_view):
         options = [
             discord.SelectOption(label=f"{s.stock_name} ({s.stock_symbol})", value=s.stock_symbol, emoji="📈")
             for s in stocks
         ]
-        # 取消選項
-        options.append(discord.SelectOption(label="取消操作", value="cancel", emoji="❌", description="返回不刪除"))
         
-        super().__init__(placeholder="請選擇要移除的股票...", options=options)
+        # 移除了原有的 cancel 選項，直接交給 BackBtn 處理返回
+        super().__init__(placeholder="請選擇要移除的股票...", options=options, row=0)
         self.bot = bot
-        self.dashboard_interaction = dashboard_interaction 
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        # Defer 避免 3 秒交互失敗
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         
-        # 延遲匯入避免循環引用
-        from ..View.StockDashboardView import StockDashboardView
-        from ...utils.Stock_Manager import Stock_Manager
-
-        # 處理「取消刪除」
-        if self.values[0] == "cancel":
-            # 重新產生主畫面的 Embed 與 View（確保按鈕狀態與資料最新）
-            embed_new, view_new = StockDashboardView.create_dashboard(self.bot, interaction.user.id)
-            
-            # 更新「後方」的主介面
-            await self.dashboard_interaction.edit_original_response(embed=embed_new, view=view_new)
-            
-            # 關閉「前方」的取消選單
-            return await interaction.edit_original_response(content="已取消刪除操作，已為您刷新主畫面。", view=None)
-
-        # 3. 處理「確認刪除」的情境
         try:
             stock_cog = self.bot.get_cog("Stock")
             symbol = self.values[0]
             
+            from cogs.Stock.utils.Stock_Manager import Stock_Manager
             # 執行刪除邏輯
             success, res_name = Stock_Manager.delete_stock(stock_cog.db_manager, interaction.user.id, symbol)
             
+            # 🌟 刪除後，呼叫 parent_view 的靜態方法重新生成「刪除畫面」的最新狀態
+            embed_new, view_new = self.parent_view.__class__.create_ui(stock_cog, interaction.user.id)
+            
             if success:
-                # 刪除成功後，刷新主畫面
-                embed_new, view_new = StockDashboardView.create_dashboard(self.bot, interaction.user.id)
-                await self.dashboard_interaction.edit_original_response(embed=embed_new, view=view_new)
-                
-                await interaction.edit_original_response(content=f"✅ 已成功移除 **{res_name}**，主畫面已同步更新。", view=None)
+                embed_new.title = "✅ 移除成功"
+                embed_new.description = f"已成功移除 **{res_name} ({symbol})**。\n\n" + embed_new.description
+                embed_new.color = discord.Color.green()
             else:
-                await interaction.edit_original_response(content=f"❌ 刪除失敗：{res_name}")
+                embed_new.title = "❌ 移除失敗"
+                embed_new.description = f"發生錯誤：{res_name}\n\n" + embed_new.description
+                
+            # 就地刷新畫面
+            await interaction.edit_original_response(embed=embed_new, view=view_new)
                 
         except Exception as e:
             print(f"❌ StockDeleteSelect 錯誤: {e}")
-            await interaction.edit_original_response(content=f"❌ 執行錯誤: {e}")
+            await interaction.followup.send(f"❌ 執行錯誤: {e}", ephemeral=True)
