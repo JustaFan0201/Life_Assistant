@@ -9,7 +9,7 @@
 接下來以
 
 - action名稱 #關於action相關介紹(選)
-    - 需要欄位(沒有任何欄位代表不需要 欄位有*代表必須要填) #關於欄位相關介紹(選)
+  - 需要欄位(沒有任何欄位代表不需要 欄位有*代表必須要填) #關於欄位相關介紹(選)
 
 介紹可用 Actions
 
@@ -21,10 +21,12 @@
 ### 生活日記UI
 - CREATE_CATEGORY_MENU #創建主分類 使用者沒提供任何資料
 - CREATE_CATEGORY #創建主分類 使用者提供詳細資料 會透過資料自動創建
-    - category_name* (string) #主類別名稱
-    - fields* (list[string]) #數值類別 像是["金額", "次數"]
-    - subcategories (list[string])
+  - category_name* (string) #主類別名稱
+  - fields* (list[string]) #數值類別 像是["金額", "次數"]
+  - subcategories (list[string])
 - DELETE_CATEGORY_MENU #刪除主分類 使用者沒提供任何資料
+- DELETE_CATEGORY #刪除主分類 使用者有提供主類別名稱
+  - category_name* #主類別名稱
 
 ### Other
 - CHAT #有必要資訊不足時使用 如果action有CHAT時 請把其他動作用memory存 CHAT不可和其他action並存

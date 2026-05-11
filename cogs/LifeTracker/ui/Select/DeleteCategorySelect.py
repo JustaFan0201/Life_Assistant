@@ -9,6 +9,7 @@ class DeleteCategorySelect(ui.Select):
         options = [discord.SelectOption(label=f"刪除：{c.name}", value=str(c.id), emoji="🗑️") for c in categories]
         super().__init__(placeholder="⚠️ 請選擇要永久刪除的主分類...", options=options)
 
+
     async def callback(self, interaction: discord.Interaction):
         if hasattr(self.view, 'lock_all'):
             await self.view.lock_all(interaction)
@@ -17,11 +18,9 @@ class DeleteCategorySelect(ui.Select):
 
         try:
             cat_id = int(self.values[0])
-            LifeTracker_Manager.delete_category(cat_id)
+            LifeTracker_Manager.delete_category(category_id=cat_id)
             
-            from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
-            embed, view = LifeDashboardView.create_dashboard(self.bot, interaction.user.id)
-            embed.title = "🗑️ 分類已刪除"
+            embed, view = DeleteCategorySelect.create_dashboard(self.bot, interaction.user.id)
             
             await interaction.edit_original_response(embed=embed, view=view)
             
@@ -29,3 +28,11 @@ class DeleteCategorySelect(ui.Select):
             if hasattr(self.view, 'unlock_all'):
                 await self.view.unlock_all(interaction)
             await interaction.followup.send(f"❌ 刪除失敗：{e}", ephemeral=True)
+    
+
+    @staticmethod
+    def create_dashboard(bot, user_id):
+        from cogs.LifeTracker.ui.View.LifeDashboardView import LifeDashboardView
+        embed, view = LifeDashboardView.create_dashboard(bot, user_id)
+        embed.title = "🗑️ 分類已刪除"
+        return embed, view

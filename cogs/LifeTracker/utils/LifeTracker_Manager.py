@@ -110,15 +110,22 @@ class LifeTracker_Manager:
             return True, None
     
     @staticmethod
-    def delete_category(category_id: int):
+    @with_db_decorator
+    def delete_category(*, category_id: int=None, category_name: str=None, db=None):
         """刪除整個主分類及其所有子分類與紀錄"""
-        with SessionLocal() as db:
+        if (category_id is None) == (category_name is None):
+            raise ValueError("delete_category: 必須且只能提供 category_id 或 category_name 其中一個")
+        
+        if category_id:
             cat = db.query(TrackerCategory).filter(TrackerCategory.id == category_id).first()
-            if cat:
-                db.delete(cat)
-                db.commit()
-                return True
-            return False
+        else:
+            cat = db.query(TrackerCategory).filter(TrackerCategory.name == category_name).first()
+        
+        if cat:
+            db.delete(cat)
+            db.commit()
+            return True
+        return False
 
     @staticmethod
     def get_user_categories(user_id: int, with_default=True):
