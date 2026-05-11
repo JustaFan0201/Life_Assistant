@@ -18,5 +18,5 @@ class StockListBtn(SafeButton):
             # 所以 update_list_message 內部必須使用 edit_original_response
             await stock_cog.update_list_message(interaction, is_first=False)
         else:
-            await interaction.response.send_message("❌ 找不到股票模組", ephemeral=True)
+            await interaction.response.edit_original_response(content="❌ 找不到股票模組", ephemeral=True)
             await self.view.unlock_all()

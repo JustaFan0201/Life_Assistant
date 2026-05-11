@@ -12,6 +12,6 @@ class StockAddBtn(ui.Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
-        from ..Modal.StockAddModal import StockAddModal
+        from cogs.Stock.ui.Modal import StockAddModal
         
         await interaction.response.send_modal(StockAddModal(self.bot))

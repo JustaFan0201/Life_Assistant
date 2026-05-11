@@ -18,6 +18,7 @@ if not DATABASE_URL:
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
+FUGLE_TOKEN = os.getenv("FUGLE_TOKEN")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 RENDER = os.getenv("RENDER")

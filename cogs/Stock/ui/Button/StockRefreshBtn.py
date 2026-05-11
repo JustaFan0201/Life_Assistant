@@ -2,12 +2,12 @@ import discord
 from cogs.BasicDiscordObject import SafeButton
 
 class StockRefreshBtn(SafeButton):
-    def __init__(self, bot):
+    def __init__(self, bot, row=0):
         super().__init__(
             label="刷新現價損益", 
             style=discord.ButtonStyle.success, 
             emoji="🔄", 
-            row=0
+            row=row
         )
         self.bot = bot
 

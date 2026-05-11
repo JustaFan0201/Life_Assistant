@@ -1,5 +1,5 @@
 from database.models import UserStockWatch, User
-from ..stock_config import TOTAL_SELL_COST_RATE
+from cogs.Stock.stock_config import TOTAL_SELL_COST_RATE
 
 class Stock_Manager:
     @staticmethod

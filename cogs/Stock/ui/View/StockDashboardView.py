@@ -17,11 +17,7 @@ class StockDashboardView(LockableView):
         self.bot = bot
         self.user_id = user_id
         
-        # --- 延遲匯入零件 (避免 Circular Import) ---
-        from ..Button.StockAddBtn import StockAddBtn
-        from ..Button.StockDeleteBtn import StockDeleteBtn
-        from ..Button.StockListBtn import StockListBtn
-        from ..Button.StockQueryBtn import StockQueryBtn
+        from cogs.Stock.ui.Button import StockAddBtn,StockDeleteBtn,StockListBtn,StockQueryBtn
         
         # 核心操作
         self.add_item(StockListBtn(self.bot))   # 詳細損益清單
