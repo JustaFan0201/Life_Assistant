@@ -146,7 +146,7 @@ class EmailTools:
             body = self._clean_html_to_text(body)
         
         body = body.strip()
-        from ..mail_config import MAX_EMAIL_BODY_LENGTH
+        from ..Gmail_config import MAX_EMAIL_BODY_LENGTH
         return (body[:MAX_EMAIL_BODY_LENGTH] + "...") if len(body) > MAX_EMAIL_BODY_LENGTH else body
 
     def _parse_latest_mail(self, raw_email, msg_id):

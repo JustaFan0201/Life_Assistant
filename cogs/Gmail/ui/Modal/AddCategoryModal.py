@@ -1,7 +1,7 @@
 import discord
 from discord import ui
 from cogs.BasicDiscordObject import ValidatedModal
-from cogs.Gmail.mail_config import MAX_CATEGORY_COUNT, MAX_CATEGORY_NAME_LENGTH, MAX_CATEGORY_DESC_LENGTH
+from cogs.Gmail.Gmail_config import MAX_CATEGORY_COUNT, MAX_CATEGORY_NAME_LENGTH, MAX_CATEGORY_DESC_LENGTH
 class AddCategoryModal(ValidatedModal, title="✨ 新增郵件分類"):
     name = ui.TextInput(label="分類名稱", placeholder="例如：實習機會", max_length=MAX_CATEGORY_NAME_LENGTH)
     desc = ui.TextInput(
