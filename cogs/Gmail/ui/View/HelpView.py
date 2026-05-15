@@ -3,13 +3,12 @@ from discord import ui
 from cogs.Gmail.ui.Button import BackToGmailDashboardBtn
 
 class HelpView(ui.View):
-    def __init__(self, bot, gmail_cog, user_id):
+    def __init__(self, user_id):
         super().__init__(timeout=None)
-        self.bot = bot
-        self.gmail_cog = gmail_cog
         self.user_id = user_id
         
-        self.add_item(BackToGmailDashboardBtn(self.bot, self.gmail_cog, self.user_id))
+        self.add_item(BackToGmailDashboardBtn(self.user_id))
+
 
     @staticmethod
     def generate_embed():

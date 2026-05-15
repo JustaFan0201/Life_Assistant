@@ -1,11 +1,10 @@
 # cogs/Gmail/Gmail_cog.py
-import discord
-import os
 from discord.ext import commands, tasks
 from cogs.Gmail.utils import EmailDatabaseManager,EmailTools
-from cogs.System.utils import SystemManager
 from cogs.Gmail.utils import Gmail_AI_Analyzer
 from database.models import EmailConfig
+
+
 class Gmail(commands.Cog):
     def __init__(self, bot, db_session):
         self.bot = bot
@@ -31,7 +30,7 @@ class Gmail(commands.Cog):
 
         for user_id in user_ids:
             try:
-                user_config = self.db_manager.get_user_config(user_id)
+                user_config = EmailDatabaseManager.get_user_config(user_id)
                 if not user_config: continue
 
                 user_email = user_config['email']
@@ -50,7 +49,7 @@ class Gmail(commands.Cog):
         
                 if new_emails:
                     # 收到新信 先撈出這個使用者設定了哪些分類
-                    user_categories = self.db_manager.get_user_categories(user_id)
+                    user_categories = EmailDatabaseManager.get_user_categories(user_id)
 
                     for email_info in new_emails:
                         print(f"🔍 正在呼叫 AI 分析信件：{email_info['subject']} ...")

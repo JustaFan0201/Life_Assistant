@@ -1,5 +1,4 @@
 import discord
-import os
 from datetime import datetime, timezone, timedelta
 from discord.ext import commands, tasks
 from database.models import CalendarEvent, BotSettings

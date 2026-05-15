@@ -19,7 +19,7 @@ class CategoryEmailPagerView(discord.ui.View):
     def _add_buttons(self):
         self.add_item(PrevPageBtn(disabled=(self.page == 0)))
         self.add_item(NextPageBtn(disabled=(self.page >= self.max_page)))
-        self.add_item(BackToGmailDashboardBtn(self.bot, self.gmail_cog, self.user_id))
+        self.add_item(BackToGmailDashboardBtn(self.user_id))
 
     def _format_date(self, raw_date):
         """🌟 內部工具：將 Email 原始日期字串轉換為乾淨的格式"""

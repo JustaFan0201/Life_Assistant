@@ -144,7 +144,7 @@ class LifeTracker_Manager:
             raise ValueError("get_deletable_categories: 必須且只能提供 user_id 或 categories 其中一個")
         if not categories:
             categories = LifeTracker_Manager.get_user_categories(user_id=user_id, with_default=True)
-        return [c for c in categories if c.name != "消費"] if categories else []        
+        return [c for c in categories if c.name != "消費"]        
 
     @staticmethod
     def get_category_details(category_id: int):

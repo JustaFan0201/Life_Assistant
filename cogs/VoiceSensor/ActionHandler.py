@@ -1,20 +1,26 @@
 from database.db_utils import upsert_mem
 from cogs.LifeTracker.utils import LifeTracker_Manager
 import discord
-
-
+from datetime import datetime
+from config import TW_TZ
+from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
+            
 class ActionHandler:
     def __init__(self, bot):
-        print("test1")
         self.bot = bot
 
     async def handle_actions(self, message, processing_msg, actions):
-        print("test2")
+        embed, view, content, attachments = None, None, "", []
         for step in actions:
-            await self.execute_action(message, processing_msg, step)
+            pack = self.execute_action(message, step)
+            if not pack:
+                content = "在AI分析意圖時，發生不可預期錯誤。"
+            else:
+                pack = embed, view, content, attachments
+        await processing_msg.edit(embed=embed, view=view, content=content, attachments=attachments)
+        
     
-    
-    async def execute_action(self, message, processing_msg, step):
+    def execute_action(self, message, step):
 
         action = step.get("action")
         data = step.get("data", {})
@@ -27,7 +33,7 @@ class ActionHandler:
         #     )
 
         # 🟢 2️⃣ 正常執行
-        embed, view, content = None, None, ""
+        embed, view, content, attachments = None, None, "", []
 
         if action == "OPEN_SYSTEM_START":
             from cogs.System.ui.View.SystemStartView import SystemStartView
@@ -43,7 +49,7 @@ class ActionHandler:
         
         elif action == "CREATE_CATEGORY_EMPTY":
             from cogs.LifeTracker.ui.Button.SetupBtn import SetupBtn
-            view = self.get_button_view(SetupBtn(self.bot))
+            view = ActionHandler.get_button_view(SetupBtn(self.bot))
             
         elif action == "CREATE_CATEGORY_WITH_DATA":
             # - category_name* (string) #主類別名稱
@@ -103,7 +109,79 @@ class ActionHandler:
             property_names = ["description", "year", "month", "day", "hour", "minute", "is_private"]
             description, year, month, day, hour, minute, is_private = (data.get(x) for x in property_names)
             if not minute: minute=0
+            if not is_private: is_private=1
+            year, month, day, hour = int(year), int(month), int(day), int(hour)
+            event_time = datetime(year, month, day, hour, minute, tzinfo=TW_TZ)
+            clean_time = event_time.replace(tzinfo=None, second=0, microsecond=0)
+            from cogs.Itinerary.utils.calendar_manager import CalendarDatabaseManager
+            from cogs.Itinerary.itinerary_cog import Itinerary
+            success, report = CalendarDatabaseManager.add_event(
+                user_id=message.author.id,
+                user_name=message.author.name,
+                event_time=clean_time, 
+                description=description,
+                is_private=is_private
+            )
+
+            if not success:
+                content = report
+            else:
+                embed, view, file = Itinerary.create_itinerary_dashboard_ui(message.author.id)
+                embed.title = "✅ 行程新增成功！"
+                embed.color = discord.Color.green()
+                attachments = [file]
+        
+        elif action == "DELETE_ITINERARY":
+            from cogs.Itinerary.ui.View.ItineraryDeleteView import ItineraryDeleteView
+            embed, view = ItineraryDeleteView.create_ui(message.author.id)
+        
+        elif action == "VIEW_ITINERARY":
+            from cogs.Itinerary.ui.View.ItineraryDashboardView import ItineraryDashboardView
+            embed, view, file = ItineraryDashboardView.create_ui(message.author.id)
+            attachments = [file]
+
+        elif action == "GMAIL_HOME":
+            embed, view = GmailDashboardView.create_ui(message.author.id)
+        
+        elif action == "CREATE_GMAIL_CATEGORY_EMPTY":
+            from Gmail.ui.Button.AddCategoryBtn import AddCategoryBtn
+            view = ActionHandler.get_button_view(AddCategoryBtn(message.author.id))
+
+        elif action == "CREATE_GMAIL_CATEGORY_WITH_DATA":
+            # - category_name* (string) #分類名稱
+            # - description* (string) #給 AI 的分類判斷提示詞
+            category_name = data.get("category_name")
+            description = data.get("description")
+            from cogs.Gmail.ui.Modal.AddCategoryModal import AddCategoryModal
+            success, msg = AddCategoryModal.add_and_check(message.author.id, category_name, description)
             
+            if not success:
+                content = msg
+            else:
+                embed, view = GmailDashboardView.create_ui(message.author.id)
+                if msg:
+                    embed.description = f"🎉 **{msg}**\n\n{embed.description}"
+        
+        elif action == "DELETE_GMAIL_CATEGORY":
+            # - category_name
+            category_name = data.get("category_name")
+            from cogs.Gmail.utils import EmailDatabaseManager
+            categories = EmailDatabaseManager.get_user_categories(message.author.id)
+            if not categories:
+                content = "目前沒有可刪除的GMAIL分類"
+            elif category_name:        
+                from cogs.Gmail.utils import EmailDatabaseManager
+                success = EmailDatabaseManager.delete_category(category_name=category_name)
+                if not success:
+                    content = f"刪除錯誤 {name} 並不存在或不可刪除\n目前可刪除目錄:\n" + "\n".join([f" - {cat.name}" for cat in cats])
+            else:
+                from cogs.Gmail.ui.View.DeleteCategoryView import DeleteCategoryView
+                embed, view = DeleteCategoryView.create_ui(self.user_id, categories) 
+            
+        elif action == "SET_GMAIL_ACCOUNT_EMPTY":
+
+        elif action == "SET_GMAIL_ACCOUNT_WITH_DATA":
+        
         elif action == "CHAT":
             # - message* (string)
             # - memory (string)
@@ -114,13 +192,13 @@ class ActionHandler:
 
         else:
             print(f"action: {action} 尚未設置")
-            return False
+            return None
         
-        await processing_msg.edit(embed=embed, view=view, content=content)
-        return True
+        return embed, view, content, attachments
+    
 
-
-    def get_button_view(self, button):
+    @staticmethod
+    def get_button_view(button):
         view = discord.ui.View(timeout=60)
         view.add_item(button)
         return view

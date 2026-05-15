@@ -18,7 +18,7 @@ class GoToGmailButton(ui.Button):
             
             if gmail_cog:
                 from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
-                embed, view = GmailDashboardView.create_ui(self.bot, gmail_cog, user_id)
+                embed, view = GmailDashboardView.create_ui(user_id)
                 
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed, view=view)

@@ -30,16 +30,29 @@
 ### 行程管理
   - CREATE_ITINERARY_EMPTY #新增行程 無資料
   - CREATE_ITINERARY_WITH_DATA #新增行程 有資料
-    - description* (str) #行程內容
+    - description* (string) #行程內容
     - year* (int)
     - month* (int)
     - day* (int)
     - hour* (int)
-    - minute (int)
-    - is_private (int) #1:私人通知 0:頻道通知
+    - minute (int) #預設0
+    - is_private (int) #1:私人通知 0:頻道通知 預設1
   - DELETE_ITINERARY #刪除行程
-  - VIEW_ITINERARY #檢視某月行程 
-    - month (int) #沒填就是預設
+  - VIEW_ITINERARY #檢視行程 
+
+### Gmail管理
+  - GMAIL_HOME #Gmail 郵件管理中心的主頁面 可以看到Gmail管理所有功能
+  - CREATE_GMAIL_CATEGORY_EMPTY #新增分類 無資料
+  - CREATE_GMAIL_CATEGORY_WITH_DATA #新增分類 有資料
+    - category_name* (string) #分類名稱
+    - description* (string) #給 AI 的分類判斷提示詞
+  - DELETE_GMAIL_CATEGORY #刪除分類
+    - category_name #分類名稱 沒填會跳出選單給使用者選擇
+  - SET_GMAIL_ACCOUNT_EMPTY #設置信箱 無資料
+  - SET_GMAIL_ACCOUNT_WITH_DATA #設置信箱 有資料
+    - gmail_address* (string) #Gmail地址
+    - app_password* (string) #Google 應用程式密碼（16位）
+  - GMAIL_SETUP_GUIDE #Gmail 設置與 AI 分類教學
 
 ### Other
 - CHAT #有必要資訊不足時使用 如果action有CHAT時 請把其他動作用memory存 CHAT不可和其他action並存
