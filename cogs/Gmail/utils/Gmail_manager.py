@@ -6,7 +6,7 @@ from database.models import User, EmailConfig, EmailCategory, CategorizedEmail
 from config import ENCRYPTION_KEY
 class EmailDatabaseManager:
     def __init__(self, session_factory):
-        self.Session = session_factory
+        self.session = session_factory
 
         self.key = ENCRYPTION_KEY
         if not self.key:
@@ -39,7 +39,7 @@ class EmailDatabaseManager:
         return user
 
     def get_user_config(self, user_id: int) -> Optional[Dict]:
-        with self.Session() as session:
+        with self.session() as session:
             config = session.query(EmailConfig).filter_by(user_id=user_id).first()
             return {
                 "email": config.email_address,
@@ -53,7 +53,7 @@ class EmailDatabaseManager:
         
         encrypted_password = self._encrypt(password)
 
-        with self.Session() as session:
+        with self.session() as session:
             try:
                 self._ensure_user_exists(session, user_id)
                 
@@ -73,14 +73,14 @@ class EmailDatabaseManager:
                 return f"❌ 設置失敗：資料庫結構可能已變更，請通知管理員。"
 
     def update_last_email_id(self, user_id: int, last_id: str):
-        with self.Session() as session:
+        with self.session() as session:
             session.query(EmailConfig).filter_by(user_id=user_id).update({"last_email_id": last_id})
             session.commit()
 
     def get_user_categories(self, user_id: int) -> list[dict]:
         """獲取使用者的所有分類清單"""
         try:
-            with self.Session() as session:
+            with self.session() as session:
                 categories = session.query(EmailCategory).filter_by(user_id=user_id).all()
                 # 轉成 dict 列表，方便餵給 AI 分析器
                 return [{"id": c.id, "name": c.name, "desc": c.description} for c in categories]
@@ -91,7 +91,7 @@ class EmailDatabaseManager:
     def save_categorized_email(self, category_id: int, email_info: dict, summary: str):
         """將 AI 處理完的信件存入對應分類"""
         try:
-            with self.Session() as session:
+            with self.session() as session:
                 new_email = CategorizedEmail(
                     category_id=category_id,
                     subject=email_info.get('subject', '(無主旨)')[:100], # 避免主旨過長
@@ -110,7 +110,7 @@ class EmailDatabaseManager:
         """新增一個使用者自訂分類"""
         from database.models import EmailCategory
         try:
-            with self.Session() as session:
+            with self.session() as session:
                 # 檢查是否重複
                 if session.query(EmailCategory).filter_by(user_id=user_id, name=name).first():
                     return False, "⚠️ 已經有相同名稱的分類囉！"
@@ -126,7 +126,7 @@ class EmailDatabaseManager:
         """刪除指定分類 (關聯的信件也會因為 cascade 自動刪除)"""
         from database.models import EmailCategory
         try:
-            with self.Session() as session:
+            with self.session() as session:
                 cat = session.query(EmailCategory).filter_by(id=category_id).first()
                 if cat:
                     session.delete(cat)
@@ -140,7 +140,7 @@ class EmailDatabaseManager:
         """取得該分類下所有的信件 (由新到舊排序)"""
         from database.models import CategorizedEmail
         try:
-            with self.Session() as session:
+            with self.session() as session:
                 emails = session.query(CategorizedEmail).filter_by(category_id=category_id)\
                                 .order_by(CategorizedEmail.id.desc()).all()
                 return [

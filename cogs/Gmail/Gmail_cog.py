@@ -20,7 +20,7 @@ class Gmail(commands.Cog):
     async def test_check_mail(self):
         await self.bot.wait_until_ready()
         try:
-            with self.db_manager.Session() as session:
+            with self.db_manager.session() as session:
                 user_ids = [c.user_id for c in session.query(EmailConfig.user_id).all()]
         except Exception as e:
             print(f"[資料庫輪詢] 查詢設定失敗: {e}")
