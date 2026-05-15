@@ -140,20 +140,18 @@ class EmailDatabaseManager:
         return False
         
 
-    def get_category_emails(self, category_id: int) -> list[dict]:
+    @staticmethod
+    @with_db_decorator
+    def get_category_emails(category_id: int, db=None) -> list[dict]:
         """取得該分類下所有的信件 (由新到舊排序)"""
-        from database.models import CategorizedEmail
-        try:
-            with self.Session() as session:
-                emails = session.query(CategorizedEmail).filter_by(category_id=category_id)\
-                                .order_by(CategorizedEmail.id.desc()).all()
-                return [
-                    {
-                        "subject": e.subject, 
-                        "summary": e.ai_summary, 
-                        "link": e.gmail_link, 
-                        "date": e.received_at
-                    } for e in emails
-                ]
-        except Exception:
-            return []
+        from database.models import CategorizedEmail    
+        emails = db.query(CategorizedEmail).filter_by(category_id=category_id)\
+                        .order_by(CategorizedEmail.id.desc()).all()
+        return [
+            {
+                "subject": e.subject, 
+                "summary": e.ai_summary, 
+                "link": e.gmail_link, 
+                "date": e.received_at
+            } for e in emails
+        ]

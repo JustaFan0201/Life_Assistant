@@ -4,10 +4,8 @@ from email.utils import parsedate_to_datetime
 from cogs.Gmail.ui.Button import PrevPageBtn,NextPageBtn,BackToGmailDashboardBtn
 
 class CategoryEmailPagerView(discord.ui.View):
-    def __init__(self, bot, gmail_cog, user_id, category_name, emails, page=0):
+    def __init__(self, user_id, category_name, emails, page=0):
         super().__init__(timeout=None)
-        self.bot = bot
-        self.gmail_cog = gmail_cog
         self.user_id = user_id
         self.category_name = category_name
         self.emails = emails

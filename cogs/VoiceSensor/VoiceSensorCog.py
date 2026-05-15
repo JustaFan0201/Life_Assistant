@@ -8,7 +8,7 @@ from database.db_utils import get_mem
 
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 
-LISTEN_FLAG = True
+LISTEN_FLAG = False
 
 class VoiceSensorCog(commands.Cog):
     def __init__(self, bot):
@@ -64,50 +64,7 @@ class VoiceSensorCog(commands.Cog):
 
     async def process_text(self, text: str, message, processing_msg):
         # 1️⃣ 呼叫 AI
-        # result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name))
-        import json
-        if text == "1":
-            result = json.loads('''
-            {
-                "actions": [
-                    {
-                    "action": "GMAIL_HOME",
-                    "data": {},
-                    "missing_fields": []
-                    }
-                ]
-            }
-            ''')
-        elif text == "2":
-            result = json.loads('''
-            {
-                "actions": [
-                    {
-                    "action": "CREATE_GMAIL_CATEGORY_EMPTY",
-                    "data": {},
-                    "missing_fields": []
-                    }
-                ]
-            }
-            ''')
-        
-        elif text == "3":
-            result = json.loads('''
-            {
-                "actions": [
-                    {
-                    "action": "CREATE_GMAIL_CATEGORY_WITH_DATA",
-                    "data": {
-                        "category_name": "TET",
-                        "description": "DESCRIPT"
-                    },
-                    "missing_fields": []
-                    }
-                ]
-            }
-            ''')
-        
-        
+        result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name))
         actions = result.get("actions", [])
 
         if not actions:

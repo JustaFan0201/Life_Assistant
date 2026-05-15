@@ -4,6 +4,7 @@ import discord
 from datetime import datetime
 from config import TW_TZ
 from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
+from cogs.Gmail.utils import EmailDatabaseManager
             
 class ActionHandler:
     def __init__(self, bot):
@@ -16,7 +17,7 @@ class ActionHandler:
             if not pack:
                 content = "在AI分析意圖時，發生不可預期錯誤。"
             else:
-                pack = embed, view, content, attachments
+                embed, view, content, attachments = pack
         await processing_msg.edit(embed=embed, view=view, content=content, attachments=attachments)
         
     
@@ -144,7 +145,7 @@ class ActionHandler:
             embed, view = GmailDashboardView.create_ui(message.author.id)
         
         elif action == "CREATE_GMAIL_CATEGORY_EMPTY":
-            from Gmail.ui.Button.AddCategoryBtn import AddCategoryBtn
+            from cogs.Gmail.ui.Button.AddCategoryBtn import AddCategoryBtn
             view = ActionHandler.get_button_view(AddCategoryBtn(message.author.id))
 
         elif action == "CREATE_GMAIL_CATEGORY_WITH_DATA":
@@ -165,25 +166,41 @@ class ActionHandler:
         elif action == "DELETE_GMAIL_CATEGORY":
             # - category_name
             category_name = data.get("category_name")
-            from cogs.Gmail.utils import EmailDatabaseManager
             categories = EmailDatabaseManager.get_user_categories(message.author.id)
             if not categories:
                 content = "目前沒有可刪除的GMAIL分類"
-            elif category_name:        
-                from cogs.Gmail.utils import EmailDatabaseManager
+            elif category_name:
                 success = EmailDatabaseManager.delete_category(category_name=category_name)
-                if not success:
-                    content = f"刪除錯誤 {name} 並不存在或不可刪除\n目前可刪除目錄:\n" + "\n".join([f" - {cat.name}" for cat in cats])
+                if success:
+                    content = f"GMAIL分類({category_name})以成功刪除"
+                else:
+                    print(categories)
+                    content = f"刪除錯誤 {category_name} 並不存在或不可刪除\n目前可刪除目錄:\n" + "\n".join([f' - {cat["name"]}' for cat in categories])
             else:
                 from cogs.Gmail.ui.View.DeleteCategoryView import DeleteCategoryView
-                embed, view = DeleteCategoryView.create_ui(self.user_id, categories) 
+                embed, view = DeleteCategoryView.create_ui(message.author.id, categories) 
             
         elif action == "SET_GMAIL_ACCOUNT_EMPTY":
             from cogs.Gmail.ui.Button.SetupMailBtn import SetupMailBtn
             view = ActionHandler.get_button_view(SetupMailBtn())
 
         elif action == "SET_GMAIL_ACCOUNT_WITH_DATA":
+            # - gmail_address* (string) #Gmail地址
+            # - app_password* (string) #Google 應用程式密碼（16位）
+            gmail_address, app_password = data.get("gmail_address"), data.get("app_password")
+            from cogs.Gmail.utils import EmailTools
+            clean_address = EmailTools()._extract_pure_email(gmail_address)
+            report = EmailDatabaseManager.save_user_config(message.author.id, message.author.name, clean_address, app_password)    
+            if "❌" in report:
+                content = report
+            else:
+                content = "GMAIL已成功連結"
         
+        elif action == "GMAIL_SETUP_GUIDE":
+            from cogs.Gmail.ui.View.HelpView import HelpView
+            view = HelpView(message.author.id)
+            embed = view.generate_embed()
+
         elif action == "CHAT":
             # - message* (string)
             # - memory (string)
