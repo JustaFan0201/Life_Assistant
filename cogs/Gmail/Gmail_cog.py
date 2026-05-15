@@ -41,41 +41,43 @@ class Gmail(commands.Cog):
 
                 tools = EmailTools(user_email, user_password)
                 
-                new_emails, drift_fix_id = await tools.get_unread_emails(last_id)
-                
+                try:
+                    new_emails, drift_fix_id = await tools.get_unread_emails(last_id)
+                except Exception as fetch_error:
+                    # 如果抓取失敗，印出錯誤並跳過此使用者
+                    print(f"❌ [EmailTools] 使用者 {user_email} 抓取失敗: {fetch_error}")
+                    continue 
+
+                # 如果有校正 ID，且抓取過程沒崩潰才更新
                 if drift_fix_id:
                     self.db_manager.update_last_email_id(user_id, drift_fix_id)
-                    print(f"🔧 [自動修復] 已靜默將資料庫 ID 向下校正為: {drift_fix_id} (未呼叫 AI)")
+                    print(f"🔧 [自動修復] 使用者 {user_email} ID 校正為: {drift_fix_id}")
         
                 if new_emails:
-                    # 收到新信 先撈出這個使用者設定了哪些分類
                     user_categories = EmailDatabaseManager.get_user_categories(user_id)
 
                     for email_info in new_emails:
-                        print(f"🔍 正在呼叫 AI 分析信件：{email_info['subject']} ...")
+                        print(f"🔍 分析信件：{email_info['subject']} ...")
                         
-                        # 呼叫 AI 大腦進行分類與摘要
+                        # AI 分析
                         cat_name, summary = await Gmail_AI_Analyzer.analyze_and_classify_email(
                             subject=email_info['subject'],
                             body=email_info['body'],
                             categories=user_categories
                         )
                         
-                        # 把 AI 分析結果塞進 info 裡
                         email_info['ai_summary'] = summary
                         email_info['category'] = cat_name
 
-                        # 如果 AI 有成功配對到分類，寫入資料庫！
                         if cat_name:
                             target_cat = next((c for c in user_categories if c['name'] == cat_name), None)
                             if target_cat:
                                 self.db_manager.save_categorized_email(target_cat['id'], email_info, summary)
-                                print(f"📁 已將信件歸檔至分類 [{cat_name}]")
+                                print(f"📁 歸檔至 [{cat_name}]")
                         else:
-                            print(f"⏩ 信件不符合任何分類，已略過。")
+                            print(f"⏩ 未符合分類，略過。")
 
-                        # 無論如何都會更新最後的 ID
                         self.db_manager.update_last_email_id(user_id, str(email_info['id']))
                     
             except Exception as e:
-                print(f"[輪詢錯誤] 使用者 {user_id}: {e}")
+                print(f"⚠️ [輪詢異常] 使用者 {user_id} 發生未知錯誤: {e}")
