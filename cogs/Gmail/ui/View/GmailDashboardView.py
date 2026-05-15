@@ -23,7 +23,8 @@ class GmailDashboardView(LockableView):
         try:
             from cogs.System.ui.Button.BackToMainButton import BackToMainButton
             self.add_item(BackToMainButton(self.bot, row=4))
-        except: pass
+        except ImportError as e:
+            print(f"無法載入 BackToMainButton: {e}")
 
     @staticmethod
     def create_ui(bot, gmail_cog, user_id):
