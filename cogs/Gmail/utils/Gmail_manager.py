@@ -15,7 +15,7 @@ class EmailDatabaseManager:
         cipher = Fernet(key.encode())
 
     def __init__(self, session_factory):
-        self.Session = session_factory
+        self.session = session_factory
 
     @staticmethod
     def _encrypt(text: str) -> str:
@@ -71,7 +71,7 @@ class EmailDatabaseManager:
         
 
     def update_last_email_id(self, user_id: int, last_id: str):
-        with self.Session() as session:
+        with self.session() as session:
             session.query(EmailConfig).filter_by(user_id=user_id).update({"last_email_id": last_id})
             session.commit()
 
@@ -88,7 +88,7 @@ class EmailDatabaseManager:
     def save_categorized_email(self, category_id: int, email_info: dict, summary: str):
         """將 AI 處理完的信件存入對應分類"""
         try:
-            with self.Session() as session:
+            with self.session() as session:
                 new_email = CategorizedEmail(
                     category_id=category_id,
                     subject=email_info.get('subject', '(無主旨)')[:100], # 避免主旨過長
