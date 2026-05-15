@@ -30,7 +30,7 @@ class GmailSetupModal(ValidatedModal):
         if "❌" in self.report:
             return self.report
             
-        return None
+        return "Success"
 
     async def on_success(self, interaction: discord.Interaction):
         """邏輯成功後，無痕刷新 Gmail 主控台介面"""
