@@ -1,5 +1,6 @@
 from datetime import timedelta, timezone, time
 from config import TW_TZ
+from config import FUGLE_TOKEN
 # 時區與時間設定
 MARKET_OPEN = 900   # 09:00
 MARKET_CLOSE = 1335 # 13:35

@@ -1,5 +1,6 @@
 import discord
 from cogs.BasicDiscordObject import SafeButton
+from cogs.Stock.stock_cog import update_list_message
 
 class StockRefreshBtn(SafeButton):
     def __init__(self, bot, row=0):
@@ -15,12 +16,4 @@ class StockRefreshBtn(SafeButton):
         """
         按下按鈕後執行的動作
         """
-        # 取得 Stock Cog
-        stock_cog = self.bot.get_cog("Stock")
-        
-        if stock_cog:
-            await stock_cog.update_list_message(interaction, is_first=False)
-        else:
-            await interaction.followup.send("❌ 錯誤：找不到股票模組", ephemeral=True)
-            # 發生錯誤解鎖按鈕，否則會卡住
-            await self.view.unlock_all()
+        await update_list_message(self.bot, interaction, is_first=False)

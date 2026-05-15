@@ -1,5 +1,6 @@
 import discord
 from cogs.BasicDiscordObject import SafeButton
+from cogs.Stock.stock_cog import update_list_message
 
 class StockListBtn(SafeButton):
     def __init__(self, bot):
@@ -12,11 +13,4 @@ class StockListBtn(SafeButton):
         self.bot = bot
 
     async def do_action(self, interaction: discord.Interaction):
-        stock_cog = self.bot.get_cog("Stock")
-        if stock_cog:
-            # SafeButton 已經執行了 lock_all (edit_message)
-            # 所以 update_list_message 內部必須使用 edit_original_response
-            await stock_cog.update_list_message(interaction, is_first=False)
-        else:
-            await interaction.response.edit_original_response(content="❌ 找不到股票模組", ephemeral=True)
-            await self.view.unlock_all()
+        await update_list_message(self.bot, interaction, is_first=False)
