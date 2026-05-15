@@ -179,6 +179,8 @@ class ActionHandler:
                 embed, view = DeleteCategoryView.create_ui(self.user_id, categories) 
             
         elif action == "SET_GMAIL_ACCOUNT_EMPTY":
+            from cogs.Gmail.ui.Button.SetupMailBtn import SetupMailBtn
+            view = ActionHandler.get_button_view(SetupMailBtn())
 
         elif action == "SET_GMAIL_ACCOUNT_WITH_DATA":
         

@@ -29,7 +29,7 @@ class GmailSetupModal(ValidatedModal):
         if "❌" in self.report:
             return self.report
             
-        return None
+        return "Success"
 
     async def on_success(self, interaction: discord.Interaction):
         """邏輯成功後，無痕刷新 Gmail 主控台介面"""
@@ -39,7 +39,7 @@ class GmailSetupModal(ValidatedModal):
         embed, view = GmailDashboardView.create_ui(user_id)
         
         if self.report:
-            embed.description = f"✅ **{self.report}**\n\n{embed.description}"
+            embed.description = f"**{self.report}**\n\n{embed.description}"
         
         # 編輯原本的 Dashboard 訊息，達成無痕切換
         await interaction.response.edit_message(embed=embed, view=view)

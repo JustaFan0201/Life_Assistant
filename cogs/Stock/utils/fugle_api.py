@@ -1,8 +1,8 @@
 import requests
 import logging
-
+import asyncio
 logger = logging.getLogger(__name__)
-
+fugle_api_lock = asyncio.Lock()
 def get_stock_quote(symbol: str, token: str) -> dict:
     """
     富果行情 API V1.0 正式版 (已驗證)

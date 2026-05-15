@@ -1,18 +1,19 @@
 from database.models import UserStockWatch, User
+from database import SessionLocal
 from cogs.Stock.stock_config import TOTAL_SELL_COST_RATE
 
 class Stock_Manager:
     @staticmethod
-    def get_user_stocks(db_manager, user_id):
+    def get_user_stocks(user_id):
         """獲取使用者的所有監控股票"""
-        with db_manager() as session:
+        with SessionLocal() as session:
             user = session.query(User).filter_by(discord_id=user_id).first()
             return user.stocks if user else []
 
     @staticmethod
-    def add_stock(db_manager, user_id, username, data: dict):
+    def add_stock(user_id, username, data: dict):
         """新增或更新股票監控"""
-        with db_manager() as session:
+        with SessionLocal() as session:
             user = session.query(User).filter_by(discord_id=user_id).first()
             if not user:
                 user = User(discord_id=user_id, username=username)
@@ -60,10 +61,10 @@ class Stock_Manager:
         }
 
     @staticmethod
-    def delete_stock(db_manager, user_id, symbol):
+    def delete_stock(user_id, symbol):
         """刪除指定股票監控"""
         try:
-            with db_manager() as session:
+            with SessionLocal() as session:
                 from database.models import UserStockWatch
                 watch = session.query(UserStockWatch).filter_by(
                     user_id=user_id, 
@@ -78,3 +79,36 @@ class Stock_Manager:
                 return False, "找不到該股票紀錄"
         except Exception as e:
             return False, str(e)
+        
+    @staticmethod
+    def get_alert_watches():
+        """獲取所有設定了漲跌幅預警的股票紀錄"""
+        from database import SessionLocal
+        with SessionLocal() as session:
+            from database.models import UserStockWatch
+            watches = session.query(UserStockWatch).filter(
+                (UserStockWatch.target_up.isnot(None)) | 
+                (UserStockWatch.target_down.isnot(None))
+            ).all()
+            
+            # 🌟 轉換為字典回傳，避免 Session 關閉後發生 DetachedInstanceError
+            return [{
+                "user_id": w.user_id,
+                "stock_symbol": w.stock_symbol,
+                "target_up": w.target_up,
+                "target_down": w.target_down,
+                "last_notified_price": w.last_notified_price,
+            } for w in watches]
+
+    @staticmethod
+    def update_notified_price(user_id: int, symbol: str, price: float):
+        """更新股票的最後通知價格"""
+        from database import SessionLocal
+        with SessionLocal() as session:
+            from database.models import UserStockWatch
+            watch = session.query(UserStockWatch).filter_by(
+                user_id=user_id, stock_symbol=symbol
+            ).first()
+            if watch:
+                watch.last_notified_price = price
+                session.commit()

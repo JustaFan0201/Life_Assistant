@@ -24,7 +24,8 @@ class GmailDashboardView(LockableView):
             from cogs.System.ui.Button.BackToMainButton import BackToMainButton
             from bot import bot
             self.add_item(BackToMainButton(bot, row=4))
-        except: pass
+        except ImportError as e:
+            print(f"無法載入 BackToMainButton: {e}")
 
 
     @staticmethod

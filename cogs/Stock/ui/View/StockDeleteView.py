@@ -1,32 +1,27 @@
 import discord
 from cogs.BasicDiscordObject import LockableView
 from cogs.Stock.ui.Select.StockDeleteSelect import StockDeleteSelect
-
+from cogs.Stock.utils import Stock_Manager
+from cogs.Stock.ui.Button import StockBackToDashboardBtn
 class StockDeleteView(LockableView):
-    def __init__(self, cog, user_id):
+    def __init__(self, bot, user_id):
         super().__init__(timeout=None)
-        self.cog = cog
+        self.bot = bot
         self.user_id = user_id
-        self.bot = cog.bot
         
-        from cogs.Stock.utils.Stock_Manager import Stock_Manager
-        stocks = Stock_Manager.get_user_stocks(self.cog.db_manager, user_id)
+        stocks = Stock_Manager.get_user_stocks(user_id)
 
-        # 1. 放入下拉選單 (Row 0)
         if stocks:
             self.add_item(StockDeleteSelect(self.bot, stocks, self))
             
-        # 2. 放入返回儀表板按鈕 (Row 1，避免跟選單擠在一起)
-        try:
-            from cogs.Stock.ui.Button.StockBackToDashboardBtn import StockBackToDashboardBtn
-            self.add_item(StockBackToDashboardBtn(self.bot, row=1))
-        except ImportError:
-            pass
+        self.add_item(StockBackToDashboardBtn(self.bot, row=1))
 
     @staticmethod
-    def create_ui(cog, user_id):
-        from cogs.Stock.utils.Stock_Manager import Stock_Manager
-        stocks = Stock_Manager.get_user_stocks(cog.db_manager, user_id)
+    def create_ui(bot, user_id):
+        """
+        靜態工廠方法：負責生成刪除介面的最新狀態
+        """
+        stocks = Stock_Manager.get_user_stocks(user_id)
         
         if not stocks:
             desc = "您目前沒有監控任何股票，無法執行刪除操作！\n請點擊下方按鈕返回主畫面。"
@@ -39,5 +34,5 @@ class StockDeleteView(LockableView):
             color=discord.Color.red()
         )
         
-        view = StockDeleteView(cog, user_id)
+        view = StockDeleteView(bot, user_id)
         return embed, view

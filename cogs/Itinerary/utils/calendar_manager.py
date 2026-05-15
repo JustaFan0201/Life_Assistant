@@ -12,20 +12,20 @@ class CalendarDatabaseManager:
     @staticmethod
     @with_db_decorator
     def add_event(user_id: int, user_name: str, event_time: datetime, description: str, is_private: bool, db=None):
-        now = datetime.now(TW_TZ)
+        now_tw = datetime.now(TW_TZ).replace(tzinfo=None)
         
-        if event_time.tzinfo is None:
-            event_time = event_time.replace(tzinfo=TW_TZ)
+        if event_time.tzinfo is not None:
+            event_time = event_time.astimezone(TW_TZ).replace(tzinfo=None)
 
-        if event_time < now:
-            return False, f'❌ 設定的時間{event_time.strftime("%Y-%m-%d %H:%M")}已過，請檢查後重試。'
+        if event_time < now_tw:
+            return False, f'❌ 設定的時間 {event_time.strftime("%Y-%m-%d %H:%M")} 已過，請檢查後重試。'
 
         user = get_user(discord_id=user_id, user_name=user_name, db=db)
         
         new_event = CalendarEvent(
             user_id=user.discord_id,
             description=description,
-            event_time=event_time,
+            event_time=event_time, 
             is_private=is_private
         )
         db.add(new_event)
