@@ -42,7 +42,13 @@ class EmailTools:
                 timeout -= 0.5
             
             await asyncio.sleep(1)
-            await imap_client.login(self.user, self.password)
+
+            login_res = await imap_client.login(self.user, self.password)
+
+            if login_res.result != 'OK':
+                raise ValueError("AUTH_FAILED")
+
+            # await imap_client.login(self.user, self.password)
             await imap_client.select("INBOX")
 
             status, messages = await imap_client.search("ALL")
@@ -76,8 +82,14 @@ class EmailTools:
             return results, drift_fix_id
 
         except Exception as e:
-            print(f"[EmailTools] 使用者 {self.user} 抓取失敗: {e}")
-            return [], None
+            # 判斷是否為密碼錯誤
+            err_msg = str(e).upper()
+            if "AUTHENTICATION FAILED" in err_msg or "INVALID CREDENTIALS" in err_msg or "AUTH_FAILED" in err_msg:
+                print(f"❌ [EmailTools] 使用者 {self.user} 驗證失敗 (密碼錯誤)")
+                raise ValueError("AUTH_FAILED") # 丟給 Cog 處理停用與通知
+            
+            print(f"⚠️ [EmailTools] 使用者 {self.user} 抓取發生其他錯誤: {e}")
+            return [], None # 其他錯誤 則回傳空值，不拋出異常
         finally:
             if imap_client:
                 try: 

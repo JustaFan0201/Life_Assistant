@@ -46,6 +46,7 @@ class EmailConfig(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
     user = relationship("User", back_populates="email_config")
+    is_active = Column(Boolean, default=True, nullable=False)
 
 class EmailCategory(Base):
     """使用者自訂的郵件分類"""

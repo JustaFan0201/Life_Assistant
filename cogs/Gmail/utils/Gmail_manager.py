@@ -44,7 +44,8 @@ class EmailDatabaseManager:
         return {
             "email": config.email_address,
             "password": EmailDatabaseManager._decrypt(config.email_password),
-            "last_email_id": config.last_email_id
+            "last_email_id": config.last_email_id,
+            "is_active": config.is_active
         } if config else None
 
 
@@ -62,8 +63,9 @@ class EmailDatabaseManager:
         if config:
             config.email_address = email
             config.email_password = encrypted_password
+            config.is_active = True
         else:
-            new_config = EmailConfig(user_id=user_id, email_address=email, email_password=encrypted_password)
+            new_config = EmailConfig(user_id=user_id, email_address=email, email_password=encrypted_password, is_active=True)
             db.add(new_config)
         
         db.commit()
@@ -75,6 +77,11 @@ class EmailDatabaseManager:
             session.query(EmailConfig).filter_by(user_id=user_id).update({"last_email_id": last_id})
             session.commit()
 
+    def set_user_active_status(self, user_id: int, status: bool):
+        """更新使用者的收信功能開關 (True: 啟用, False: 停用)"""
+        with self.session() as session:
+            session.query(EmailConfig).filter_by(user_id=user_id).update({"is_active": status})
+            session.commit()
 
     @staticmethod
     @with_db_decorator
