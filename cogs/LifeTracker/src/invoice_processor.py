@@ -79,7 +79,7 @@ class InvoiceProcessor:
                 print(f"✅ 成功記錄: {item_name}")
             else:
                 print(f"❌ 記錄失敗: {err}")
-            time.sleep(1)
+            await asyncio.sleep(1)
         print("🏁 所有發票資料處理完畢！")
 
         try:

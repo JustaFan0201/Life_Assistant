@@ -1,4 +1,5 @@
 from flask import Flask
+from waitress import serve
 from threading import Thread
 
 app = Flask('')
@@ -8,7 +9,7 @@ def main():
     return '<h1>Bot is awake</h1>'
 
 def run(host="127.0.0.1"):
-    app.run(host=host, port=8080)
+    serve(app, host=host, port=8080)
 
 # 修改這裡：增加一個參數 local_test，預設為 False
 def keep_alive(local_test=False):
