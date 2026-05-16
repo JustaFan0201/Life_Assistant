@@ -14,37 +14,39 @@ class Itinerary(commands.Cog):
         self.last_check_minute = -1
         self.check_reminders.start()
 
-    async def _process_events(self, session, events, settings):
-        """專門處理事件遍歷與發送的輔助函數，用以降低認知複雜度"""
-        for event in events:
-            try:
-                user = await self.bot.fetch_user(event.user_id)
-                if not user: 
-                    continue
+    async def _send_single_event_reminder(self, session, event, settings):
+        try:
+            user = await self.bot.fetch_user(event.user_id)
+            if not user: 
+                return
 
-                embed = discord.Embed(
-                    title="📅 | 行程提醒",
-                    description=f"**內容：{event.description}**",
-                    color=discord.Color.gold()
-                )
+            embed = discord.Embed(
+                title="📅 | 行程提醒",
+                description=f"**內容：{event.description}**",
+                color=discord.Color.gold()
+            )
+            
+            if event.is_private:
+                # 私人行程：直接傳送私訊
+                await user.send(embed=embed)
+            else:
+                # 公開行程：優先傳送至設定的頻道
+                channel_id = settings.calendar_notify_channel_id if settings else None
+                channel = self.bot.get_channel(channel_id) if channel_id else None
                 
-                if event.is_private:
-                    # 私人行程：直接傳送私訊
-                    await user.send(embed=embed)
+                if channel:
+                    await channel.send(content=f"{user.mention} 您的公開行程提醒：", embed=embed)
                 else:
-                    # 公開行程：優先傳送至設定的頻道
-                    channel_id = settings.calendar_notify_channel_id if settings else None
-                    channel = self.bot.get_channel(channel_id) if channel_id else None
-                    
-                    if channel:
-                        await channel.send(content=f"{user.mention} 您的公開行程提醒：", embed=embed)
-                    else:
-                        # 若找不到頻道，則備援發送私訊
-                        await user.send(content="⚠️ 找不到公開通知頻道，改為私訊提醒：", embed=embed)
+                    # 若找不到頻道，則備援發送私訊
+                    await user.send(content="⚠️ 找不到公開通知頻道，改為私訊提醒：", embed=embed)
 
-                session.delete(event)
-            except Exception as e:
-                print(f"❌ 發送出錯: {e}")
+            session.delete(event)
+        except Exception as e:
+            print(f"❌ 發送出錯: {e}")
+
+    async def _process_events(self, session, events, settings):
+        for event in events:
+            await self._send_single_event_reminder(session, event, settings)
 
     @tasks.loop(seconds=10.0)
     async def check_reminders(self):
