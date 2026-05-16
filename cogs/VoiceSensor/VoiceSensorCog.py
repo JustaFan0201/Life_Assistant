@@ -8,6 +8,8 @@ from database.db_utils import get_mem
 
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 
+LISTEN_FLAG = False
+
 class VoiceSensorCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -21,6 +23,8 @@ class VoiceSensorCog(commands.Cog):
         from database.db_utils import get_botsettings
         from database.models import BotSettings
         if message.guild and message.channel.id != get_botsettings(BotSettings.gpt_channel_id, message.guild.id):
+            return
+        if not LISTEN_FLAG:
             return
         
         # 🎤 === 語音訊息 ===
@@ -64,7 +68,7 @@ class VoiceSensorCog(commands.Cog):
 
     async def process_text(self, text: str, message, processing_msg):
         # 1️⃣ 呼叫 AI
-        result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name))
+        result = await AI_Analyzer.parse_ui_action(text, get_mem(message.author.id, message.author.name).memory_text)
         actions = result.get("actions", [])
         
         if not actions:
