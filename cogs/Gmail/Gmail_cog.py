@@ -110,7 +110,7 @@ class Gmail(commands.Cog):
                                 self.db_manager.save_categorized_email(target_cat['id'], email_info, summary)
                                 print(f"📁 歸檔至 [{cat_name}]")
                         else:
-                            print(f"⏩ 未符合分類，略過。")
+                            print("⏩ 未符合分類，略過。")
 
                         # 更新進度
                         self.db_manager.update_last_email_id(user_id, str(email_info['id']))

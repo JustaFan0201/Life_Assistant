@@ -6,7 +6,7 @@ from cogs.Stock.utils import get_stock_quote,fugle_api_lock
 from cogs.Stock.stock_config import FUGLE_TOKEN
 from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
 
-class StockQueryModal(ui.Modal, title="股票快搜"):
+class StockQueryModal(ui.Modal, title="股票快速查詢"):
     symbol = ui.TextInput(
         label="股票代號",
         placeholder="例如: 2330",
