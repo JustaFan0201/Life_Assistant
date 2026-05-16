@@ -42,7 +42,7 @@ def with_db_decorator(func):
 
 # BotSettings getter
 @with_db_decorator
-def get_botsettings(column: Column, db: Session, ID):
+def get_botsettings(column: Column, ID, db: Session=None):
     row = db.query(column).filter(BotSettings.id == ID).first()
     
     if row is None:
@@ -55,7 +55,7 @@ def get_botsettings(column: Column, db: Session, ID):
 
 # BotSettings setter
 @with_db_decorator
-def set_botsettings(column: Column, db: Session, value, ID):
+def set_botsettings(column: Column, value, ID, db: Session=None):
     # 取得整個物件
     obj = db.query(BotSettings).filter(BotSettings.id == ID).first()
     

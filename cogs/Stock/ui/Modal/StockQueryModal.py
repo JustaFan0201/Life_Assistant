@@ -4,6 +4,7 @@ import traceback
 
 from cogs.Stock.utils import get_stock_quote,fugle_api_lock
 from cogs.Stock.stock_config import FUGLE_TOKEN
+from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
 
 class StockQueryModal(ui.Modal, title="股票快搜"):
     symbol = ui.TextInput(
@@ -14,18 +15,23 @@ class StockQueryModal(ui.Modal, title="股票快搜"):
         required=True
     )
 
-    def __init__(self, bot, parent_view):
+    def __init__(self, bot):
         super().__init__()
         self.bot = bot
-        self.parent_view = parent_view 
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        
+        embed, view = await StockQueryModal.create_dashboard(self.bot, interaction.user.id, self.symbol.value)
+        await interaction.edit_original_response(embed=embed, view=view)
+    
+    @staticmethod
+    async def create_dashboard(bot, user_id, symbol: str):    
         try:
-            sym = self.symbol.value.strip().upper()
+            sym = symbol.strip().upper()
             async with fugle_api_lock:
                 info = get_stock_quote(sym, FUGLE_TOKEN)
+
+            view = StockDashboardView(bot, user_id)
 
             if not info or "lastPrice" not in info:
                 err_embed = discord.Embed(
@@ -33,7 +39,7 @@ class StockQueryModal(ui.Modal, title="股票快搜"):
                     description=f"找不到股票 `{sym}`，請確認代號是否正確。", 
                     color=discord.Color.red()
                 )
-                return await interaction.edit_original_response(embed=err_embed, view=self.parent_view)
+                return err_embed, view
 
             # 建立結果 Embed
             price = info['lastPrice']
@@ -51,7 +57,7 @@ class StockQueryModal(ui.Modal, title="股票快搜"):
             embed.set_footer(text="提示：此數據為即時行情，僅供參考。")
 
             # 將查詢結果更新回原來的訊息上，並附加上原有的 View (保持按鈕存在)
-            await interaction.edit_original_response(embed=embed, view=self.parent_view)
+            return embed, view
 
         except Exception as e:
             print(f"❌ 快速查詢失敗: {e}")
@@ -63,4 +69,5 @@ class StockQueryModal(ui.Modal, title="股票快搜"):
                 description="查詢過程中發生未預期的系統錯誤。", 
                 color=discord.Color.red()
             )
-            await interaction.edit_original_response(embed=err_embed, view=self.parent_view)
+            return err_embed, view
+    

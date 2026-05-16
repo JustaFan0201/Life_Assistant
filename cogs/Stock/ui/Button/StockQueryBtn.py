@@ -14,4 +14,4 @@ class StockQueryBtn(ui.Button):
     async def callback(self, interaction: discord.Interaction):
         # 延遲匯入 Modal，避免 Circular Import
         from cogs.Stock.ui.Modal import StockQueryModal
-        await interaction.response.send_modal(StockQueryModal(self.bot, parent_view=self.view))
+        await interaction.response.send_modal(StockQueryModal(self.bot))

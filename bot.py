@@ -28,7 +28,7 @@ async def on_ready():
     with SessionLocal as db:
         for guild in bot.guilds:
             if not guild: continue
-            notify_channel_id = get_botsettings(BotSettings.login_notify_channel_id, db, guild.id)
+            notify_channel_id = get_botsettings(BotSettings.login_notify_channel_id, guild.id, db)
             if notify_channel_id: 
                 print(f"🔍 從資料庫(ID={guild.id})讀取到通知頻道 ID: {notify_channel_id}")
                 try:

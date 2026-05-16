@@ -5,6 +5,9 @@ from datetime import datetime
 from config import TW_TZ
 from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
 from cogs.Gmail.utils import EmailDatabaseManager
+from cogs.Stock.utils import Stock_Manager
+from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
+            
             
 class ActionHandler:
     def __init__(self, bot):
@@ -13,7 +16,7 @@ class ActionHandler:
     async def handle_actions(self, message, processing_msg, actions):
         embed, view, content, attachments = None, None, "", []
         for step in actions:
-            pack = self.execute_action(message, step)
+            pack = await self.execute_action(message, step)
             if not pack:
                 content = "在AI分析意圖時，發生不可預期錯誤。"
             else:
@@ -21,7 +24,7 @@ class ActionHandler:
         await processing_msg.edit(embed=embed, view=view, content=content, attachments=attachments)
         
     
-    def execute_action(self, message, step):
+    async def execute_action(self, message, step):
 
         action = step.get("action")
         data = step.get("data", {})
@@ -200,6 +203,66 @@ class ActionHandler:
             from cogs.Gmail.ui.View.HelpView import HelpView
             view = HelpView(message.author.id)
             embed = view.generate_embed()
+
+        elif action == "STOCK_MONITOR_HOME":
+            embed, view = StockDashboardView.create_dashboard(self.bot, message.author.id)
+
+        elif action == "STOCK_PROFIT_DETAIL":
+            stocks = Stock_Manager.get_user_stocks(message.author.id)
+            if not stocks:
+                content = "⚠️ 你的監控清單目前是空的。"
+            else:
+                from cogs.Stock.ui.View.StockListView import StockListView
+                embed, view = await StockListView.create_ui(self.bot, message.author.id, message.author.name)
+
+        elif action == "ADD_STOCK_MONITOR_EMPTY":
+            from cogs.Stock.ui.Button.StockAddBtn import StockAddBtn
+            view = ActionHandler.get_button_view(StockAddBtn(self.bot))
+            
+        elif action == "ADD_STOCK_MONITOR_WITH_DATA":
+            # - stock_code* (string) #股票代碼
+            # - share_quantity* (int) #持股數量
+            # - total_cost* (float) #總投入成本(含手續費)
+            # - rise_alert_percent (int) #漲幅預警(%)
+            # - fall_alert_percent (int) #跌幅預警(%)
+            from cogs.Stock.ui.Modal.StockAddModal import StockAddModal
+            error_msg = await StockAddModal.check(
+                data.get("stock_code"),
+                data.get("share_quantity"),
+                data.get("total_cost"),
+                data.get("rise_alert_percent"),
+                data.get("fall_alert_percent"),
+                message.author.id,
+                message.author.name
+            )
+            if error_msg:
+                content = error_msg
+            else:
+                embed, view = StockDashboardView.create_dashboard(self.bot, message.author.id)
+                embed.title = "✅ 新增成功！"
+                
+        elif action == "REMOVE_STOCK_MONITOR":
+            # - stock_code (string) #股票代碼
+            stock_code = data.get("stock_code")
+            stocks = Stock_Manager.get_user_stocks(message.author.id)
+            if not stocks:
+                content = "您目前沒有監控任何股票，無法執行刪除操作！"
+            elif not stock_code:
+                from cogs.Stock.ui.View.StockDeleteView import StockDeleteView
+                embed, view = StockDeleteView.create_ui(self.bot, message.author.id)
+            else:
+                from cogs.Stock.ui.Select.StockDeleteSelect import StockDeleteSelect
+                embed, view = StockDeleteSelect.create_dashboard(self.bot, message.author.id, stock_code)
+            
+        elif action == "QUICK_STOCK_QUERY":
+            # - stock_code (string) #股票代碼
+            stock_code = data.get("stock_code")
+            if not stock_code:
+                from cogs.Stock.ui.Button.StockQueryBtn import StockQueryBtn
+                view = ActionHandler.get_button_view(StockQueryBtn(self.bot))
+            else:
+                from cogs.Stock.ui.Modal.StockQueryModal import StockQueryModal
+                embed, view = await StockQueryModal.create_dashboard(self.bot, message.author.id, stock_code)
 
         elif action == "CHAT":
             # - message* (string)

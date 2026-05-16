@@ -54,6 +54,21 @@
     - app_password* (string) #Google 應用程式密碼（16位）
   - GMAIL_SETUP_GUIDE #Gmail 設置與 AI 分類教學
 
+### 股票監控
+  - STOCK_MONITOR_HOME #股票監控 主頁面
+  - STOCK_PROFIT_DETAIL #查看即時股價、持股損益與投資報酬率明細
+  - ADD_STOCK_MONITOR_EMPTY #新增股票監控 無資料
+  - ADD_STOCK_MONITOR_WITH_DATA #新增股票監控 有資料
+    - stock_code* (string) #股票代碼
+    - share_quantity* (int) #持股數量
+    - total_cost* (float) #總投入成本(含手續費)
+    - rise_alert_percent (int) #漲幅預警(%)
+    - fall_alert_percent (int) #跌幅預警(%)
+  - REMOVE_STOCK_MONITOR #移除股票監控
+    - stock_code (string) #股票代碼
+  - QUICK_STOCK_QUERY #快速查詢特定股票
+    - stock_code (string) #股票代碼
+  
 ### Other
 - CHAT #有必要資訊不足時使用 如果action有CHAT時 請把其他動作用memory存 CHAT不可和其他action並存
   - message* (string) #想告訴使用者的話或提示

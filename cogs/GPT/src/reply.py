@@ -46,7 +46,7 @@ class ReplyCog(commands.Cog):
                     "channel_name": message.channel.name}
         
         with SessionLocal() as db:
-            if self.active and (message.guild or message.channel.id == get_botsettings(BotSettings.gpt_channel_id, db, message.guild.id)):
+            if self.active and (message.guild or message.channel.id == get_botsettings(BotSettings.gpt_channel_id, message.guild.id, db)):
                 # can talk
                 messages = []
                 

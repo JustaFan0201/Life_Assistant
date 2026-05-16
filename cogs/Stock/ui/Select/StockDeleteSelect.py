@@ -17,22 +17,26 @@ class StockDeleteSelect(ui.Select):
         
         try:
             symbol = self.values[0]
-            
-            success, res_name = Stock_Manager.delete_stock(interaction.user.id, symbol)
-            
-            from cogs.Stock.ui.View.StockDeleteView import StockDeleteView
-            embed_new, view_new = StockDeleteView.create_ui(self.bot, interaction.user.id)
-            
-            if success:
-                embed_new.title = "✅ 移除成功"
-                embed_new.description = f"已成功從清單移除：**{res_name} ({symbol})**\n{'-'*30}\n{embed_new.description}"
-                embed_new.color = discord.Color.green()
-            else:
-                embed_new.title = "❌ 移除失敗"
-                embed_new.description = f"錯誤原因：{res_name}\n\n" + embed_new.description
+            embed, view = StockDeleteSelect.create_dashboard(self.bot, interaction.user.id, symbol)
                 
-            await interaction.edit_original_response(embed=embed_new, view=view_new)
+            await interaction.edit_original_response(embed=embed, view=view)
                 
         except Exception as e:
             print(f"❌ StockDeleteSelect 錯誤: {e}")
             await interaction.followup.send(f"❌ 執行錯誤: {e}", ephemeral=True)
+    
+    @staticmethod
+    def create_dashboard(bot, user_id, symbol):
+        success, res_name = Stock_Manager.delete_stock(user_id, symbol)
+        from cogs.Stock.ui.View.StockDeleteView import StockDeleteView
+        embed_new, view_new = StockDeleteView.create_ui(bot, user_id)
+        
+        if success:
+            embed_new.title = "✅ 移除成功"
+            embed_new.description = f"已成功從清單移除：**{res_name} ({symbol})**\n{'-'*30}\n{embed_new.description}"
+            embed_new.color = discord.Color.green()
+        else:
+            embed_new.title = "❌ 移除失敗"
+            embed_new.description = f"錯誤原因：{res_name}\n\n" + embed_new.description
+        
+        return embed_new, view_new

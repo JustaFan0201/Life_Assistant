@@ -30,14 +30,25 @@ class StockAddModal(ui.Modal, title="新增監控股票"):
     async def execute_logic(self, interaction: discord.Interaction) -> str:
         """執行校驗與存檔"""
         sym = self.symbol.value.strip().upper()
+        num_shares = int(self.shares.value) if self.shares.value.isdigit() else 0
+        cost_val = float(self.total_cost.value) if self.total_cost.value else 0.0
         
+        up = int(self.up_percent.value) if self.up_percent.value else None
+        down = int(self.down_percent.value) if self.down_percent.value else None
+
+        return await StockAddModal.check(sym, num_shares, cost_val, up, down, interaction.user.id, interaction.user.name)
+         
+        
+    @staticmethod
+    async def check(symbol: str, shares: int, total_cost: float, up_percent: int|None, down_percent: int|None, user_id, user_name):
+        sym = symbol.strip().upper()
         try:
-            num_shares = int(self.shares.value) if self.shares.value.isdigit() else 0
-            cost_val = float(self.total_cost.value) if self.total_cost.value else 0.0
+            num_shares = shares
+            cost_val = total_cost
             avg_price = cost_val / num_shares if num_shares > 0 else None
             
-            up = float(self.up_percent.value) / 100 if self.up_percent.value else None
-            down = float(self.down_percent.value) / 100 if self.down_percent.value else None
+            up = float(up_percent) / 100 if up_percent else None
+            down = float(down_percent) / 100 if down_percent else None
 
             # 串接 API 確認股票是否存在
             # 直接透過 bot 獲取 cog 的 lock，不額外宣告變數
@@ -52,7 +63,7 @@ class StockAddModal(ui.Modal, title="新增監控股票"):
                 'total_cost': cost_val, 'buy_price': avg_price, 'up': up, 'down': down
             }
             
-            Stock_Manager.add_stock(interaction.user.id, interaction.user.name, data)
+            Stock_Manager.add_stock(user_id, user_name, data)
             
             return None 
             
