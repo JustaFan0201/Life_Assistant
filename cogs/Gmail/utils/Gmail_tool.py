@@ -85,7 +85,7 @@ class EmailTools:
             # 判斷是否為密碼錯誤
             err_msg = str(e).upper()
             if "AUTHENTICATION FAILED" in err_msg or "INVALID CREDENTIALS" in err_msg or "AUTH_FAILED" in err_msg:
-                print(f"❌ [EmailTools] 使用者 {self.user} 驗證失敗 (密碼錯誤)")
+                print(f"[EmailTools] 使用者 {self.user} 驗證失敗 (密碼錯誤)")
                 raise ValueError("AUTH_FAILED") # 丟給 Cog 處理停用與通知
             
             print(f"⚠️ [EmailTools] 使用者 {self.user} 抓取發生其他錯誤: {e}")

@@ -17,10 +17,9 @@ class Gmail(commands.Cog):
     async def test_check_mail(self):
         await self.bot.wait_until_ready()
         try:
-            # 僅抓取目前處於「啟用」狀態的使用者 ID
+            # 目前資料庫中所有綁定信箱的使用者 ID
             with self.db_manager.session() as session:
-                active_configs = session.query(EmailConfig).filter_by(is_active=True).all()
-                user_ids = [c.user_id for c in active_configs]
+                user_ids = [c.user_id for c in session.query(EmailConfig.user_id).all()]
         except Exception as e:
             print(f"[資料庫輪詢] 查詢設定失敗: {e}")
             return
@@ -31,8 +30,7 @@ class Gmail(commands.Cog):
         for user_id in user_ids:
             try:
                 user_config = EmailDatabaseManager.get_user_config(user_id)
-                # 再次檢查 config 存在且為啟用狀態
-                if not user_config or not user_config.get('is_active'): 
+                if not user_config: 
                     continue
 
                 user_email = user_config['email']
@@ -47,29 +45,41 @@ class Gmail(commands.Cog):
                 try:
                     new_emails, drift_fix_id = await tools.get_unread_emails(last_id)
                 except ValueError as ve:
-                    # 2. 核心邏輯：處理驗證失敗
+                    # 處理驗證失敗
                     if str(ve) == "AUTH_FAILED":
-                        # 立即停用資料庫中的狀態
-                        self.db_manager.set_user_active_status(user_id, status=False)
-                        print(f"🚫 [自動停用] 使用者 {user_email} 驗證失敗，已關閉收信功能。")
+                        print(f"[密碼錯誤] 使用者 {user_email} 驗證失敗。")
                         
                         # 發送私訊通知使用者
                         user = self.bot.get_user(int(user_id))
                         if user:
                             try:
                                 msg = (
-                                    f"⚠️ **Gmail 自動收信已停用**\n"
-                                    f"您的帳號 `{user_email}` 登入失敗（可能是帳號/密碼錯誤或授權失效）。\n"
-                                    f"請檢查您的「信箱帳號」及「應用程式專用密碼」後重新設定以恢復功能。"
+                                    f"⚠️ **Gmail 設定已被系統移除**\n"
+                                    f"您先前綁定的帳號 `{user_email}` 登入失敗（帳號/密碼錯誤或授權失效）。\n"
+                                    f"為了您的帳號安全，系統已**自動刪除**該筆錯誤的信箱設定。\n"
+                                    f"請檢查您的「應用程式專用密碼」後，重新使用指令綁定以恢復功能。"
                                 )
                                 await user.send(msg)
-                            except:
-                                print(f"❌ 無法私訊使用者 {user_id}")
-                        continue
+                                print(f"已私訊通知使用者 {user_id}")
+                            except Exception as dm_err:
+                                print(f"無法私訊使用者 {user_id}: {dm_err}")
+                        
+                        # 資料庫刪除該筆錯誤
+                        try:
+                            with self.db_manager.session() as session:
+                                config_to_delete = session.query(EmailConfig).filter_by(user_id=user_id).first()
+                                if config_to_delete:
+                                    session.delete(config_to_delete)
+                                    session.commit()
+                                    print(f"[資料刪除] 已強制移除使用者 {user_id} 的錯誤信箱設定")
+                        except Exception as db_err:
+                            print(f"刪除使用者資料庫紀錄時失敗: {db_err}")
+                            
+                        continue # 跳過該使用者後續的收信處理
                     raise ve
                 
                 except Exception as fetch_error:
-                    # 處理一般連線錯誤（不關閉功能，單次跳過）
+                    # 處理一般連線錯誤（如網路不穩、逾時），單次跳過，不刪除資料
                     print(f"⚠️ [EmailTools] 使用者 {user_email} 暫時性抓取失敗: {fetch_error}")
                     continue 
 
