@@ -94,7 +94,7 @@ class EmailTools:
             if imap_client:
                 try: 
                     await imap_client.logout()
-                except: 
+                except Exception:
                     pass
 
     def safe_decode(self, msg, header_name):
