@@ -25,7 +25,7 @@ async def on_ready():
     except Exception as e:
         print(f"同步斜線指令失敗: {e}")
 
-    with SessionLocal as db:
+    with SessionLocal() as db:
         for guild in bot.guilds:
             if not guild: continue
             notify_channel_id = get_botsettings(BotSettings.login_notify_channel_id, guild.id, db)
