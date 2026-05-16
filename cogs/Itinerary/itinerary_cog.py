@@ -42,8 +42,18 @@ class Itinerary(commands.Cog):
                 await user.send(embed=embed)
             else:
                 channel_id = settings.calendar_notify_channel_id if settings else None
-                channel = self.bot.get_channel(channel_id) if channel_id else None
+                channel = None
                 
+                if channel_id:
+                    try:
+                        channel_id = int(channel_id)
+                        channel = self.bot.get_channel(channel_id)
+
+                        if not channel:
+                            channel = await self.bot.fetch_channel(channel_id)
+                    except Exception as fetch_err:
+                        print(f"⚠️ 嘗試抓取頻道 {channel_id} 失敗: {fetch_err}")
+
                 if channel:
                     await channel.send(content=f"{user.mention} {content_prefix}", embed=embed)
                 else:
