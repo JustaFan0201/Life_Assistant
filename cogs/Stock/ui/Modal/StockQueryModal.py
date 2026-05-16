@@ -44,8 +44,15 @@ class StockQueryModal(ui.Modal, title="股票快速查詢"):
             # 建立結果 Embed
             price = info['lastPrice']
             pct = info['changePercent']
-            emoji = "🔺" if pct > 0 else "🟢" if pct < 0 else "⚪"
-            color = discord.Color.red() if pct > 0 else discord.Color.green() if pct < 0 else discord.Color.light_gray()
+            if pct > 0:
+                emoji = "🔺"
+                color = discord.Color.red()
+            elif pct < 0:
+                emoji = "🟢"
+                color = discord.Color.green()
+            else:
+                emoji = "⚪"
+                color = discord.Color.light_gray()
             
             embed = discord.Embed(
                 title=f"🔍 查詢結果：{info['name']} ({info['symbol']})",

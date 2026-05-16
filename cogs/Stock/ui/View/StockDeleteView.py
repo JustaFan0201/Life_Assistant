@@ -1,7 +1,7 @@
 import discord
 from cogs.BasicDiscordObject import LockableView
 from cogs.Stock.ui.Select.StockDeleteSelect import StockDeleteSelect
-from cogs.Stock.utils import Stock_Manager
+from cogs.Stock.utils import StockManager
 from cogs.Stock.ui.Button import StockBackToDashboardBtn
 class StockDeleteView(LockableView):
     def __init__(self, bot, user_id):
@@ -9,7 +9,7 @@ class StockDeleteView(LockableView):
         self.bot = bot
         self.user_id = user_id
         
-        stocks = Stock_Manager.get_user_stocks(user_id)
+        stocks = StockManager.get_user_stocks(user_id)
 
         if stocks:
             self.add_item(StockDeleteSelect(self.bot, stocks, self))
@@ -21,7 +21,7 @@ class StockDeleteView(LockableView):
         """
         靜態工廠方法：負責生成刪除介面的最新狀態
         """
-        stocks = Stock_Manager.get_user_stocks(user_id)
+        stocks = StockManager.get_user_stocks(user_id)
         
         if not stocks:
             desc = "您目前沒有監控任何股票，無法執行刪除操作！\n請點擊下方按鈕返回主畫面。"

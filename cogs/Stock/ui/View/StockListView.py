@@ -3,7 +3,7 @@ import asyncio
 import traceback
 from datetime import datetime
 from cogs.BasicDiscordObject import LockableView
-from cogs.Stock.utils import Stock_Manager, get_stock_quote, fugle_api_lock
+from cogs.Stock.utils import StockManager, get_stock_quote, fugle_api_lock
 from cogs.Stock.stock_config import FUGLE_TOKEN, TW_TZ
 
 class StockListView(LockableView):
@@ -21,7 +21,7 @@ class StockListView(LockableView):
     @staticmethod
     async def create_ui(bot, user_id: int, user_name: str):
         try:
-            stocks = Stock_Manager.get_user_stocks(user_id)
+            stocks = StockManager.get_user_stocks(user_id)
 
             if not stocks:
                 from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
@@ -42,7 +42,7 @@ class StockListView(LockableView):
                     pct = info['changePercent']
                     emoji = "🔺" if pct > 0 else "🟢" if pct < 0 else "⚪"
                     
-                    profit_data = Stock_Manager.calculate_profit(price, s.shares, s.total_cost)
+                    profit_data = StockManager.calculate_profit(price, s.shares, s.total_cost)
                     
                     if profit_data:
                         roi_str = (

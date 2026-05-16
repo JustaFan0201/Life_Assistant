@@ -1,7 +1,7 @@
 import discord
 from cogs.BasicDiscordObject import LockableView
 from cogs.System.ui.Button import BackToMainButton
-from cogs.Stock.utils import Stock_Manager
+from cogs.Stock.utils import StockManager
 
 class StockDashboardView(LockableView):
     def __init__(self, bot, user_id):
@@ -28,7 +28,7 @@ class StockDashboardView(LockableView):
         靜態工廠方法：負責從資料庫抓取數據並生成 Embed 與 View
         """
 
-        stocks = Stock_Manager.get_user_stocks(user_id)
+        stocks = StockManager.get_user_stocks(user_id)
         
         embed = discord.Embed(
             title="📈 股票監控中心",

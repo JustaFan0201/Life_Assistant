@@ -7,7 +7,7 @@ from datetime import datetime
 
 # 導入配置與自定義工具
 from cogs.Stock.stock_config import MARKET_OPEN, MARKET_CLOSE, REPORT_TIME, FUGLE_TOKEN, TW_TZ
-from cogs.Stock.utils import Stock_Manager, get_stock_quote,fugle_api_lock
+from cogs.Stock.utils import StockManager, get_stock_quote,fugle_api_lock
 
 class Stock(commands.Cog):
     def __init__(self, bot):
@@ -45,7 +45,7 @@ class Stock(commands.Cog):
 
         try:
             # 🌟 [修改] 改用 Manager API 獲取資料
-            watches = Stock_Manager.get_alert_watches()
+            watches = StockManager.get_alert_watches()
             
             for watch in watches:
                 async with fugle_api_lock:
@@ -68,7 +68,7 @@ class Stock(commands.Cog):
                         await self.send_dm(watch['user_id'], alert_msg)
                         
                         # 🌟 [修改] 改用 Manager API 執行更新操作
-                        Stock_Manager.update_notified_price(watch['user_id'], watch['stock_symbol'], curr_price)
+                        StockManager.update_notified_price(watch['user_id'], watch['stock_symbol'], curr_price)
                 
                 # 免費版限流：每支股票請求後強制暫停
                 await asyncio.sleep(1.1) 

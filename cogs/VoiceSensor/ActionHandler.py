@@ -5,7 +5,7 @@ from datetime import datetime
 from config import TW_TZ
 from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
 from cogs.Gmail.utils import EmailDatabaseManager
-from cogs.Stock.utils import Stock_Manager
+from cogs.Stock.utils import StockManager
 from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
             
             
@@ -208,7 +208,7 @@ class ActionHandler:
             embed, view = StockDashboardView.create_dashboard(self.bot, message.author.id)
 
         elif action == "STOCK_PROFIT_DETAIL":
-            stocks = Stock_Manager.get_user_stocks(message.author.id)
+            stocks = StockManager.get_user_stocks(message.author.id)
             if not stocks:
                 content = "⚠️ 你的監控清單目前是空的。"
             else:
@@ -244,7 +244,7 @@ class ActionHandler:
         elif action == "REMOVE_STOCK_MONITOR":
             # - stock_code (string) #股票代碼
             stock_code = data.get("stock_code")
-            stocks = Stock_Manager.get_user_stocks(message.author.id)
+            stocks = StockManager.get_user_stocks(message.author.id)
             if not stocks:
                 content = "您目前沒有監控任何股票，無法執行刪除操作！"
             elif not stock_code:

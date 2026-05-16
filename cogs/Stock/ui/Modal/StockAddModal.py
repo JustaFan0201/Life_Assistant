@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from cogs.Stock.utils import get_stock_quote,Stock_Manager,fugle_api_lock
+from cogs.Stock.utils import get_stock_quote,StockManager,fugle_api_lock
 from cogs.Stock.stock_config import FUGLE_TOKEN
 
 class StockAddModal(ui.Modal, title="新增監控股票"):
@@ -63,7 +63,7 @@ class StockAddModal(ui.Modal, title="新增監控股票"):
                 'total_cost': cost_val, 'buy_price': avg_price, 'up': up, 'down': down
             }
             
-            Stock_Manager.add_stock(user_id, user_name, data)
+            StockManager.add_stock(user_id, user_name, data)
             
             return None 
             
