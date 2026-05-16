@@ -112,7 +112,7 @@ class ActionHandler:
             property_names = ["description", "year", "month", "day", "hour", "minute", "is_private"]
             description, year, month, day, hour, minute, is_private = (data.get(x) for x in property_names)
             if not minute: minute=0
-            if not is_private: is_private=1
+            if is_private is None: is_private=1
             year, month, day, hour = int(year), int(month), int(day), int(hour)
             event_time = datetime(year, month, day, hour, minute, tzinfo=TW_TZ)
             clean_time = event_time.replace(tzinfo=None, second=0, microsecond=0)
@@ -123,7 +123,7 @@ class ActionHandler:
                 user_name=message.author.name,
                 event_time=clean_time, 
                 description=description,
-                is_private=is_private
+                is_private= (is_private == 1)
             )
 
             if not success:

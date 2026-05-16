@@ -1,5 +1,6 @@
 import discord
 from discord import ui
+import traceback
 
 class GoToGmailButton(ui.Button):
     def __init__(self, bot):
@@ -12,28 +13,17 @@ class GoToGmailButton(ui.Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
         try:
-            gmail_cog = self.bot.get_cog("Gmail")
-            user_id = interaction.user.id
+            from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
             
-            if gmail_cog:
-                from cogs.Gmail.ui.View.GmailDashboardView import GmailDashboardView
-                embed, view = GmailDashboardView.create_ui(user_id)
-                
-                if not interaction.response.is_done():
-                    await interaction.response.edit_message(embed=embed, view=view)
-                else:
-                    await interaction.edit_original_response(embed=embed, view=view)
-            else:
-                if not interaction.response.is_done():
-                    await interaction.response.send_message("❌ 錯誤：找不到 Gmail 模組。", ephemeral=True)
-                else:
-                    await interaction.followup.send("❌ 錯誤：找不到 Gmail 模組。", ephemeral=True)
+            embed, view = GmailDashboardView.create_ui(interaction.user.id)
+
+            await interaction.edit_original_response(embed=embed, view=view)
 
         except Exception as e:
+            print(f"❌ Gmail 儀表板跳轉失敗: {e}")
+            traceback.print_exc()
             
-            error_msg = f"系統發生錯誤，請查看終端機日誌。({e})"
-            if not interaction.response.is_done():
-                await interaction.response.send_message(error_msg, ephemeral=True)
-            else:
-                await interaction.followup.send(error_msg, ephemeral=True)
+            await interaction.followup.send(f"❌ 系統發生錯誤，請查看終端機日誌。({e})", ephemeral=True)
