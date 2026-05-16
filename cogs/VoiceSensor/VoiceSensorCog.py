@@ -8,7 +8,7 @@ from database.db_utils import get_mem
 
 REPORT_TIME = time(hour=0, minute=0, tzinfo=TW_TZ)
 
-LISTEN_FLAG = False
+LISTEN_FLAG = True
 
 class VoiceSensorCog(commands.Cog):
     def __init__(self, bot):
