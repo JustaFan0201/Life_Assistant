@@ -123,7 +123,7 @@ class ActionHandler:
                 user_name=message.author.name,
                 event_time=clean_time, 
                 description=description,
-                is_private=is_private
+                is_private=True if is_private == 1 else False
             )
 
             if not success:
