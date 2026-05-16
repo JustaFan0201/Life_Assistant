@@ -34,7 +34,7 @@ async def on_ready():
                 try:
                     target_id = int(notify_channel_id)
                     channel = await bot.fetch_channel(target_id)
-                    
+                
                     msg = f"🟢 **Bot 已上線！**\n時間：`{now}`"
                     await channel.send(msg)
                     print(f"✅ 上線通知已發送至頻道: {channel.name} (ID: {channel.id})")

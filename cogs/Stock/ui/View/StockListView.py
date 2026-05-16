@@ -74,3 +74,36 @@ class StockListView(LockableView):
             print(f"❌ StockListView.create_ui 發生錯誤: {e}")
             traceback.print_exc()
             return None, None
+        
+    @classmethod
+    async def load_and_render_ui(cls, interaction: discord.Interaction, bot):
+        """共用的 UI 渲染與異常處理解決方案 (徹底消滅按鈕間的重複代碼)"""
+        loading_embed = discord.Embed(
+            title=f"📊 {interaction.user.name} 的投資清單", 
+            description="⏳ 正在向 Fugle API 獲取最新行情，請稍候...\n(受限於免費版 API，每檔股票需等待 1.1 秒)",
+            color=discord.Color.blue()
+        )
+        
+        if not interaction.response.is_done():
+            await interaction.response.edit_message(embed=loading_embed, view=None)
+        else:
+            await interaction.edit_original_response(embed=loading_embed, view=None)
+        try:
+            embed, view = await cls.create_ui(
+                bot=bot, 
+                user_id=interaction.user.id, 
+                user_name=interaction.user.name
+            )
+
+            if embed and view:
+                await interaction.edit_original_response(content=None, embed=embed, view=view)
+            else:
+                err_embed = discord.Embed(title="❌ 獲取資料失敗", description="請稍後再試。", color=discord.Color.red())
+                await interaction.edit_original_response(embed=err_embed, view=None)
+                
+        except Exception as e:
+            import logging
+            logging.getLogger("discord").exception("❌ 股票看板渲染執行崩潰")
+            
+            err_embed = discord.Embed(title="❌ 系統異常", description=f"發生錯誤：{e}", color=discord.Color.red())
+            await interaction.edit_original_response(embed=err_embed, view=None)
