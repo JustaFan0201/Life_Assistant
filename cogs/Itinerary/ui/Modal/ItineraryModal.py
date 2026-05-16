@@ -43,7 +43,7 @@ class ItineraryModal(ValidatedModal):
         self.add_item(self.time_input)
         self.add_item(self.content_input)
 
-    async def execute_logic(self, interaction: discord.Interaction) -> str:
+    async def execute_logic(self, interaction: discord.Interaction) -> str| None:
         try:
             year = int(self.time_data.get('year'))
             month = int(self.time_data.get('month'))

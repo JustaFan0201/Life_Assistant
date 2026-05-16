@@ -27,7 +27,7 @@ class StockAddModal(ui.Modal, title="新增監控股票"):
             embed.title = "✅ 新增成功！"
             await interaction.edit_original_response(embed=embed, view=view)
 
-    async def execute_logic(self, interaction: discord.Interaction) -> str:
+    async def execute_logic(self, interaction: discord.Interaction) -> str | None:
         """執行校驗與存檔"""
         sym = self.symbol.value.strip().upper()
         num_shares = int(self.shares.value) if self.shares.value.isdigit() else 0

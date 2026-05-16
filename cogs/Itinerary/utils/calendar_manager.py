@@ -7,7 +7,7 @@ from config import TW_TZ
 
 class CalendarDatabaseManager:
     def __init__(self, session_factory):
-        self.Session = session_factory
+        self.session = session_factory
 
     @staticmethod
     @with_db_decorator
@@ -71,7 +71,7 @@ class CalendarDatabaseManager:
     
     def get_event_days_for_month(self, user_id: int, year: int, month: int) -> list:
         """回傳指定月份中，有行程的日期清單 (去除重複)"""
-        with self.Session() as session:
+        with self.session() as session:
             # 取得該使用者的所有行程 (簡單過濾，詳細交給 Python 處理以避開 SQLite 複雜的時間語法)
             events = session.query(CalendarEvent).filter_by(user_id=user_id).all()
             
