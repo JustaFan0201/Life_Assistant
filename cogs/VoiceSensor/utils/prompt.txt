@@ -82,15 +82,13 @@
     {
       "action": "DELETE_CATEGORY",
       "data": {},
-      "missing_fields": []
     },
     {
       "action": "CREATE_CATEGORY_WITH_DATA",
       "data": {
         "category_name": "消費",
         "fields": ["金額", "次數"]
-      },
-      "missing_fields": ["subcategories"]
+      }
     }
   ]
 }
@@ -100,9 +98,9 @@
 ## 判斷規則
 
 1. 資訊完整 → 填 data
-2. 資訊不足 → 填 missing_fields
+2. 資訊不足 → 使用 CHAT 詢問
 3. 不要猜測未提供資訊
-4. missing_fields > 0 時仍可回傳 action，但 data 可能是空
+4. 缺少重要資訊 (資料名稱後有*) 時 一定得 CHAT 不可回傳其它action
 
 ---
 

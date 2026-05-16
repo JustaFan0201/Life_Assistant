@@ -28,7 +28,6 @@ class ActionHandler:
 
         action = step.get("action")
         data = step.get("data", {})
-        missing = step.get("missing_fields", [])
         print(f"action = {action}")
         # # ❗1️⃣ 缺資料 → 進 UI flow
         # if missing:
