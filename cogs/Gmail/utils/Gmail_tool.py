@@ -107,7 +107,7 @@ class EmailTools:
             if isinstance(content, bytes):
                 try:
                     decoded_parts.append(content.decode(encoding or "utf-8", errors="replace"))
-                except:
+                except Exception:
                     decoded_parts.append(content.decode("latin1", errors="replace"))
             else:
                 decoded_parts.append(str(content))
@@ -125,28 +125,40 @@ class EmailTools:
         text = re.sub(r'\n{3,}', '\n\n', text)
         return text.strip()
 
-    def _get_body(self, msg):
+    def _parse_multipart_body(self, msg):
+        """專門處理 multipart 郵件的輔助函數 (降低主要函數的認知複雜度)"""
         body = ""
         is_html = False
         
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            if "attachment" in str(part.get("Content-Disposition")):
+                continue
+                
+            if content_type == "text/plain":
+                payload = part.get_payload(decode=True)
+                charset = part.get_content_charset() or "utf-8"
+                body = payload.decode(charset, errors="replace")
+                is_html = False
+                break 
+                
+            elif content_type == "text/html":
+                payload = part.get_payload(decode=True)
+                charset = part.get_content_charset() or "utf-8"
+                body = payload.decode(charset, errors="replace")
+                is_html = True
+                
+        return body, is_html
+
+
+    def _get_body(self, msg):
+        """主要獲取郵件內文的函數"""
+        body = ""
+        is_html = False
+        
+        # 將原本沉重的巢狀邏輯抽離
         if msg.is_multipart():
-            for part in msg.walk():
-                content_type = part.get_content_type()
-                if "attachment" in str(part.get("Content-Disposition")):
-                    continue
-                    
-                if content_type == "text/plain":
-                    payload = part.get_payload(decode=True)
-                    charset = part.get_content_charset() or "utf-8"
-                    body = payload.decode(charset, errors="replace")
-                    is_html = False
-                    break 
-                    
-                elif content_type == "text/html":
-                    payload = part.get_payload(decode=True)
-                    charset = part.get_content_charset() or "utf-8"
-                    body = payload.decode(charset, errors="replace")
-                    is_html = True
+            body, is_html = self._parse_multipart_body(msg)
         else:
             payload = msg.get_payload(decode=True)
             charset = msg.get_content_charset() or "utf-8"
@@ -154,6 +166,7 @@ class EmailTools:
             if msg.get_content_type() == "text/html":
                 is_html = True
         
+        # 後續的 HTML 清理與長度限制邏輯維持不變
         if is_html or "<html" in body.lower() or "<body" in body.lower():
             body = self._clean_html_to_text(body)
         
