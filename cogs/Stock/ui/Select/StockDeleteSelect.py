@@ -1,6 +1,6 @@
 import discord
 from discord import ui
-from cogs.Stock.utils import Stock_Manager
+from cogs.Stock.utils import StockManager
 
 class StockDeleteSelect(ui.Select):
     def __init__(self, bot, stocks, parent_view):
@@ -27,7 +27,7 @@ class StockDeleteSelect(ui.Select):
     
     @staticmethod
     def create_dashboard(bot, user_id, symbol):
-        success, res_name = Stock_Manager.delete_stock(user_id, symbol)
+        success, res_name = StockManager.delete_stock(user_id, symbol)
         from cogs.Stock.ui.View.StockDeleteView import StockDeleteView
         embed_new, view_new = StockDeleteView.create_ui(bot, user_id)
         

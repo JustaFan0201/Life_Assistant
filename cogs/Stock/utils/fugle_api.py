@@ -37,5 +37,5 @@ def get_stock_quote(symbol: str, token: str) -> dict:
             return {}
             
     except Exception as e:
-        logger.error(f"❌ 請求異常: {e}")
+        logger.exception(f"❌ 請求異常: {e}")
         return {}

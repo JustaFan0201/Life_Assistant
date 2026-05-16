@@ -2,7 +2,7 @@ from database.models import UserStockWatch, User
 from database import SessionLocal
 from cogs.Stock.stock_config import TOTAL_SELL_COST_RATE
 
-class Stock_Manager:
+class StockManager:
     @staticmethod
     def get_user_stocks(user_id):
         """獲取使用者的所有監控股票"""
