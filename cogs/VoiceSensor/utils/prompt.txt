@@ -51,7 +51,7 @@
 ### 行程管理
   - CREATE_ITINERARY_EMPTY #新增行程 無資料
   - CREATE_ITINERARY_WITH_DATA #新增行程 有資料
-    - description* (string) #行程內容
+    - description* (string) #行程內容(名稱)
     - year* (int)
     - month* (int)
     - day* (int)

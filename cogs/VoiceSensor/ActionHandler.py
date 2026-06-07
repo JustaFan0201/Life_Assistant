@@ -10,8 +10,8 @@ from cogs.Stock.ui.View.StockDashboardView import StockDashboardView
 import asyncio
 from database.models import TrackerCategory, TrackerSubCategory
 
-DEBUG = True
-            
+DEBUG = False
+  
 class ActionHandler:
     def __init__(self, bot):
         self.bot = bot
